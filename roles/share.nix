@@ -19,28 +19,26 @@ in {
       securityType = "user";
       openFirewall = true;
       extraConfig = ''
-        WORKGROUP = WORKGROUP
+        workgroup = WORKGROUP
         server string = ${cfg.hostname}
         netbios name = ${cfg.hostname}
         hosts allow = 192.168.0. 127.0.0.1 localhost
         hosts deny = 0.0.0.0/0
-        client min protocol = CORE
-        client max protocol = SMB3
+        client min protocol = NT1
+        server min protocol = NT1
         guest account = nobody
       '';
 
       shares = {
         TimeMachine = mkIf cfg.enableTimeMachine {
-          "vfs objects" = "catia fruit streams_xattr";
-          "fruit:time machine" = "yes";
-          "fruit:time machine max size" = "1024G";
-          comment = "Time Machine Backup";
           path = "/mnt/storage/TimeMachine";
-          available = "yes";
           "valid users" = "o__ni";
-          browseable = "yes";
-          "guest ok" = "no";
-          writable = "yes";
+          public = "no";
+          writeable = "yes";
+          "force user" = "o__ni";
+          "fruit:aapl" = "yes";
+          "fruit:time machine" = "yes";
+          "vfs objects" = "catia fruit streams_xattr";
         };
 
         Public = {
@@ -71,8 +69,7 @@ in {
 
     services.avahi = {
       enable = true;
-      nssmdns4 = true;
-      nssmdns6 = false;
+      nssmdns = true; # deprecated, but new options doesn't work for me (wtf? idk)
       publish = {
         enable = true;
         userServices = true;

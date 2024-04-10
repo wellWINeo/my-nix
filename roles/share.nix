@@ -57,6 +57,9 @@ in {
           writable = "yes";
           "create mask" = "0644";
           "directory mask" = "0755";
+          "fruit:aapl" = "yes";
+          "fruit:time machine" = "yes";
+          "vfs objects" = "catia fruit streams_xattr";
         };
       };
     };
@@ -91,7 +94,7 @@ in {
             </service>
             <service>
               <type>_adisk._tcp</type>
-              <txt-record>dk0=adVN=timemachine,adVF=0x82</txt-record>
+              <txt-record>dk0=adVN=TimeMachine,adVF=0x82</txt-record>
               <txt-record>sys=waMa=0,adVF=0x100</txt-record>
             </service>
           </service-group>

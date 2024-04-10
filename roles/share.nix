@@ -52,6 +52,7 @@ in {
 
         Homes = {
           comment = "Home directories";
+          path = "/mnt/storage/Homes";
           "valid users" = "%S";
           browseable = "yes";
           writable = "yes";

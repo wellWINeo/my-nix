@@ -24,7 +24,7 @@ in {
     firewall = {
       enable = true;
       allowPing = true;
-    }
+    };
   };
 
   roles.share = {

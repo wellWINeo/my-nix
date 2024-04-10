@@ -22,6 +22,9 @@ in {
         WORKGROUP = WORKGROUP
         server string = ${cfg.hostname}
         netbios name = ${cfg.hostname}
+        client min protocol = CORE
+        client max protocol = SMB3
+        guest account = nobody
       '';
 
       shares = {
@@ -96,5 +99,7 @@ in {
         '';
       };
     };
+
+    networking.firewall.extraCommands = ''iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns'';
   };
 }

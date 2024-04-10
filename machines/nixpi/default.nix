@@ -11,6 +11,10 @@ in {
   networking = {
     hostName = hostname;
     wireless.enable = false;    
+    firewall = {
+      enable = true;
+      allowPing = true;
+    }
   };
 
   roles.share = {

@@ -22,6 +22,8 @@ in {
         WORKGROUP = WORKGROUP
         server string = ${cfg.hostname}
         netbios name = ${cfg.hostname}
+        hosts allow = 192.168.0. 127.0.0.1 localhost
+        hosts deny = 0.0.0.0/0
         client min protocol = CORE
         client max protocol = SMB3
         guest account = nobody

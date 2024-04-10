@@ -15,6 +15,8 @@ in {
     description = "Stepan Uspenskiy";
     extraGroups = [ "users" "wheel" ];
     packages = with pkgs; [
+      git
+      gnupg
       neofetch
       neovim
       htop

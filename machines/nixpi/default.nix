@@ -8,6 +8,16 @@ in {
     ../../hardware/rpi4.nix
   ];
 
+  environment.systemPackages = with pkgs; [
+    gnumake
+    pinentry-curses
+  ];
+
+  programs.gnupg.agent = {
+		enable = true;
+		pinentryPackage = pkgs.pinentry-curses;
+	};
+
   networking = {
     hostName = hostname;
     wireless.enable = false;    

@@ -20,6 +20,7 @@ in {
         incomplete-dir = "${baseDir}/Incomplete";
         download-dir = "${baseDir}/Downloads";
         rpc-bind-address = "0.0.0.0";
+        rpc-whitelist = "127.0.0.1,192.168.0.*";
       };
     };
   };

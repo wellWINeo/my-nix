@@ -6,6 +6,7 @@ in {
   imports = [ 
     ../../roles/share.nix
     ../../roles/media.nix
+    ../../roles/torrent.nix
     ../../hardware/rpi4.nix
   ];
 
@@ -35,6 +36,7 @@ in {
   };
 
   roles.media.enable = true;
+  roles.torrent.enable = true;
 
   services.openssh.enable = true;
 

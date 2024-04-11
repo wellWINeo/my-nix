@@ -30,8 +30,9 @@ in {
       '';
 
       shares = {
-        TimeMachine = mkIf cfg.enableTimeMachine {
-          path = "/mnt/storage/TimeMachine";
+        Backups = mkIf cfg.enableTimeMachine {
+          comment = "Backups share";
+          path = "/mnt/storage/Backups";
           "valid users" = "o__ni";
           public = "no";
           writeable = "yes";
@@ -42,7 +43,8 @@ in {
         };
 
         Public = {
-          path = "/mnt/Shares/Public";
+          comment = "Public share";
+          path = "/mnt/storage/Public";
           browseable = "yes";
           "read only" = "no";
           "guest ok" = "yes";
@@ -54,7 +56,7 @@ in {
 
         Homes = {
           comment = "Home directories";
-          path = "/mnt/storage/Homes";
+          path = "/mnt/storage/Homes/%S";
           "valid users" = "%S";
           browseable = "yes";
           writable = "yes";
@@ -75,7 +77,8 @@ in {
 
     services.avahi = {
       enable = true;
-      nssmdns = true; # deprecated, but new options doesn't work for me (wtf? idk)
+      nssmdns4 = true;
+      nssmdns6 = true;
       publish = {
         enable = true;
         userServices = true;

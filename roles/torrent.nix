@@ -15,6 +15,7 @@ in {
     services.transmission = {
       enable = true;
       openFirewall = true;
+      openRPCPort = true;
       settings = {
         incomplete-dir = "${baseDir}/Incomplete";
         download-dir = "${baseDir}/Downloads";

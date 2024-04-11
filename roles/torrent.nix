@@ -18,6 +18,7 @@ in {
       settings = {
         incomplete-dir = "${baseDir}/Incomplete";
         download-dir = "${baseDir}/Downloads";
+        rpc-bind-address = "0.0.0.0";
       };
     };
   };

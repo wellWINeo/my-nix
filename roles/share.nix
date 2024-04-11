@@ -1,3 +1,5 @@
+# Samba share with wsdd and avahi
+
 { config, pkgs, lib, ... }:
 with lib;
 

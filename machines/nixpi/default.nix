@@ -5,6 +5,7 @@ let
 in {
   imports = [ 
     ../../roles/share.nix
+    ../../roles/media.nix
     ../../hardware/rpi4.nix
   ];
 
@@ -32,6 +33,8 @@ in {
     enable = true;
     enableTimeMachine = true;
   };
+
+  roles.media.enable = true;
 
   services.openssh.enable = true;
 

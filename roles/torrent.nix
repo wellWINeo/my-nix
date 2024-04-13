@@ -16,6 +16,9 @@ in {
       enable = true;
       openFirewall = true;
       openRPCPort = true;
+      downloadDirPermissions = "777";
+      user = "nobody";
+      group = "nogroup";
       settings = {
         incomplete-dir = "${baseDir}/Incomplete";
         download-dir = "${baseDir}/Downloads";

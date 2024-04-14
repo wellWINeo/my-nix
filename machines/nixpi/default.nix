@@ -40,6 +40,8 @@ in {
     };
   };
 
+  swapDevices = [ { device = "/swap/swapfile"; } ];
+
   services.btrfs.autoScrub = {
     enable = true;
     interval = "weekly";

@@ -12,18 +12,5 @@
     };
   };
 
-  fileSystems = {
-    "/" = {
-      device = "/dev/disk/by-label/NIXOS_SD";
-      fsType = "ext4";
-      options = [ "noatime" ];
-    };
-
-    "/mnt/storage" = {
-      device = "/dev/disk/by-label/STORAGE";
-      fsType = "btrfs";
-    };
-  };
-
   hardware.enableRedistributableFirmware = true;
 }

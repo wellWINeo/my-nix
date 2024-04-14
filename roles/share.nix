@@ -50,8 +50,8 @@ in {
           browseable = "yes";
           "read only" = "no";
           "guest ok" = "yes";
-          "create mask" = "0644";
-          "directory mask" = "0755";
+          "create mask" = "0666";
+          "directory mask" = "0777";
           "force user" = "nobody";
           "force group" = "nogroup";
         };

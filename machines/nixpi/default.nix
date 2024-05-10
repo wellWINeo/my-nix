@@ -76,5 +76,9 @@ in {
 
   services.openssh.enable = true;
 
+  services.journald = {
+    storage = "volatile";
+  };
+
   system.stateVersion = "23.11";
 }

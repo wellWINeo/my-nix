@@ -2,7 +2,7 @@
   description = "o__ni's nix flake";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
   };
 

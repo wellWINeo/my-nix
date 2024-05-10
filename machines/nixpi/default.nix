@@ -17,7 +17,12 @@ in {
 
   programs.gnupg.agent = {
 		enable = true;
-		pinentryPackage = pkgs.pinentry-curses;
+
+    # available in nixos-unstable
+		#pinentryPackage = pkgs.pinentry-curses;
+
+    # for nixos 23.11
+    pinentryFlavor = "curses";
 	};
 
   fileSystems = {

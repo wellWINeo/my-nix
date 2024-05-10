@@ -79,8 +79,15 @@ in {
 
     services.avahi = {
       enable = true;
-      nssmdns4 = true;
-      nssmdns6 = true;
+
+      # nixos-unstable
+      # nssmdns4 = true;
+      # nssmdns6 = true;
+
+      # 23.11
+      ipv4 = true;
+      ipv6 = false;
+
       publish = {
         enable = true;
         userServices = true;

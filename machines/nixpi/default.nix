@@ -19,10 +19,10 @@ in {
 		enable = true;
 
     # available in nixos-unstable
-		#pinentryPackage = pkgs.pinentry-curses;
+		pinentryPackage = pkgs.pinentry-curses;
 
     # for nixos 23.11
-    pinentryFlavor = "curses";
+    # pinentryFlavor = "curses";
 	};
 
   fileSystems = {
@@ -80,5 +80,5 @@ in {
     storage = "volatile";
   };
 
-  system.stateVersion = "23.11";
+  system.stateVersion = "24.05";
 }

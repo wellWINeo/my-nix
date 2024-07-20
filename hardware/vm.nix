@@ -1,10 +1,13 @@
 # Configuration for Virtual Machine
-
-{ config, pkgs, lib, ... }:
-
 {
   boot = {
-    supportedFilesystems = [ "ext4" ];
-    loader.grub.device = "/dev/sda1";
+    loader = {
+      systemd-boot.enable = true;
+      efi.canTouchEfiVariables = true;
+    };
+
+    initrd.availableKernelModules = [ "sd_mod" "sr_mod" ];
   };
+
+  virtualisation.hypervGuest.enable = true;
 }

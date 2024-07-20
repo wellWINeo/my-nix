@@ -12,7 +12,9 @@ in {
     };
   };
 
-  networking.hostname = hostname;
+  networking.hostName = hostname;
 
   services.openssh.enable = true;
+
+  system.stateVersion = "24.05";
 }

@@ -15,13 +15,4 @@ in {
   networking.hostname = hostname;
 
   services.openssh.enable = true;
-
-  isoImage = {
-    iso = true;
-    grub = {
-      device = "nodev";
-      efiSupport = true;
-      enable = true;
-    };
-  };
 }

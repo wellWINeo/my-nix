@@ -7,22 +7,28 @@ in {
 
   fileSystems = {
     "/" = {
-      device = "/dev/disk/by-label/nixos";
+      device = "/dev/disk/by-label/NIXOS";
       fsType = "ext4";
-    };
-
-    "/boot" = {
-      device = "/dev/disk/by-label/boot";
-      fsType = "vfat";
-      options = [ "fmask=0777" "dmask=0777" ];
     };
   };
 
-  swapDevices = [ { device = "/dev/disk/by-label/swap"; } ];
+  swapDevices = [ { device = "/dev/disk/by-label/SWAP"; } ];
 
   networking = {
     hostName = hostname;
-    useDHCP = true;
+    useDHCP = false;
+    nameservers = [ "1.1.1.1" ];
+
+    interfaces.ens3 = {
+      ipv4.addresses = [ 
+        { address = "93.183.127.202"; prefixLength = 24; } 
+      ];
+    };
+
+    defaultGateway = {
+      address = "93.183.127.1";
+      interface = "ens3";
+    };
   };
 
   services.openssh.enable = true;

@@ -17,5 +17,14 @@
         ./users/o__ni
       ];
     };
+
+    nixosConfigurations."mokosh" = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      specialArgs = inputs;
+      modules = [
+        ./machines/mokosh
+        ./users/o__ni
+      ];
+    };
   };
 }

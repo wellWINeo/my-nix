@@ -3,7 +3,10 @@
 let
   hostname = "mokosh";
 in {
-  imports = [ ../../hardware/vm.nix ];
+  imports = [ 
+    ../../hardware/vm.nix
+    ../../roles/personal-website.nix
+  ];
 
   fileSystems = {
     "/" = {
@@ -39,6 +42,8 @@ in {
       PasswordAuthentication = false;
     };
   };
+
+  roles.personelWebsite.enable = true;
 
   system.stateVersion = "24.05";
 }

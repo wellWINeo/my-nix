@@ -1,12 +1,18 @@
 # Configuration for Virtual Machine
 {
   boot = {
-    loader = {
-      systemd-boot.enable = true;
-      efi.canTouchEfiVariables = true;
+    loader.grub = {
+      enable = true;
+      device = "/dev/vda";
     };
 
-    initrd.availableKernelModules = [ "sd_mod" "sr_mod" ];
+    initrd.availableKernelModules = [ 
+      "ata_piix"
+      "uhci_hcd"
+      "virtio_pci"
+      "sr_mod"
+      "virtio_blk"
+    ];
   };
 
   virtualisation.hypervGuest.enable = true;

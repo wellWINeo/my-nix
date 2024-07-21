@@ -18,6 +18,7 @@ in {
     hostName = hostname;
     useDHCP = false;
     nameservers = [ "1.1.1.1" ];
+    firewall.enable = true;
 
     interfaces.ens3 = {
       ipv4.addresses = [ 
@@ -31,7 +32,13 @@ in {
     };
   };
 
-  services.openssh.enable = true;
+  services.openssh = {
+    enable = true;
+    settings = {
+      PermitRootLogin = "no";
+      PasswordAuthentication = false;
+    };
+  };
 
   system.stateVersion = "24.05";
 }

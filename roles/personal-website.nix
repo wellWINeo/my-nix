@@ -18,12 +18,12 @@ in {
 
     services.nginx = {
       enable = true;
-      virtualHosts."uspenskiy.su" = {
-        root = "/var/www/uspenskiy.su";
+      virtualHosts."0.0.0.0" = {
+        root = "/etc/www/uspenskiy.su";
       };
     };
 
-    environment.etc."/var/www/uspenskiy.su".source = pkgs.fetchFromGitHub {
+    environment.etc."/www/uspenskiy.su".source = pkgs.fetchFromGitHub {
       owner = "wellWINeo";
       repo = "PersonalSite";
       rev = "d2f739f159b94928d552e0b033820fd6e25abb36";

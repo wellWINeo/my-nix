@@ -11,5 +11,13 @@ endif
 .PHONY:
 	unlock
 
+ifeq ($(wildcard $(SECRETS_FILE)),)
+lock:
+	@echo "${SECRETS_FILE} not exists. Nothing to lock"
+else
+lock:
+	gpg --symmetric ${SECRETS_FILE}
+endif
+
 cleanup-secrets:
 	rm secrets/secrets.json

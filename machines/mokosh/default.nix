@@ -2,12 +2,16 @@
 
 let
   hostname = "mokosh";
+  domainName = "uspenskiy.su";
+  secrets = import ../../secrets;
 in {
   imports = [ 
     ../../hardware/vm.nix
     ../../roles/personal-website.nix
+    ../../roles/letsencrypt.nix
   ];
 
+  # disk layout
   fileSystems = {
     "/" = {
       device = "/dev/disk/by-label/NIXOS";
@@ -17,6 +21,7 @@ in {
 
   swapDevices = [ { device = "/dev/disk/by-label/SWAP"; } ];
 
+  # network
   networking = {
     hostName = hostname;
     useDHCP = false;
@@ -43,7 +48,20 @@ in {
     };
   };
 
-  roles.personelWebsite.enable = true;
+
+  ###
+  # Roles
+  ###
+  roles.personelWebsite = {
+    enable = true;
+    domain = domainName;
+  };
+
+  roles.letsencrypt = {
+    enable = true;
+    cloudflareApiKey = secrets.cloudflareApiKey;
+    domain = domainName;
+  };
 
   system.stateVersion = "24.05";
 }

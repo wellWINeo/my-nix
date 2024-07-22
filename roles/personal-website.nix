@@ -11,6 +11,10 @@ in {
       default = true; 
       description = "Open Firewall";
     };
+    domain = mkOption { 
+      type = types.str; 
+      description = "Domain name"; 
+    };
   };
 
   config = mkIf cfg.enable {
@@ -18,16 +22,24 @@ in {
 
     services.nginx = {
       enable = true;
+
+      recommendedGzipSettings = true;
+      recommendedOptimisation = true;
+
       virtualHosts."0.0.0.0" = {
-        root = "/etc/www/uspenskiy.su";
+        root = "/etc/www/${cfg.domain}";
+        forceSSL = true;
+        enableACME = false;
+        sslCertificate = "/var/lib/acme/${cfg.domain}/fullchain.pem";
+        sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
       };
     };
 
-    environment.etc."/www/uspenskiy.su".source = pkgs.fetchFromGitHub {
+    environment.etc."/www/${cfg.domain}".source = pkgs.fetchFromGitHub {
       owner = "wellWINeo";
       repo = "PersonalSite";
-      rev = "d2f739f159b94928d552e0b033820fd6e25abb36";
-      sha256 = "1cxmlnir561qh7dm6pn5557m6w6sygidihc51yh6bk1j08y4l64s";
+      rev = "e22576072440c3d4ca1104ee92f996f58cfe6832";
+      sha256 = "1yvwp932pgkzl0gaha4jk3rhqwmhbshqi2abz0gs6i23hwp97f22";
     };
   };
 }

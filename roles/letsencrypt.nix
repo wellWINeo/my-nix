@@ -25,7 +25,7 @@ in {
 
     security.acme = {
       acceptTerms = true;
-      defaults.email = "postmaster@${cfg.domain}";
+      defaults.email = "stepan@${cfg.domain}";
       certs."${cfg.domain}" = {
         dnsProvider = "cloudflare";
         environmentFile = "/etc/letsencrypt/cloudflare.ini";

@@ -4,11 +4,13 @@ let
   hostname = "mokosh";
   domainName = "uspenskiy.su";
   secrets = import ../../secrets;
+  ifname = "ens3";
 in {
   imports = [ 
     ../../hardware/vm.nix
     ../../roles/personal-website.nix
     ../../roles/letsencrypt.nix
+    ../../roles/wireguard/wireguard-router.nix
   ];
 
   # disk layout
@@ -28,7 +30,7 @@ in {
     nameservers = [ "1.1.1.1" ];
     firewall.enable = true;
 
-    interfaces.ens3 = {
+    interfaces."${ifname}" = {
       ipv4.addresses = [ 
         { address = "93.183.127.202"; prefixLength = 24; } 
       ];
@@ -36,7 +38,7 @@ in {
 
     defaultGateway = {
       address = "93.183.127.1";
-      interface = "ens3";
+      interface = ifname;
     };
   };
 
@@ -63,6 +65,19 @@ in {
     enable = true;
     cloudflareApiKey = secrets.cloudflareApiKey;
     domain = domainName;
+  };
+
+  roles.wireguardRouter = {
+    enable = true;
+    externalIf = ifname;
+    privateKey = secrets.wireguard.mokosh;
+    clients = [
+      # mbp
+      {
+        pubKey = "QiTggD0EDepZDbUU1KW+M6l2NWHe67DS8jje5EKDGhU=";
+        ip = "10.20.0.10";
+      }
+    ];
   };
 
   system.stateVersion = "24.05";

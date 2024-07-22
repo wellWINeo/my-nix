@@ -22,6 +22,7 @@ in {
 
     services.nginx = {
       enable = true;
+      group = "web";
 
       recommendedGzipSettings = true;
       recommendedOptimisation = true;

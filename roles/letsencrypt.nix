@@ -22,7 +22,10 @@ in {
 
     security.acme = {
       acceptTerms = true;
-      defaults.email = "stepan@${cfg.domain}";
+      defaults = {
+        email = "stepan@${cfg.domain}";
+        group = "web";
+      };
       certs."${cfg.domain}" = {
         dnsProvider = "cloudflare";
         environmentFile = "/etc/letsencrypt/cloudflare.ini";

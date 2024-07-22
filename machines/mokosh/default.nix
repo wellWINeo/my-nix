@@ -52,6 +52,8 @@ in {
   ###
   # Roles
   ###
+  users.groups.web.members = [ "nginx" "acme" ]; # setup common group to gran nginx access to acme's certs
+
   roles.personelWebsite = {
     enable = true;
     domain = domainName;

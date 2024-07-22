@@ -3,6 +3,7 @@ with lib;
 
 let
   cfg = config.roles.letsencrypt;
+  cloudflareEmail = "uspenskiy-03@mail.ru";
 in {
   options.roles.letsencrypt = {
     enable = mkEnableOption "Enable Let's Encrypt";
@@ -11,14 +12,10 @@ in {
   };
 
   config = mkIf cfg.enable {
-    # environment.systemPackages = with pkgs; [
-    #   acme
-    #   acme-dns-certbot-cloudflare
-    # ];
-
     environment.etc."letsencrypt/cloudflare.ini" = {
       text = ''
-      dns_cloudflare_api_token = ${cfg.cloudflareApiKey}
+      DNS_CLOUDFLARE_EMAIL = ${cloudflareEmail}
+      CLOUDFLARE_DNS_API_TOKEN = ${cfg.cloudflareApiKey}
       '';
       mode = "0600";
     };

@@ -18,6 +18,7 @@
       ];
     };
 
+    # VPS 1 CPU, 2GB RAM
     nixosConfigurations."mokosh" = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       specialArgs = inputs;

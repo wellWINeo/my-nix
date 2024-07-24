@@ -11,6 +11,7 @@ in {
     ../../roles/personal-website.nix
     ../../roles/letsencrypt.nix
     ../../roles/wireguard/wireguard-router.nix
+    ../../roles/vault.nix
   ];
 
   # disk layout
@@ -84,6 +85,11 @@ in {
         ip = "10.20.0.15";
       }
     ];
+  };
+
+  roles.vault = {
+    enable = true;
+    baseDomain = domainName;
   };
 
   system.stateVersion = "24.05";

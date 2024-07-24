@@ -19,5 +19,8 @@ lock:
 	gpg --symmetric ${SECRETS_FILE}
 endif
 
+install-secrets:
+	cp ./secrets/env/*.env /etc/nixos/secrets/
+
 cleanup-secrets:
 	rm secrets/secrets.json

@@ -27,7 +27,7 @@ in {
       recommendedGzipSettings = true;
       recommendedOptimisation = true;
 
-      virtualHosts."0.0.0.0" = {
+      virtualHosts."${cfg.domain}" = {
         root = "/etc/www/${cfg.domain}";
         forceSSL = true;
         enableACME = false;
@@ -41,6 +41,19 @@ in {
 
         locations."/" = {
           tryFiles = "$uri $uri/ =404";
+        };
+      };
+
+      virtualHosts."vault.${cfg.domain}" = {
+        forceSSL = true;
+        enableACME = false;
+
+        sslCertificate = "/var/lib/acme/${cfg.domain}/fullchain.pem";
+        sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
+
+        locations."/" = {
+          proxyPass = "127.0.0.1:8180";
+          recommendedProxySettings = true;
         };
       };
     };

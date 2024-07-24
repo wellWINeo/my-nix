@@ -33,7 +33,7 @@ in {
         SMTP_FROM = "vault@uspenskiy.su";
         SMTP_FROM_NAME = "Vaultwarden";
         SMTP_PORT = 587;
-        SMTP_SSL = true;
+        SMTP_SECURITY = true;
         SMTP_USERNAME = "vault";
         SMTP_AUTH_MECHANISM = "Plain";
         SMTP_TIMEOUT = 15;

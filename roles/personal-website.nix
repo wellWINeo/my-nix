@@ -33,6 +33,15 @@ in {
         enableACME = false;
         sslCertificate = "/var/lib/acme/${cfg.domain}/fullchain.pem";
         sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
+
+        locations."/cv" = {
+          tryFiles = "$uri.pdf = 404";
+          extraConfig = "add_header Content-Disposition \"inline; filename=Stepan Uspenkiy (CV).pdf\"";
+        };
+
+        locations."/" = {
+          tryFiles = "$uri $uri/ =404";
+        };
       };
     };
 

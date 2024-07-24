@@ -17,7 +17,7 @@ in {
       enable = true;
       # backupDir = "/path/to/directory"; # TODO
       config = {
-        WEB_VAULT_FOLDER = "${pkgs.bitwarden_rs-vault}/share/bitwarden_rs/vault";
+        WEB_VAULT_FOLDER = "${pkgs.bitwarden_rs-vault}/share/vaultwarden/vault";
         WEB_VAULT_ENABLED = true;
         DATA_DIR = "/var/lib/vault";
         IP_HEADER = "X-Real-IP";

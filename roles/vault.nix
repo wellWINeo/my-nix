@@ -46,7 +46,10 @@ in {
 
     systemd.services.vaultwarden = {
       serviceConfig = {
-        ReadWritePaths = [ "/var/log/vaultwarden" ];
+        ReadWritePaths = [ 
+          "/var/log/vaultwarden"
+          "/var/lib/vault"
+        ];
       };
     };
   };

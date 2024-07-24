@@ -29,13 +29,13 @@ in {
         DOMAIN = "https://vault.${cfg.baseDomain}";
         ROCKET_ADDRESS = "127.0.0.1";
         ROCKET_PORT = 8180;
-        SMTP_HOST = "mail.uspenskiy.su";
-        SMTP_FROM = "vault@uspenskiy.su";
+        SMTP_HOST = "mail.${cfg.baseDomain}";
+        SMTP_FROM = "vault@${cfg.baseDomain}";
         SMTP_FROM_NAME = "Vaultwarden";
         SMTP_PORT = 587;
         SMTP_SECURITY = "starttls";
-        SMTP_USERNAME = "vault";
-        SMTP_AUTH_MECHANISM = "Plain";
+        SMTP_USERNAME = "vault@${cfg.baseDomain}";
+        SMTP_AUTH_MECHANISM = "Plain,Login";
         SMTP_TIMEOUT = 60;
         INVITATIONS_ALLOWED = true;
         SIGNUPS_ALLOWED = false;

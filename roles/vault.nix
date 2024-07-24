@@ -21,7 +21,7 @@ in {
         WEB_VAULT_ENABLED = true;
         DATA_DIR = "/var/lib/vault";
         IP_HEADER = "X-Real-IP";
-        LOG_FILE = "/var/log/bitwarden";
+        LOG_FILE = "/var/log/vaultwarden";
         WEBSOCKET_ENABLED = true;
         WEBSOCKET_ADDRESS = "127.0.0.1";
         WEBSOCKET_PORT = 3012;

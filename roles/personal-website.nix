@@ -52,7 +52,7 @@ in {
         sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
 
         locations."/" = {
-          proxyPass = "127.0.0.1:8180";
+          proxyPass = "http://127.0.0.1:8180";
           recommendedProxySettings = true;
         };
       };

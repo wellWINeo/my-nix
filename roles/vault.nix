@@ -33,5 +33,11 @@ in {
 
       environmentFile = "/etc/nixos/secrets/vaultwarden.secret.env";
     };
+
+    systemd.services.vaultwarden = {
+      serviceConfig = {
+        ReadWritePaths = [ "/var/log/vaultwarden" ];
+      };
+    };
   };
 }

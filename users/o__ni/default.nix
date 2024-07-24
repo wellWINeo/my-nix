@@ -17,6 +17,7 @@ in {
     packages = with pkgs; [
       git
       gnupg
+      gnumake
       neofetch
       neovim
       htop

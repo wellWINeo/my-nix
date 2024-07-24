@@ -36,7 +36,7 @@ in {
 
         locations."/cv" = {
           tryFiles = "$uri.pdf = 404";
-          extraConfig = "add_header Content-Disposition \"inline; filename=Stepan Uspenkiy (CV).pdf\"";
+          extraConfig = "add_header Content-Disposition \"inline; filename=Stepan Uspenkiy (CV).pdf\";";
         };
 
         locations."/" = {

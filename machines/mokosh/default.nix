@@ -73,16 +73,22 @@ in {
     externalIf = ifname;
     privateKey = secrets.wireguard.mokosh;
     clients = [
-      # mbp
+      # MacBook Pro
       {
         pubKey = "QiTggD0EDepZDbUU1KW+M6l2NWHe67DS8jje5EKDGhU=";
         ip = "10.20.0.10";
       }
 
-      # phone
+      # iPhone
       {
         pubKey = "6JnxIyp7ggP5tfz7j2JFvQKIM2QvQR2FRbaPfHb6tGs=";
         ip = "10.20.0.15";
+      }
+
+      # iPad
+      {
+        pubKey = "VPX34DmeV81hlY6CTz2nTyUxiUDgsrJYTsuMEkI5WEI=";
+        ip = "10.20.0.20";
       }
     ];
   };

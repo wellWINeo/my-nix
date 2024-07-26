@@ -12,6 +12,7 @@ in {
       provider.kind = "cloudflare";
       preferIPv4 = true;
       port = 8053;
+      extraArgs = [ "-v info" "-i 3600" ];
     };
   };
 }

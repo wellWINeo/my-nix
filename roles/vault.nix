@@ -41,7 +41,7 @@ in {
         SIGNUPS_ALLOWED = false;
       };
 
-      environmentFile = "/etc/nixos/secrets/vaultwarden.secret.env";
+      environmentFile = "/etc/nixos/secrets/vaultwarden.env";
     };
 
     systemd.services.vaultwarden = {

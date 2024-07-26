@@ -64,14 +64,12 @@ in {
 
   roles.letsencrypt = {
     enable = true;
-    cloudflareApiKey = secrets.cloudflareApiKey;
     domain = domainName;
   };
 
   roles.wireguardRouter = {
     enable = true;
     externalIf = ifname;
-    privateKey = secrets.wireguard.mokosh;
     clients = [
       # MacBook Pro
       {

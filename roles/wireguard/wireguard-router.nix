@@ -27,10 +27,6 @@ in {
       default = true;
       description = "Open FireWall";
     };
-    privateKey = mkOption {
-      type = str;
-      description = "WireGuard router's private key";
-    };
     clients = mkOption {
       type = listOf clientType;
       default = [];
@@ -61,7 +57,7 @@ in {
             ${pkgs.iptables}/bin/iptables -t nat -D POSTROUTING -s 10.20.0.0/24 -o ${cfg.externalIf} -j MASQUERADE
           '';
 
-          privateKey = cfg.privateKey;
+          privateKeyFile = "/etc/nixos/secrets/wireguard-mokosh.privkey";
 
           peers = map toPeer cfg.clients;
         };

@@ -33,5 +33,5 @@ install-secrets:
 	@cat $(SECRETS_SPEC_FILE) \
 	| grep -v '^#' \
 	| while IFS=: read filename perm owner group; do \
-		install -m $$perm -o $$owner -g $$group ./secrets/unlocked/$$file $(SECRETS_DIRECTORY)/$$file; \
+		install -m $$perm -o $$owner -g $$group ./secrets/unlocked/$$file $(SECRETS_DIRECTORY)/$$filename; \
 	done

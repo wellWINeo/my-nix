@@ -7,6 +7,7 @@ let
   ifname = "ens3";
 in {
   imports = [ 
+    ../../common/server.nix
     ../../hardware/vm.nix
     ../../roles/personal-website.nix
     ../../roles/letsencrypt.nix
@@ -43,12 +44,9 @@ in {
     };
   };
 
-  services.openssh = {
-    enable = true;
-    settings = {
-      PermitRootLogin = "no";
-      PasswordAuthentication = false;
-    };
+  services.openssh.settings = {
+    PermitRootLogin = "no";
+    PasswordAuthentication = false;
   };
 
 

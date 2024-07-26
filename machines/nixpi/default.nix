@@ -3,27 +3,13 @@
 let 
   hostname = "nixpi";
 in {
-  imports = [ 
+  imports = [
+    ../../common/server.nix
     ../../roles/share.nix
     ../../roles/media.nix
     ../../roles/torrent.nix
     ../../hardware/rpi4.nix
   ];
-
-  environment.systemPackages = with pkgs; [
-    gnumake
-    pinentry-curses
-  ];
-
-  programs.gnupg.agent = {
-		enable = true;
-
-    # available in nixos-unstable
-		pinentryPackage = pkgs.pinentry-curses;
-
-    # for nixos 23.11
-    # pinentryFlavor = "curses";
-	};
 
   fileSystems = {
     "/" = {
@@ -73,8 +59,6 @@ in {
 
   roles.media.enable = true;
   roles.torrent.enable = true;
-
-  services.openssh.enable = true;
 
   services.journald = {
     storage = "volatile";

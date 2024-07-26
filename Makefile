@@ -17,14 +17,15 @@ lock-json:
 	gpg --symmetric ${SECRETS_JSON}
 
 lock-files:
+	cd ./secrets/unlocked && \
 	tar \
-		--exclude ./secrets/unlocked/.gitkeep \
-		--exclude ./secrets/unlocked/.gitignore \
-		--exclude ./secrets/unlocked/spec.txt \
+		--exclude .gitkeep \
+		--exclude .gitignore \
+		--exclude spec.txt \
 		-cvf \
 		- \
-		./secrets/unlocked \
-	| gpg --symmetric -o ./secrets/locked.tar.gpg
+		* \
+	| gpg --symmetric -o ../locked.tar.gpg
 
 lock: lock-json lock-files
 

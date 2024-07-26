@@ -8,7 +8,7 @@ unlock-json:
 	gpg --output ${SECRETS_JSON} --decrypt ${SECRETS_JSON}.gpg
 
 unlock-files:
-	gpg --decrypt ${LOCKED_TAR} | tar -xf ./secrets/unlocked
+	gpg --decrypt ${LOCKED_TAR} | tar -xf - -C ./secrets/unlocked
 
 unlock: unlock-json unlock-files
 

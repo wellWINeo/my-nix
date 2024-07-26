@@ -1,7 +1,7 @@
 SECRETS_JSON=secrets/secrets.json
 LOCKED_TAR=secrets/locked.tar.gpg
 SECRETS_DIRECTORY=/etc/nixos/secrets
-SECRETS_SPEC_FILE=./secrets/files/spec.txt
+SECRETS_SPEC_FILE=./secrets/unlocked/spec.txt
 
 # unlocking
 unlock-json:
@@ -33,5 +33,5 @@ install-secrets:
 	@cat $(SECRETS_SPEC_FILE) \
 	| grep -v '^#' \
 	| while IFS=: read filename perm owner group; do \
-		install -m $$perm -o $$owner -g $$group ./secrets/files/$$file $(SECRETS_DIRECTORY)/$$file; \
+		install -m $$perm -o $$owner -g $$group ./secrets/unlocked/$$file $(SECRETS_DIRECTORY)/$$file; \
 	done

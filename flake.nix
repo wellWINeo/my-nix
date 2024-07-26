@@ -11,7 +11,10 @@
     # raspberry pi 4
     nixosConfigurations."nixpi" = nixpkgs.lib.nixosSystem {
       system = "aarch64-linux";
-      specialArgs = inputs;
+      specialArgs = {
+        inherit inputs;
+        overlays = [ (import ./overlays/https-dns-proxy.nix) ];
+      };
       modules = [
         ./machines/nixpi
         ./users/o__ni

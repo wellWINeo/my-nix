@@ -8,6 +8,7 @@ in {
     ../../roles/share.nix
     ../../roles/media.nix
     ../../roles/torrent.nix
+    ../../roles/router/dns-over-https.nix
     ../../hardware/rpi4.nix
   ];
 
@@ -59,6 +60,7 @@ in {
 
   roles.media.enable = true;
   roles.torrent.enable = true;
+  roles.doh.enable = true;
 
   services.journald = {
     storage = "volatile";

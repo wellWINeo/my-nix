@@ -53,6 +53,22 @@ in {
 
         locations."/" = {
           proxyPass = "http://127.0.0.1:8180";
+          proxyWebsockets = true;
+          recommendedProxySettings = true;
+        };
+      };
+
+      virtualHosts."gw.${cfg.domain}" = {
+        forceSSL = true;
+        enableACME = false;
+
+        sslCertificate = "/var/lib/acme/${cfg.domain}/fullchain.pem";
+        sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
+
+        locations."/".return = "301 https://google.com/search?q=$request_uri";
+
+        locations."/fckrkn" = {
+          proxyPass = "http://127.0.0.1:8388";
           recommendedProxySettings = true;
         };
       };

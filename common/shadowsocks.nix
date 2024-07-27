@@ -142,8 +142,10 @@ in {
         # xor, make sure either password or passwordFile be set.
         # shadowsocks-libev not support plain/none encryption method
         # which indicated that password must set.
-        assertion = let noPasswd = cfg.password == null; noPasswdFile = cfg.passwordFile == null;
-          in (noPasswd && !noPasswdFile) || (!noPasswd && noPasswdFile);
+        assertion = let 
+          noPasswd = cfg.password == null; 
+          noPasswdFile = cfg.passwordFile == null;
+        in (noPasswd && !noPasswdFile) || (!noPasswd && noPasswdFile);
         message = "Option `password` or `passwordFile` must be set and cannot be set simultaneously";
       }
     ];

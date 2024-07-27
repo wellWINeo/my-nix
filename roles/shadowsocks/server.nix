@@ -17,7 +17,7 @@ in {
       port = 8388;
       plugin = "${pkgs.shadowsocks-v2ray-plugin}/bin/v2ray-plugin";
       mode = "tcp_and_udp";
-      localAddress = [ "127.0.0.1" ];
+      localAddress = "127.0.0.1";
       fastOpen = true;
       passwordFile = "/etc/nixos/secrets/shadowsocksPassword";
       encryptionMethod = "aes-256-gcm";

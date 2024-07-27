@@ -13,6 +13,7 @@ in {
     ../../roles/letsencrypt.nix
     ../../roles/wireguard/wireguard-router.nix
     ../../roles/vault.nix
+    ../../roles/shadowsocks/server.nix
   ];
 
   # disk layout
@@ -93,6 +94,8 @@ in {
     enable = true;
     baseDomain = domainName;
   };
+
+  roles.shadowsocks-server.enable = true;
 
   system.stateVersion = "24.05";
 }

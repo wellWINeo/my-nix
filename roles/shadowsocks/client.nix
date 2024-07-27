@@ -28,6 +28,8 @@ in {
       pluginOpts = "tls;host=${cfg.host};path=/fckrkn";
       extraConfig = {
         nameserver = "1.1.1.1";
+        local_address = "0.0.0.0";
+        local_port = 1080;
       };
     };
   };

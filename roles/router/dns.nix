@@ -12,6 +12,15 @@ in {
   options.roles.dns.enable = mkEnableOption "Enable DNS";
 
   config = mkIf cfg.enable {
+    services.dnsmasq = {
+      enable = true;
+      settings = {
+        no-resolv = true;
+        server = [ "127.0.0.1#8053" ];
+        dhcp-range = null;
+      };
+    };
+
     services.stubby = {
       enable = true;
       settings = pkgs.stubby.passthru.settingsExample // {

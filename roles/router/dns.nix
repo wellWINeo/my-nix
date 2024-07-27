@@ -15,6 +15,7 @@ in {
     services.stubby = {
       enable = true;
       settings = pkgs.stubby.passthru.settingsExample // {
+        listen_addresses = [ "127.0.0.1@8053" ];
         upstream_recursive_servers = [
           {
             address_data = "1.1.1.1";

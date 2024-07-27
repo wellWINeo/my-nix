@@ -19,7 +19,7 @@ in {
       mode = "tcp_and_udp";
       localAddress = [ "127.0.0.1" ];
       fastOpen = true;
-      passwordFile = "/etc/nixos/secrets/passwordFile";
+      passwordFile = "/etc/nixos/secrets/shadowsocksPassword";
       encryptionMethod = "aes-256-gcm";
       pluginOpts = "server";
       extraConfig = {

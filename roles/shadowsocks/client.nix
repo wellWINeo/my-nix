@@ -18,7 +18,7 @@ in {
       enable = true;
       isServer = false;
       package = pkgs.shadowsocks-rust;
-      port = 8388;
+      port = 443;
       plugin = "${pkgs.shadowsocks-v2ray-plugin}/bin/v2ray-plugin";
       mode = "tcp_and_udp";
       localAddress = cfg.host; # actually it's `server` property, not local

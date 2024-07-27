@@ -15,7 +15,7 @@ in {
       enable = true;
       isServer = true;
       package = pkgs.shadowsocks-rust;
-      port = 443;
+      port = 8388;
       plugin = "${pkgs.shadowsocks-v2ray-plugin}/bin/v2ray-plugin";
       mode = "tcp_and_udp";
       localAddress = "0.0.0.0";

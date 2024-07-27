@@ -16,7 +16,7 @@ in {
   config = mkIf cfg.enable {
     services.shadowsocks = {
       enable = true;
-      isServer = true;
+      isServer = false;
       package = pkgs.shadowsocks-rust;
       port = 8388;
       plugin = "${pkgs.shadowsocks-v2ray-plugin}/bin/v2ray-plugin";

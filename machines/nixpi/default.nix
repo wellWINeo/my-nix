@@ -69,7 +69,7 @@ in {
 
   roles.shadowsocks-client = {
     enable = true;
-    domain = "gw.uspenskiy.su";
+    host = "gw.uspenskiy.su";
   };
 
   services.journald = {

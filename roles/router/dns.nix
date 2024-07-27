@@ -9,9 +9,26 @@ with lib;
 let
   cfg = config.roles.dns;
 in {
-  options.roles.dns.enable = mkEnableOption "Enable DNS";
+  options.roles.dns = {
+    enable = mkEnableOption "Enable DNS";
+    openFirewall = mkOption { 
+      type = types.bool; 
+      default = true; 
+      description = "Open Firewall";
+    };
+    useLocalDNS = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Use local DNS by machine itself";
+    };
+  };
 
   config = mkIf cfg.enable {
+    networking = {
+      firewall.allowedUDPPorts = optionals cfg.openFirewall [ 53 ];
+      nameservers = optionals cfg.useLocalDNS [ "127.0.0.1" ];
+    };
+
     services.dnsmasq = {
       enable = true;
       settings = {

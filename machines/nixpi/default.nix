@@ -60,7 +60,11 @@ in {
 
   roles.media.enable = true;
   roles.torrent.enable = true;
-  roles.dns.enable = true;
+  roles.dns = {
+    enable = true;
+    openFirewall = true;
+    useLocalDNS = true;
+  };
 
   services.journald = {
     storage = "volatile";

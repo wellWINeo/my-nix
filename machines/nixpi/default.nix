@@ -9,6 +9,7 @@ in {
     ../../roles/media.nix
     ../../roles/torrent.nix
     ../../roles/router/dns.nix
+    ../../roles/shadowsocks/client.nix
     ../../hardware/rpi4.nix
   ];
 
@@ -64,6 +65,11 @@ in {
     enable = true;
     openFirewall = true;
     useLocalDNS = true;
+  };
+
+  roles.shadowsocks-client = {
+    enable = true;
+    domain = "gw.uspenskiy.su";
   };
 
   services.journald = {

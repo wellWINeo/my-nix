@@ -68,12 +68,12 @@ in {
         locations."/".return = "301 https://google.com/search?q=$request_uri";
 
         locations."/fckrkn" = {
-          proxyPass = "http://127.0.0.1:8388";
+          proxyPass = "http://127.0.0.1:8388/";
           extraConfig = ''
             proxy_redirect off;
             proxy_buffering off;
             proxy_http_version 1.1;
-            proxy_set_header Host $http_host;
+            proxy_set_header Host $host;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";          
           '';

@@ -2,27 +2,30 @@
 with lib;
 
 let 
-  cfg = config.roles.shadowsocks-server;
+  cfg = config.roles.shadowsocks-client;
 in {
   disabledModules = [ "services/networking/shadowsocks.nix" ];
 
   imports = [ ../../common/shadowsocks.nix ];
 
-  options.roles.shadowsocks-server.enable = mkEnableOption "Enable ShadowSocks Server";
+  options.roles.shadowsocks-client = {
+    enable = mkEnableOption "Enable ShadowSocks client";
+    host = mkOption { type = types.str; description = "Host for v2ray plugin"; };
+  };
 
   config = mkIf cfg.enable {
     services.shadowsocks = {
       enable = true;
-      isServer = false;
+      isServer = true;
       package = pkgs.shadowsocks-rust;
-      port = 443;
+      port = 8388;
       plugin = "${pkgs.shadowsocks-v2ray-plugin}/bin/v2ray-plugin";
       mode = "tcp_and_udp";
-      localAddress = "0.0.0.0";
+      localAddress = cfg.host; # actually it's `server` property, not local
       fastOpen = true;
       passwordFile = "/etc/nixos/secrets/shadowsocksPassword";
       encryptionMethod = "aes-256-gcm";
-      pluginOpts = "server";
+      pluginOpts = "tls;host=${cfg.host};path=/fckrkn";
       extraConfig = {
         nameserver = "1.1.1.1";
       };

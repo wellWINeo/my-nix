@@ -22,6 +22,7 @@ let
 
   isLibev = pkg: pkg == pkgs.shadowsocks-libev;
   getTitle = pkg: if isLibev pkg then "libev" else "rust";
+  getPostfix = isServer: if isServer then "server" else "local";
 in {
 
   ###### interface
@@ -114,6 +115,12 @@ in {
         '';
       };
 
+      isServer = mkOption { 
+        type = types.bool;
+        default = true;
+        description = "Run as server or local";
+      };
+
       extraConfig = mkOption {
         type = types.attrs;
         default = {};
@@ -150,7 +157,7 @@ in {
       }
     ];
 
-    systemd.services."shadowsocks-${ getTitle cfg.package  }" = {
+    systemd.services."shadowsocks-${ getTitle cfg.package }-${ getPostfix cfg.isServer }" = {
       description = "shadowsocks-${getTitle cfg.package} Daemon";
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
@@ -162,7 +169,7 @@ in {
         ${optionalString (cfg.passwordFile != null) ''
           cat ${configFile} | jq --arg password "$(cat "${cfg.passwordFile}")" '. + { password: $password }' > /tmp/shadowsocks.json
         ''}
-        exec ${ if isLibev cfg.package then "ss-server" else "ssserver" } -c ${if cfg.passwordFile != null then "/tmp/shadowsocks.json" else configFile}
+        exec ss${ if isLibev cfg.package then "-" else "" }${ getPostfix cfg.isServer } -c ${if cfg.passwordFile != null then "/tmp/shadowsocks.json" else configFile}
       '';
     };
   };

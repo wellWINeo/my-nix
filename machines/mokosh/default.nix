@@ -95,7 +95,10 @@ in {
     baseDomain = domainName;
   };
 
-  roles.shadowsocks-server.enable = true;
+  roles.shadowsocks-server = {
+    enable = true;
+    openFirewall = false;
+  };
 
   system.stateVersion = "24.05";
 }

@@ -70,6 +70,7 @@ in {
   roles.shadowsocks-client = {
     enable = true;
     host = "gw.uspenskiy.su";
+    openFirewall = true;
   };
 
   services.journald = {

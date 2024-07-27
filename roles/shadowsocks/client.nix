@@ -3,6 +3,7 @@ with lib;
 
 let 
   cfg = config.roles.shadowsocks-client;
+  port = 1080;
 in {
   disabledModules = [ "services/networking/shadowsocks.nix" ];
 
@@ -11,9 +12,16 @@ in {
   options.roles.shadowsocks-client = {
     enable = mkEnableOption "Enable ShadowSocks client";
     host = mkOption { type = types.str; description = "Host for v2ray plugin"; };
+    openFirewall = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Open firewall";
+    };
   };
 
   config = mkIf cfg.enable {
+    networking.firewall.allowedTCPPorts = optionals cfg.openFirewall [ port ];
+
     services.shadowsocks = {
       enable = true;
       isServer = false;
@@ -29,7 +37,7 @@ in {
       extraConfig = {
         nameserver = "1.1.1.1";
         local_address = "0.0.0.0";
-        local_port = 1080;
+        local_port = port;
       };
     };
   };

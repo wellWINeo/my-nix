@@ -41,7 +41,7 @@ in {
       package = mkPackageOption [ pkgs.shadowsocks-libev pkgs.shadowsocks-rust ] "shadowsocks" { };
 
       localAddress = mkOption {
-        type = types.coercedTo types.str singleton (types.listOf types.str);
+        type = types.oneOf [ types.str (types.listOf types.str) ];
         default = [ "[::0]" "0.0.0.0" ];
         description = ''
           Local addresses to which the server binds.

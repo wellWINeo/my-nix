@@ -17,7 +17,6 @@ in {
       settings = {
         no-resolv = true;
         server = [ "127.0.0.1#8053" ];
-        dhcp-range = null;
       };
     };
 

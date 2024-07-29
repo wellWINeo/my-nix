@@ -28,6 +28,7 @@ in {
         hosts deny = 0.0.0.0/0
         client min protocol = NT1
         server min protocol = NT1
+        map to guest = Bad User
         guest account = nobody
       '';
 

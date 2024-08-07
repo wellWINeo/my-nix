@@ -47,7 +47,7 @@ in {
             tls_auth_name = "cloudflare-dns.com";
             tls_pubkey_pinset = [{
               digest = "sha256";
-              value = "HdDBgtnj07/NrKNmLCbg5rxK78ZehdHZ/Uoutx4iHzY=";
+              value = "4pqQ+yl3lAtRvKdoCCUR8iDmA53I+cJ7orgBLiF08kQ=";
             }];
           }
 
@@ -56,7 +56,7 @@ in {
             tls_auth_name = "cloudflare-dns.com";
             tls_pubkey_pinset = [{
               digest = "sha256";
-              value = "HdDBgtnj07/NrKNmLCbg5rxK78ZehdHZ/Uoutx4iHzY=";
+              value = "4pqQ+yl3lAtRvKdoCCUR8iDmA53I+cJ7orgBLiF08kQ=";
             }];
           }
         ];

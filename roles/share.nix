@@ -14,7 +14,7 @@ in {
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = with pkgs; [ samba ];
+    environment.systemPackages = with pkgs; [ samba nssmdns ];
 
     services.samba = {
       enable = true;
@@ -81,13 +81,8 @@ in {
     services.avahi = {
       enable = true;
 
-      # nixos-unstable
-      # nssmdns4 = true;
-      # nssmdns6 = true;
-
-      # 23.11
-      ipv4 = true;
-      ipv6 = false;
+      nssmdns4 = true;
+      nssmdns6 = false;
 
       publish = {
         enable = true;

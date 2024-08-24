@@ -22,6 +22,12 @@ in {
         hinfo = true;
         userServices = true;
       };
+      extraConfig = ''
+        log-leve=debug
+        
+        [server]
+        publish-ttl=60
+      '';
     };
   };
 }

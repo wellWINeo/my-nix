@@ -8,6 +8,7 @@ in {
     ../../roles/share.nix
     ../../roles/media.nix
     ../../roles/torrent.nix
+    ../../roles/zeroconf.nix
     ../../roles/router/dns.nix
     ../../roles/router/nginx.nix
     ../../roles/shadowsocks/client.nix
@@ -79,6 +80,8 @@ in {
     openFirewall = true;
     ip = "192.168.0.20";
   };
+
+  roles.zeroconf.enable = true;
 
   services.journald = {
     storage = "volatile";

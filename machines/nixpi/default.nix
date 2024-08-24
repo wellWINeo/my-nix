@@ -9,6 +9,7 @@ in {
     ../../roles/media.nix
     ../../roles/torrent.nix
     ../../roles/router/dns.nix
+    ../../roles/router/nginx.nix
     ../../roles/shadowsocks/client.nix
     ../../hardware/rpi4.nix
   ];
@@ -71,6 +72,12 @@ in {
     enable = true;
     host = "gw.uspenskiy.su";
     openFirewall = true;
+  };
+
+  roles.home-nginx = {
+    enable = true;
+    openFirewall = true;
+    ip = "192.168.0.20";
   };
 
   services.journald = {

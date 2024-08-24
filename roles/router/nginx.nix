@@ -29,10 +29,10 @@ in {
       virtualHosts.${cfg.ip} = {
         forceSSL = false;
         enableACME = false;
-        root = "/etc/www/proxy/proxy.pac";
+        root = "/etc/www/proxy";
       };
     };
 
-    environment.etc."/www/proxy".source = ./proxy.pac;
+    environment.etc."/www/proxy/proxy.pac".source = ./proxy.pac;
   };
 }

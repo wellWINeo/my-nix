@@ -25,7 +25,6 @@ in {
       extraConfig = ''
         [server]
         log-level=debug
-        publish-ttl=60
       '';
     };
   };

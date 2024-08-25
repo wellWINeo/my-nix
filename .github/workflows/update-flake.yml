@@ -23,32 +23,13 @@ jobs:
       # - name: Check Nix Flake
       #   run: nix flake check
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create a new branch
-        id: create_branch
-        run: |
-          BRANCH_NAME="chore/$(date +'%Y%m%d')__update"
-          git checkout -b $BRANCH_NAME
-          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
-
-      - name: Commit the updated flake
-        run: |
-          git add .
-          git commit -m "Update Nix flake"
-
-      - name: Push branch to the repository
-        run: |
-          git push origin ${{ steps.create_branch.outputs.branch_name }}
-
-      - name: Create a pull request
+      - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ env.BRANCH_NAME }}
-          title: "Update Nix flake - ${{ env.BRANCH_NAME }}"
+          commit-message: "Update Nix flake"
+          branch: "chore/update-flake-{{date 'YYYYMMDD'}}"
+          title: "Update Nix flake - {{date 'YYYYMMDD'}}"
           body: "This PR updates the Nix flake."
           base: main
+          delete-branch: true  # Optionally delete the branch after the PR is merged

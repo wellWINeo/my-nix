@@ -23,13 +23,18 @@ jobs:
       # - name: Check Nix Flake
       #   run: nix flake check
 
+      - name: Set date
+        run: echo "{date}={$(date +'%Y%m%d')}" >> $GITHUB_ENV
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          committer: GitHub <noreply@github.com>
+          author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
           commit-message: "Update Nix flake"
-          branch: "chore/update-flake-{{date 'YYYYMMDD'}}"
-          title: "Update Nix flake - {{date 'YYYYMMDD'}}"
+          branch: "chore/update-flake-${{ env.date}}"
+          title: "Update Nix flake - ${{ env.date}}"
           body: "This PR updates the Nix flake."
           base: main
           delete-branch: true  # Optionally delete the branch after the PR is merged

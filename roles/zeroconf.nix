@@ -22,10 +22,6 @@ in {
         hinfo = true;
         userServices = true;
       };
-      extraConfig = ''
-        [server]
-        log-level=debug
-      '';
     };
   };
 }

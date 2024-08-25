@@ -33,7 +33,7 @@ jobs:
         run: |
           BRANCH_NAME="chore/$(date +'%Y%m%d')__update"
           git checkout -b $BRANCH_NAME
-          echo "::set-output name=branch_name::$BRANCH_NAME"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Commit the updated flake
         run: |
@@ -48,7 +48,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.create_branch.outputs.branch_name }}
-          title: "Update Nix flake - ${{ steps.create_branch.outputs.branch_name }}"
+          branch: ${{ env.BRANCH_NAME }}
+          title: "Update Nix flake - ${{ env.BRANCH_NAME }}"
           body: "This PR updates the Nix flake."
           base: main

@@ -14,7 +14,9 @@ function FindProxyForURL(url, host) {
         || host == "googleapis.com"
         || dnsDomainIs(host, ".googleapis.com")
         || host == "gstatic.com"
-        || dnsDomainIs(host, ".gstatic.com"))
+        || dnsDomainIs(host, ".gstatic.com")
+        || host == "ggpht.com"
+        || dnsDomainIs(host, ".ggpht.com"))
         return proxy;
 
     if (host == "ntc.party")

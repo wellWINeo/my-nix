@@ -15,6 +15,10 @@ in {
     ../../hardware/rpi4.nix
   ];
 
+  boot.kernel.sysctl = {
+    "fs.inotify.max_user_watches" = 524288;
+  };
+
   fileSystems = {
     "/" = {
       device = "/dev/disk/by-label/NIXOS_SD";

@@ -5,10 +5,10 @@ let
 in {
   imports = [
     ../../common/server.nix
+    ../../common/zeroconf.nix
     ../../roles/share.nix
     ../../roles/media.nix
     ../../roles/torrent.nix
-    ../../roles/zeroconf.nix
     ../../roles/router/dns.nix
     ../../roles/router/nginx.nix
     ../../roles/shadowsocks/client.nix

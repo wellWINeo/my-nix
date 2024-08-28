@@ -13,6 +13,7 @@ in {
     ../../roles/letsencrypt.nix
     ../../roles/wireguard/wireguard-router.nix
     ../../roles/vault.nix
+    ../../roles/obsidian-livesync.nix
     ../../roles/shadowsocks/server.nix
   ];
 
@@ -98,6 +99,12 @@ in {
   roles.shadowsocks-server = {
     enable = true;
     openFirewall = false;
+  };
+
+  roles.obsidian-livesync = {
+    enable = true;
+    domain = domainName;
+    adminPassword = secrets.couchdbAdminPassword;
   };
 
   system.stateVersion = "24.05";

@@ -10,6 +10,7 @@ in {
     ../../roles/media.nix
     ../../roles/torrent.nix
     ../../roles/router/dns.nix
+    ../../roles/router/dhcp.nix
     ../../roles/router/nginx.nix
     ../../roles/shadowsocks/client.nix
     ../../hardware/rpi4.nix
@@ -71,6 +72,13 @@ in {
     enable = true;
     openFirewall = true;
     useLocalDNS = true;
+  };
+
+  roles.dhcp = {
+    enable = true;
+    hostMAC = "DC:A6:32:07:25:C1";
+    hostIP = "192.168.0.20";
+    gatewayIP = "192.168.0.1";
   };
 
   roles.shadowsocks-client = {

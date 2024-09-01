@@ -6,12 +6,15 @@ let
 in {
   options.roles.dhcp = {
     enable = mkEnableOption "Enable DHCP Server";
+    openFirewall = mkEnableOption "Open Firewall";
     hostMAC = mkOption { type = types.str; description = "Host's MAC Address"; };
     hostIP = mkOption { type = types.str; description = "Host's IP Address"; };
     gatewayIP = mkOption { type = types.str; description = "Gateway's IP Address"; };
   };
 
   config = mkIf cfg.enable {
+    networking.firewall.allowedUDPPorts = optionals cfg.openFirewall [ 67 ];
+
     services.dnsmasq = {
       enable = true;
 

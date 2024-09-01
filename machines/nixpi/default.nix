@@ -76,6 +76,7 @@ in {
 
   roles.dhcp = {
     enable = true;
+    openFirewall = true;
     hostMAC = "DC:A6:32:07:25:C1";
     hostIP = "192.168.0.20";
     gatewayIP = "192.168.0.1";

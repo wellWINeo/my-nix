@@ -24,6 +24,30 @@ in {
       databaseDir = "/var/lib/obsidian/data";
       adminUser = "o__ni";
       adminPass = cfg.adminPassword;
+      extraConfig = ''
+        [chttpd]
+        bind_address = 127.0.0.1
+        port = 5984
+
+        [cluster]
+        n = 1
+
+        [couchdb]
+        single_node = true
+        max_document_size = 50000000
+
+        [httpd]
+        WWW-Authenticate = Basic realm="couchdb"
+
+        [chttpd]
+        require_valid_user = true
+        enable_cors = true
+        max_http_request_size = 4294967296
+
+        [cors]
+        credentials = true
+        origins = app://obsidian.md,capacitor://localhost,http://localhost
+      '';
     };
 
     services.nginx.virtualHosts."obsidian-livesync.${cfg.domain}" = {

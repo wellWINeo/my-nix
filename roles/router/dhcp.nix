@@ -19,13 +19,15 @@ in {
       enable = true;
 
       settings = {
-        dhcp-range="192.168.0.11,192.168.0.150,12h";
+        dhcp-range="192.168.0.21,192.168.0.150,12h";
         dhcp-host="${cfg.hostMAC},${cfg.hostIP}";
       };
 
       extraConfig = ''
         dhcp-option=option:router,${cfg.gatewayIP}
         dhcp-option=option:dns-server,${cfg.hostIP}
+        dhcp-option=252,"http://192.168.0.20/proxy.pac"
+        dhcp-sequential-ip
       '';
     };
   };

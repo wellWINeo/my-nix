@@ -16,10 +16,12 @@ function FindProxyForURL(url, host) {
         || host == "gstatic.com"
         || dnsDomainIs(host, ".gstatic.com")
         || host == "ggpht.com"
-        || dnsDomainIs(host, ".ggpht.com")
-        || host == "rutracker.org"
+        || dnsDomainIs(host, ".ggpht.com"))
+        return proxy;
+
+    if (host == "rutracker.org"
         || host == "static.rutracker.cc"
-        || dnsDomainIs(host, ".rutracker.org"))
+        || dnsDomainIs(host, ".rutracker.org")) 
         return proxy;
 
     if (host == "ntc.party")

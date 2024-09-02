@@ -2,6 +2,9 @@
 
 let 
   hostname = "nixpi";
+  ifname = "end0";
+  ip = "192.168.0.20";
+  gatewayIP = "192.168.0.1";
 in {
   imports = [
     ../../common/server.nix
@@ -53,10 +56,22 @@ in {
 
   networking = {
     hostName = hostname;
-    wireless.enable = false;    
+    wireless.enable = false;
+    useDHCP = false;
     firewall = {
       enable = true;
       allowPing = true;
+    };
+
+    interfaces."${ifname}" = {
+      ipv4.addresses = [
+        { address = ip; prefixLength = 24; }
+      ];
+    };
+
+    defaultGateway = {
+      address = gatewayIP;
+      interface = ifname;
     };
   };
 
@@ -78,8 +93,8 @@ in {
     enable = true;
     openFirewall = true;
     hostMAC = "DC:A6:32:07:25:C1";
-    hostIP = "192.168.0.20";
-    gatewayIP = "192.168.0.1";
+    hostIP = ip;
+    gatewayIP = gatewayIP;
   };
 
   roles.shadowsocks-client = {
@@ -91,7 +106,7 @@ in {
   roles.home-nginx = {
     enable = true;
     openFirewall = true;
-    ip = "192.168.0.20";
+    ip = ip;
   };
 
   roles.zeroconf.enable = true;

@@ -9,6 +9,7 @@ in {
   imports = [
     ../../common/server.nix
     ../../common/zeroconf.nix
+    ../../common/btrfs-balance.nix
     ../../roles/share.nix
     ../../roles/media.nix
     ../../roles/torrent.nix
@@ -47,11 +48,17 @@ in {
 
   services.btrfs.autoScrub = {
     enable = true;
-    interval = "weekly";
+    interval = "monthly";
     fileSystems = [
       "/mnt/storage"
       "/swap"
     ];
+  };
+
+  services.btrfs.balance = {
+    enable = true;
+    interval = "weekly";
+    fileSystems = [ "/mnt/storage" ];
   };
 
   networking = {

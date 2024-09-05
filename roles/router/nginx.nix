@@ -32,7 +32,7 @@ in {
         root = "/etc/www/proxy";
 
         extraConfig = ''
-          default_type application/x-ns-proxy-autoconfig
+          default_type application/x-ns-proxy-autoconfig;
         '';
       };
 

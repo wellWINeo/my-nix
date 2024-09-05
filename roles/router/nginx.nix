@@ -30,7 +30,12 @@ in {
         forceSSL = false;
         enableACME = false;
         root = "/etc/www/proxy";
+
+        extraConfig = ''
+          default_type application/x-ns-proxy-autoconfig
+        '';
       };
+
     };
 
     environment.etc."/www/proxy/proxy.pac".source = ./proxy.pac;

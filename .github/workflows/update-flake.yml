@@ -2,7 +2,7 @@ name: Update Nix Flake
 
 on:
   schedule:
-    - cron: "0 0 * * 6" # Runs at 00:00 UTC every Saturday
+    - cron: "0 3 1-7 * sat" # Runs at at 03:00 UTC every first Saturday of the month
   workflow_dispatch: # Also run manually
 
 jobs:
@@ -24,14 +24,14 @@ jobs:
       #   run: nix flake check
 
       - name: Set date
-        run: echo "date={$(date +'%Y%m%d')}" >> $GITHUB_ENV
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           committer: GitHub <noreply@github.com>
-          author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
+          author: GitHub <noreply@github.com>
           commit-message: "Update Nix flake"
           branch: "chore/update-flake-${{ env.date }}"
           title: "Update Nix flake - ${{ env.date }}"

@@ -5,6 +5,7 @@ let
   ifname = "end0";
   ip = "192.168.0.20";
   gatewayIP = "192.168.0.1";
+  secrets = import ../../secrets;
 in {
   imports = [
     ../../common/server.nix
@@ -17,6 +18,7 @@ in {
     ../../roles/router/dhcp.nix
     ../../roles/router/nginx.nix
     ../../roles/shadowsocks/client.nix
+    ../../roles/wireguard/wireguard-client.nix
     ../../hardware/rpi4.nix
   ];
 
@@ -108,6 +110,13 @@ in {
     enable = true;
     host = "gw.uspenskiy.su";
     openFirewall = true;
+  };
+
+  roles.wireguard-client = {
+    enable = true;
+    ip = "10.20.0.25";
+    endpoint = "93.183.127.202";
+    serverPubKey = secrets.wireguard.mokosh-pubkey;
   };
 
   roles.home-nginx = {

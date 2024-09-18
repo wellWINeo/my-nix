@@ -88,6 +88,12 @@ in {
         pubKey = "VPX34DmeV81hlY6CTz2nTyUxiUDgsrJYTsuMEkI5WEI=";
         ip = "10.20.0.20";
       }
+
+      # nixpi
+      {
+        pubKey = "rVBQwSoTqIDjv1AYOdw2rgKKcMNPBuCEcdDdqjpsIiw=";
+        ip = "10.20.0.25";
+      }
     ];
   };
 

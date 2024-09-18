@@ -27,13 +27,13 @@ in {
 
       privateKeyFile = "/etc/nixos/secrets/wireguard-nixpi.privkey";
 
-      persistentKeepalive = 25;
 
       peers = [
         {
           publicKey = cfg.serverPubKey;
           allowedIPs = [ "10.20.0.0/16" ];
           endpoint = cfg.endpoint;
+          persistentKeepalive = 25;
         }
       ];
     };

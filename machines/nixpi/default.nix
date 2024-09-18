@@ -115,7 +115,7 @@ in {
   roles.wireguard-client = {
     enable = true;
     ip = "10.20.0.25";
-    endpoint = "93.183.127.202";
+    endpoint = "93.183.127.202:51820";
     serverPubKey = secrets.wireguard.mokosh-pubkey;
   };
 

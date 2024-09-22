@@ -2,7 +2,7 @@ name: Update Nix Flake
 
 on:
   schedule:
-    - cron: "0 3 1-7 * sat" # Runs at at 03:00 UTC every first Saturday of the month
+    - cron: "0 6 * * sat" # Runs at at 06:00 UTC every Saturday
   workflow_dispatch: # Also run manually
 
 jobs:
@@ -10,7 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Condition check # checks for first Sat of month if job started on schedule
+        id: condition_check
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" && $(date "+%d") -le 7 ]]; then 
+            echo "condition_check=true" >> $GITHUB_ENV
+          else
+            echo "condition_check=false" >> $GITHUB_ENV
+          fi
+
       - name: Checkout repository
+        if: ${{ env.condition_check == 'true' }}
         uses: actions/checkout@v3
 
       - name: Set up Nix

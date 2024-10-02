@@ -33,8 +33,11 @@ in {
       enable = true;
       settings = {
         no-resolv = true;
-        server = [ "127.0.0.1#8053" ];
+        server = [ "1.1.1.1" ];
       };
+      extraConfig = ''
+        interface=wg-client
+      '';
     };
 
     services.stubby = {

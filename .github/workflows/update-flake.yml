@@ -24,9 +24,11 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set up Nix
+        if: ${{ env.condition_check == 'true' }}
         uses: cachix/install-nix-action@v22
 
       - name: Update Nix flake
+        if: ${{ env.condition_check == 'true' }}
         run: nix flake update
 
       # TODO: Check requires to unlock secrets.json
@@ -34,9 +36,11 @@ jobs:
       #   run: nix flake check
 
       - name: Set date
+        if: ${{ env.condition_check == 'true' }}
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_ENV
 
       - name: Create Pull Request
+        if: ${{ env.condition_check == 'true' }}
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

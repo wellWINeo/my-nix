@@ -24,7 +24,7 @@ in {
         workgroup = WORKGROUP
         server string = ${cfg.hostname}
         netbios name = ${cfg.hostname}
-        hosts allow = 192.168.0. 127.0.0.1 localhost
+        hosts allow = 10.20.0. 192.168.0. 127.0.0.1 localhost
         hosts deny = 0.0.0.0/0
         client min protocol = NT1
         server min protocol = NT1

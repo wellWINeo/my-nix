@@ -94,6 +94,12 @@ in {
         pubKey = "rVBQwSoTqIDjv1AYOdw2rgKKcMNPBuCEcdDdqjpsIiw=";
         ip = "10.20.0.25";
       }
+
+      # desktop
+      {
+        pubKey = "6ifvdl8YdBUgGUp17lm/RlcNXfUpH84WKkH2zgnLSH8=";
+        ip = "10.20.0.30";
+      }
     ];
   };
 

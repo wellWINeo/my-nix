@@ -5,14 +5,13 @@ function FindProxyForURL(url, host) {
     if (host == "2ip.ru")
         return proxy;
 
-    if (host == "youtube.com" 
-        || dnsDomainIs(host, ".youtube.com") 
-        || dnsDomainIs(host, ".googlevideo.com") 
-        || dnsDomainIs(host, ".ytimg.com")
+    // || dnsDomainIs(host, ".youtube.com") 
+    // || dnsDomainIs(host, ".googlevideo.com") 
+    // || host == "googleapis.com"
+    // || dnsDomainIs(host, ".googleapis.com")
+    if (dnsDomainIs(host, ".ytimg.com")
         || host == "youtu.be"
         || dnsDomainIs(host, ".youtu.be")
-        || host == "googleapis.com"
-        || dnsDomainIs(host, ".googleapis.com")
         || host == "gstatic.com"
         || dnsDomainIs(host, ".gstatic.com")
         || host == "ggpht.com"

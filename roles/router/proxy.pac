@@ -5,17 +5,7 @@ function FindProxyForURL(url, host) {
     if (host == "2ip.ru")
         return proxy;
 
-    // || dnsDomainIs(host, ".youtube.com") 
-    // || dnsDomainIs(host, ".googlevideo.com") 
-    // || host == "googleapis.com"
-    // || dnsDomainIs(host, ".googleapis.com")
-    if (dnsDomainIs(host, ".ytimg.com")
-        || host == "youtu.be"
-        || dnsDomainIs(host, ".youtu.be")
-        || host == "gstatic.com"
-        || dnsDomainIs(host, ".gstatic.com")
-        || host == "ggpht.com"
-        || dnsDomainIs(host, ".ggpht.com"))
+    if (host == "linkedin.com")
         return proxy;
 
     if (host == "rutracker.org"

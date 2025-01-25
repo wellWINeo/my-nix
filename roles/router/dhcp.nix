@@ -21,14 +21,20 @@ in {
       settings = {
         dhcp-range="192.168.0.21,192.168.0.150,12h";
         dhcp-host="${cfg.hostMAC},${cfg.hostIP}";
+        dhcp-option = [
+          "option:router,${cfg.gatewayIP}"
+          "option:dns-server,${cfg.hostIP}"
+          "252,\"http://192.168.0.20/proxy.pac\""
+        ];
+        dhcp-sequential-ip = "";
       };
 
-      extraConfig = ''
-        dhcp-option=option:router,${cfg.gatewayIP}
-        dhcp-option=option:dns-server,${cfg.hostIP}
-        dhcp-option=252,"http://192.168.0.20/proxy.pac"
-        dhcp-sequential-ip
-      '';
+      # extraConfig = ''
+      #   dhcp-option=option:router,${cfg.gatewayIP}
+      #   dhcp-option=option:dns-server,${cfg.hostIP}
+      #   dhcp-option=252,"http://192.168.0.20/proxy.pac"
+      #   dhcp-sequential-ip
+      # '';
     };
   };
 }

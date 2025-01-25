@@ -18,21 +18,21 @@ in {
 
     services.samba = {
       enable = true;
-      securityType = "user";
       openFirewall = true;
-      extraConfig = ''
-        workgroup = WORKGROUP
-        server string = ${cfg.hostname}
-        netbios name = ${cfg.hostname}
-        hosts allow = 10.20.0. 192.168.0. 127.0.0.1 localhost
-        hosts deny = 0.0.0.0/0
-        client min protocol = NT1
-        server min protocol = NT1
-        map to guest = Bad User
-        guest account = nobody
-      '';
+      settings = {
+        global = {
+          workgroup = "WORKGROUP";
+          security = "user";
+          "server string" = cfg.hostname;
+          "netbios name" = cfg.hostname;
+          "hosts allow" = "10.20.0. 192.168.0. 127.0.0.1 localhost";
+          "hosts deny" = "0.0.0.0/0";
+          "client min protocol" = "NT1";
+          "server min protocol" = "NT1";
+          "map to guest" = "Bad User";
+          "guest account" = "nobody";
+        };
 
-      shares = {
         Backups = mkIf cfg.enableTimeMachine {
           comment = "Backups share";
           path = "/mnt/storage/Backups";

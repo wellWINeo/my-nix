@@ -49,7 +49,17 @@ in {
         internalInterfaces = [ "wg0" "wg-public" ];
       };
 
-      firewall.allowedUDPPorts = optionals cfg.openFirewall [ port (port + 1) ];
+      firewall = {
+        allowedUDPPorts = optionals cfg.openFirewall [ port (port + 1) ];
+        extraCommands = ''
+          ${pkgs.iptables}/bin/iptables -I FORWARD -s 10.20.0.0/24 -d 10.30.0.0/24 -j DROP
+          ${pkgs.iptables}/bin/iptables -I FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP
+        '';
+        extraStopCommands = ''
+          ${pkgs.iptables}/bin/iptables -D FORWARD -s 10.20.0.0/24 -d 10.30.0.0/24 -j DROP
+          ${pkgs.iptables}/bin/iptables -D FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP
+        '';
+      };
 
       wireguard.interfaces = {
         # internal

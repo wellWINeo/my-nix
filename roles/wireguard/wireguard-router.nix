@@ -56,8 +56,11 @@ in {
           ${pkgs.iptables}/bin/iptables -I FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP
         '';
         extraStopCommands = ''
-          ${pkgs.iptables}/bin/iptables -D FORWARD -s 10.20.0.0/24 -d 10.30.0.0/24 -j DROP
-          ${pkgs.iptables}/bin/iptables -D FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP
+          ${pkgs.iptables}/bin/iptables -C FORWARD -s 10.20.0.0/24 -d 10.30.0.0/24 -j DROP 2>/dev/null && \
+            ${pkgs.iptables}/bin/iptables -D FORWARD -s 10.20.0.0/24 -d 10.30.0.0/24 -j DROP
+
+          ${pkgs.iptables}/bin/iptables -C FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP 2>/dev/null && \
+            ${pkgs.iptables}/bin/iptables -D FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP
         '';
       };
 

@@ -75,30 +75,41 @@ in {
       {
         pubKey = "QiTggD0EDepZDbUU1KW+M6l2NWHe67DS8jje5EKDGhU=";
         ip = "10.20.0.10";
+        isInternal = true;
       }
 
       # iPhone
       {
         pubKey = "6JnxIyp7ggP5tfz7j2JFvQKIM2QvQR2FRbaPfHb6tGs=";
         ip = "10.20.0.15";
+        isInternal = true;
       }
 
       # iPad
       {
         pubKey = "VPX34DmeV81hlY6CTz2nTyUxiUDgsrJYTsuMEkI5WEI=";
         ip = "10.20.0.20";
+        isInternal = true;
       }
 
       # nixpi
       {
         pubKey = "rVBQwSoTqIDjv1AYOdw2rgKKcMNPBuCEcdDdqjpsIiw=";
         ip = "10.20.0.25";
+        isInternal = true;
       }
 
       # desktop
       {
         pubKey = "6ifvdl8YdBUgGUp17lm/RlcNXfUpH84WKkH2zgnLSH8=";
         ip = "10.20.0.30";
+        isInternal = true;
+      }
+
+      {
+        pubKey = "X1PgQ9CZHS4zW7RCeqD9g8s/7gCQWk5tzTgO1uQ84BI=";
+        ip = "10.30.0.10";
+        isInternal = false;
       }
     ];
   };

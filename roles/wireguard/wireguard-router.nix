@@ -46,10 +46,10 @@ in {
       nat = {
         enable = true;
         externalInterface = cfg.externalIf;
-        internalInterfaces = [ "wg0" ];
+        internalInterfaces = [ "wg0" "wg-public" ];
       };
 
-      firewall.allowedUDPPorts = optionals cfg.openFirewall [ port ];
+      firewall.allowedUDPPorts = optionals cfg.openFirewall [ port (port + 1) ];
 
       wireguard.interfaces = {
         # internal

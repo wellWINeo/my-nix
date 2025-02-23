@@ -106,9 +106,21 @@ in {
         isInternal = true;
       }
 
+      ###
+      # Limited vpn net goes below
+      ###
+
+      # grandma
       {
         pubKey = "X1PgQ9CZHS4zW7RCeqD9g8s/7gCQWk5tzTgO1uQ84BI=";
         ip = "10.30.0.10";
+        isInternal = false;
+      }
+
+      # Google TV
+      {
+        pubKey = "Me6/vN0sbqunnSb4YwKWV7gs98AlRCWG/vBZfOtSOSA=";
+        ip = "10.30.0.15";
         isInternal = false;
       }
     ];

@@ -26,7 +26,7 @@ in {
           "option:dns-server,${cfg.hostIP}"
           "252,\"http://192.168.0.20/proxy.pac\""
         ];
-        dhcp-sequential-ip = "";
+        dhcp-sequential-ip = true;
       };
 
       # extraConfig = ''

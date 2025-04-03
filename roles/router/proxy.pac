@@ -27,7 +27,7 @@ function FindProxyForURL(url, host) {
     if (host == "ntc.party")
         return proxy;
 
-    if (host == "chatgpt.com" ||dnsDomainIs(host, ".chatgpt.com") )
+    if (host == "chatgpt.com" || dnsDomainIs(host, ".chatgpt.com") )
         return proxy;
 
     if (host == "openai.com" || dnsDomainIs(host, ".openai.com"))

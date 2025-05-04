@@ -25,7 +25,7 @@ in {
       group = "web";
 
       config = ''
-        access_log syslog:server=unix:/dev/log
+        access_log syslog:server=unix:/dev/log;
       ''; 
 
       recommendedGzipSettings = true;

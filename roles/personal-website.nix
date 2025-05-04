@@ -24,12 +24,14 @@ in {
       enable = true;
       group = "web";
 
-      config = ''
-        access_log syslog:server=unix:/dev/log;
-      ''; 
-
       recommendedGzipSettings = true;
       recommendedOptimisation = true;
+
+      virtualHosts.default = {
+        extraConfig = ''
+          access_log syslog:server=unix:/dev/log;
+        ''; 
+      };
 
       virtualHosts."${cfg.domain}" = {
         root = "/etc/www/${cfg.domain}";

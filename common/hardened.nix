@@ -1,4 +1,5 @@
 { config, pkgs, lib, ... }:
+with builtins;
 with lib;
 
 let
@@ -15,28 +16,34 @@ in {
       enable = true;
       maxretry = 5;
 
-      jails = {
-        sshd = {
+      jails = let
+        mkJail = filterName: {
           settings = {
-            port = "ssh";
-            filter = "sshd";
-            logpath = "/var/log/auth.log";
+            port = "http,https";
+            filter = filterName;
           };
         };
-
-        nginx = {
-          settings = {
-            port= "http,https";
-            filter = concatStringsSep ", " [ 
-              "nginx-http-auth"
-              "nginx-bad-request"
-              "nginx-botsearch"
-              "nginx-error-common"
-              "nginx-forbidden"
-            ];
-          };
+        filterNames = [
+          "nginx-http-auth"
+          "nginx-bad-request"
+          "nginx-botsearch"
+          "nginx-error-common"
+          "nginx-forbidden"
+        ];
+        nginxJails = listToAttrs (map (f: {
+          name = f;
+          value = mkJail f;
+        }) filterNames);
+      in 
+        nginxJails // { 
+          sshd = {
+            settings = {
+              port = "ssh";
+              filter = "sshd";
+              logpath = "/var/log/auth.log";
+            };
+          };  
         };
-      };
     };
   };
 }

@@ -55,8 +55,8 @@ in {
               '';
               datepattern = ''
                 {^LN-BEG}%%ExY(?P<_sep>[-/.])%%m(?P=_sep)%%d[T ]%%H:%%M:%%S(?:[.,]%%f)?(?:\s*%%z)?
-                ^[^\[]*\[({DATE})
-                {^LN-BEG} 
+                  ^[^\[]*\[({DATE})
+                  {^LN-BEG} 
               '';
               journalmatch = "_SYSTEMD_UNIT=nginx.service + _COMM=nginx";
             };

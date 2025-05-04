@@ -24,6 +24,10 @@ in {
       enable = true;
       group = "web";
 
+      config = ''
+        access_log syslog:server=unix:/dev/log
+      ''; 
+
       recommendedGzipSettings = true;
       recommendedOptimisation = true;
 

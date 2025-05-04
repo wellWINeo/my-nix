@@ -26,14 +26,31 @@ in {
           settings = {
             port = "http,https";
             filter = "nginx-http-auth";
-            logpath = "/var/log/auth.log";
+            backend = "systemd";
           };
         };
-        wireguard = {
+
+        nginx-badbots = {
           settings = {
-            port = "51820";
-            filter = "wg-access";
-            logpath = "/var/log/auth.log";
+            port = "http,https";
+            filter = "nginx-badbots";
+            backend = "systemd";
+          };
+        };
+
+        nginx-noscript = {
+          settings = {
+            port = "http,https";
+            filter = "nginx-noscript";
+            backend = "systemd";
+          };
+        };
+
+        nginx-proxy = {
+          settings = {
+            port = "http,https";
+            filter = "nginx-proxy";
+            backend = "systemd";
           };
         };
       };

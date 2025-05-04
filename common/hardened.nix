@@ -26,7 +26,6 @@ in {
         filterNames = [
           "nginx-http-auth"
           "nginx-bad-request"
-          "nginx-botsearch"
           "nginx-error-common"
           "nginx-forbidden"
         ];
@@ -35,7 +34,9 @@ in {
           value = mkJail f;
         }) filterNames);
       in 
-        nginxJails // { 
+        nginxJails 
+        // 
+        { 
           sshd = {
             settings = {
               port = "ssh";
@@ -43,6 +44,23 @@ in {
               logpath = "/var/log/auth.log";
             };
           };  
+        }
+        //
+        {
+          nginx-botsearch = {
+            settings = {
+              port = "http,https";
+              failregex = ''
+                \[error\] \d+#\d+: \*\d+ (\S+ )?\"\S+\" (failed|is not found) \(2\: No such file or directory\), client\: <HOST>\, server\: \S*\, request: \"(GET|POST|HEAD) \/<block> \S+\"\, .*?$
+              '';
+              datepattern = ''
+                {^LN-BEG}%%ExY(?P<_sep>[-/.])%%m(?P=_sep)%%d[T ]%%H:%%M:%%S(?:[.,]%%f)?(?:\s*%%z)?
+                ^[^\[]*\[({DATE})
+                {^LN-BEG} 
+              '';
+              journalmatch = "_SYSTEMD_UNIT=nginx.service + _COMM=nginx";
+            };
+          };
         };
     };
   };

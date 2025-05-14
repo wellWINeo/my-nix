@@ -1,11 +1,6 @@
 # configuration Raspberry Pi 4 Model B Rev 1.1 (2 GB RAM)
 
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}:
+{ pkgs, ... }:
 
 {
   boot = {

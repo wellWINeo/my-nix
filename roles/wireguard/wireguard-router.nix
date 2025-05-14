@@ -15,7 +15,6 @@ let
     publicKey = peer.pubKey;
     allowedIPs = [ "${peer.ip}/32" ];
   };
-  isInternal = isInternal: peer: peer.isInternal == isInternal;
   clientType = submodule {
     options = {
       pubKey = mkOption {

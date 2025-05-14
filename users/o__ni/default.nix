@@ -1,9 +1,13 @@
-{ config, pkgs, lib, ... }:
+{ pkgs, ... }:
 
 let
   secrets = import ../../secrets;
-in {
-  nix.settings.experimental-features = [ "flakes" "nix-command" ];
+in
+{
+  nix.settings.experimental-features = [
+    "flakes"
+    "nix-command"
+  ];
   nixpkgs.config.allowUnfree = true;
 
   time.timeZone = "Europe/Moscow";
@@ -13,7 +17,10 @@ in {
   users.users.o__ni = {
     isNormalUser = true;
     description = "Stepan Uspenskiy";
-    extraGroups = [ "users" "wheel" ];
+    extraGroups = [
+      "users"
+      "wheel"
+    ];
     packages = with pkgs; [
       git
       gnupg

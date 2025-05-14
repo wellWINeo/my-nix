@@ -1,10 +1,15 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.obsidian-livesync;
   port = 5984;
-in {
+in
+{
   options.roles.obsidian-livesync = {
     enable = mkEnableOption "Enable Obsidian LiveSync";
     domain = mkOption {

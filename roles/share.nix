@@ -1,20 +1,29 @@
 # Samba share with wsdd and avahi
 
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
-let 
+let
   cfg = config.roles.share;
-in {
+in
+{
 
   options.roles.share = {
     hostname = mkOption { type = types.str; };
-    enable = mkEnableOption "Enable SMB share"; 
+    enable = mkEnableOption "Enable SMB share";
     enableTimeMachine = mkEnableOption "Enable TimeMachine on SMB";
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = with pkgs; [ samba nssmdns ];
+    environment.systemPackages = with pkgs; [
+      samba
+      nssmdns
+    ];
 
     services.samba = {
       enable = true;
@@ -102,6 +111,8 @@ in {
       '';
     };
 
-    networking.firewall.extraCommands = ''iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns'';
+    networking.firewall.extraCommands = ''
+      iptables -t raw -A OUTPUT -p udp -m udp --dport 137 -j CT --helper netbios-ns
+    '';
   };
 }

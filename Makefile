@@ -35,3 +35,6 @@ install-secrets:
 	| while IFS=: read host filename perm owner group; do \
 		install -m $$perm -o $$owner -g $$group ./secrets/unlocked/$$filename $(SECRETS_DIRECTORY)/$$filename; \
 	done
+
+check:
+	nix flake check 'path:.' --all-systems

@@ -1,12 +1,18 @@
 # miniDLNA
 
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.media;
-in {
-  options.roles.media.enable =  mkEnableOption "Enable miniDLNA";
+in
+{
+  options.roles.media.enable = mkEnableOption "Enable miniDLNA";
 
   config = mkIf cfg.enable {
     environment.systemPackages = with pkgs; [ minidlna ];

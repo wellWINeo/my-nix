@@ -6,7 +6,7 @@
       device = "/dev/vda";
     };
 
-    initrd.availableKernelModules = [ 
+    initrd.availableKernelModules = [
       "ata_piix"
       "uhci_hcd"
       "virtio_pci"

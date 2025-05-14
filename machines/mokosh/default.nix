@@ -1,12 +1,13 @@
-{ config, pkgs, lib, ... }:
+{ ... }:
 
 let
   hostname = "mokosh";
   domainName = "uspenskiy.su";
   secrets = import ../../secrets;
   ifname = "ens3";
-in {
-  imports = [ 
+in
+{
+  imports = [
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
@@ -36,8 +37,11 @@ in {
     firewall.enable = true;
 
     interfaces."${ifname}" = {
-      ipv4.addresses = [ 
-        { address = "93.183.127.202"; prefixLength = 24; } 
+      ipv4.addresses = [
+        {
+          address = "93.183.127.202";
+          prefixLength = 24;
+        }
       ];
     };
 
@@ -52,11 +56,13 @@ in {
     PasswordAuthentication = false;
   };
 
-
   ###
   # Roles
   ###
-  users.groups.web.members = [ "nginx" "acme" ]; # setup common group to gran nginx access to acme's certs
+  users.groups.web.members = [
+    "nginx"
+    "acme"
+  ]; # setup common group to gran nginx access to acme's certs
 
   roles.hardened.enable = true;
 

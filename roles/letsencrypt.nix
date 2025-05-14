@@ -1,9 +1,14 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.letsencrypt;
-in {
+in
+{
   options.roles.letsencrypt = {
     enable = mkEnableOption "Enable Let's Encrypt";
     domain = mkOption { type = types.str; };

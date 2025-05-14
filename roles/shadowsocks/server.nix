@@ -1,17 +1,23 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
-let 
+let
   cfg = config.roles.shadowsocks-server;
   port = 8388;
-in {
+in
+{
   disabledModules = [ "services/networking/shadowsocks.nix" ];
 
   imports = [ ../../common/shadowsocks.nix ];
 
   options.roles.shadowsocks-server = {
     enable = mkEnableOption "Enable ShadowSocks Server";
-    openFirewall = mkOption { 
+    openFirewall = mkOption {
       type = types.bool;
       default = true;
       description = "Open firewall";

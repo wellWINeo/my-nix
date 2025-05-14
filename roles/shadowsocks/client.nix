@@ -1,17 +1,26 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
-let 
+let
   cfg = config.roles.shadowsocks-client;
   port = 1080;
-in {
+in
+{
   disabledModules = [ "services/networking/shadowsocks.nix" ];
 
   imports = [ ../../common/shadowsocks.nix ];
 
   options.roles.shadowsocks-client = {
     enable = mkEnableOption "Enable ShadowSocks client";
-    host = mkOption { type = types.str; description = "Host for v2ray plugin"; };
+    host = mkOption {
+      type = types.str;
+      description = "Host for v2ray plugin";
+    };
     openFirewall = mkOption {
       type = types.bool;
       default = true;

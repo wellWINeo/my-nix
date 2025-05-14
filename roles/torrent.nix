@@ -1,12 +1,18 @@
 # transmission
 
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.torrent;
   baseDir = "/mnt/storage/Public/Torrents";
-in {
+in
+{
   options.roles.torrent.enable = mkEnableOption "Enable Transmission";
 
   config = mkIf cfg.enable {

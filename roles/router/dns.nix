@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
 ###
@@ -8,12 +13,13 @@ with lib;
 
 let
   cfg = config.roles.dns;
-in {
+in
+{
   options.roles.dns = {
     enable = mkEnableOption "Enable DNS";
-    openFirewall = mkOption { 
-      type = types.bool; 
-      default = true; 
+    openFirewall = mkOption {
+      type = types.bool;
+      default = true;
       description = "Open Firewall";
     };
     useLocalDNS = mkOption {
@@ -45,19 +51,23 @@ in {
           {
             address_data = "1.1.1.1";
             tls_auth_name = "cloudflare-dns.com";
-            tls_pubkey_pinset = [{
-              digest = "sha256";
-              value = "SPfg6FluPIlUc6a5h313BDCxQYNGX+THTy7ig5X3+VA=";
-            }];
+            tls_pubkey_pinset = [
+              {
+                digest = "sha256";
+                value = "SPfg6FluPIlUc6a5h313BDCxQYNGX+THTy7ig5X3+VA=";
+              }
+            ];
           }
 
           {
             address_data = "1.0.0.1";
             tls_auth_name = "cloudflare-dns.com";
-            tls_pubkey_pinset = [{
-              digest = "sha256";
-              value = "SPfg6FluPIlUc6a5h313BDCxQYNGX+THTy7ig5X3+VA=";
-            }];
+            tls_pubkey_pinset = [
+              {
+                digest = "sha256";
+                value = "SPfg6FluPIlUc6a5h313BDCxQYNGX+THTy7ig5X3+VA=";
+              }
+            ];
           }
         ];
       };

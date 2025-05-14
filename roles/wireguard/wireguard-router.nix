@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 with types;
 with builtins;
@@ -10,23 +15,30 @@ let
     publicKey = peer.pubKey;
     allowedIPs = [ "${peer.ip}/32" ];
   };
-  isInternal = 
-    isInternal: 
-      peer: 
-        peer.isInternal == isInternal;
+  isInternal = isInternal: peer: peer.isInternal == isInternal;
   clientType = submodule {
     options = {
-      pubKey = mkOption { type = str; description = "Public key"; };
-      ip = mkOption { type = str; description = "Client's IP"; };
-      isInternal = mkOption { type = bool; description = "Is internal VPN peer"; };
+      pubKey = mkOption {
+        type = str;
+        description = "Public key";
+      };
+      ip = mkOption {
+        type = str;
+        description = "Client's IP";
+      };
+      isInternal = mkOption {
+        type = bool;
+        description = "Is internal VPN peer";
+      };
     };
   };
-in {
+in
+{
   options.roles.wireguardRouter = {
     enable = mkEnableOption "Enable WireGuard Router";
-    externalIf = mkOption { 
-      type = str; 
-      description = "External interface name"; 
+    externalIf = mkOption {
+      type = str;
+      description = "External interface name";
     };
     openFirewall = mkOption {
       type = bool;
@@ -35,7 +47,7 @@ in {
     };
     clients = mkOption {
       type = listOf clientType;
-      default = [];
+      default = [ ];
       description = "WireGuard clients";
     };
 
@@ -46,11 +58,17 @@ in {
       nat = {
         enable = true;
         externalInterface = cfg.externalIf;
-        internalInterfaces = [ "wg0" "wg-public" ];
+        internalInterfaces = [
+          "wg0"
+          "wg-public"
+        ];
       };
 
       firewall = {
-        allowedUDPPorts = optionals cfg.openFirewall [ port (port + 1) ];
+        allowedUDPPorts = optionals cfg.openFirewall [
+          port
+          (port + 1)
+        ];
         extraCommands = ''
           ${pkgs.iptables}/bin/iptables -I FORWARD -s 10.20.0.0/24 -d 10.30.0.0/24 -j DROP
           ${pkgs.iptables}/bin/iptables -I FORWARD -s 10.30.0.0/24 -d 10.20.0.0/24 -j DROP
@@ -87,7 +105,7 @@ in {
         wg-public = {
           ips = [ "10.30.0.1/24" ];
           listenPort = port + 1;
-                    
+
           postSetup = ''
             ${pkgs.iptables}/bin/iptables -t nat -A POSTROUTING -s 10.30.0.0/24 -o ${cfg.externalIf} -j MASQUERADE
           '';

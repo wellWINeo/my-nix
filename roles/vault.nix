@@ -1,12 +1,18 @@
-{ config, pkgs, lib, ... }: 
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.vault;
-in {
+in
+{
   options.roles.vault = {
     enable = mkEnableOption "Enabl Vaulwarden";
-    baseDomain = mkOption { 
+    baseDomain = mkOption {
       type = types.str;
       description = "Base domain";
     };
@@ -46,7 +52,7 @@ in {
 
     systemd.services.vaultwarden = {
       serviceConfig = {
-        ReadWritePaths = [ 
+        ReadWritePaths = [
           "/var/log/vaultwarden"
           "/var/lib/vault"
         ];

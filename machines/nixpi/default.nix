@@ -1,12 +1,13 @@
-{ config, pkgs, lib, ... }:
+{ ... }:
 
-let 
+let
   hostname = "nixpi";
   ifname = "end0";
   ip = "192.168.0.20";
   gatewayIP = "192.168.0.1";
   secrets = import ../../secrets;
-in {
+in
+{
   imports = [
     ../../common/server.nix
     ../../common/zeroconf.nix
@@ -74,7 +75,10 @@ in {
 
     interfaces."${ifname}" = {
       ipv4.addresses = [
-        { address = ip; prefixLength = 24; }
+        {
+          address = ip;
+          prefixLength = 24;
+        }
       ];
     };
 

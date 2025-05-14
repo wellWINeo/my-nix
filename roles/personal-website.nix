@@ -1,24 +1,33 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.personelWebsite;
-in {
+in
+{
   options.roles.personelWebsite = {
     enable = mkEnableOption "Enable personel website";
-    openFirewall = mkOption { 
-      type = types.bool; 
-      default = true; 
+    openFirewall = mkOption {
+      type = types.bool;
+      default = true;
       description = "Open Firewall";
     };
-    domain = mkOption { 
-      type = types.str; 
-      description = "Domain name"; 
+    domain = mkOption {
+      type = types.str;
+      description = "Domain name";
     };
   };
 
   config = mkIf cfg.enable {
-    networking.firewall.allowedTCPPorts = optionals cfg.openFirewall [ 80 443 ];
+    networking.firewall.allowedTCPPorts = optionals cfg.openFirewall [
+      80
+      443
+    ];
 
     services.nginx = {
       enable = true;
@@ -30,7 +39,7 @@ in {
       virtualHosts.default = {
         extraConfig = ''
           access_log syslog:server=unix:/dev/log;
-        ''; 
+        '';
       };
 
       virtualHosts."${cfg.domain}" = {

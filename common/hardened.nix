@@ -1,10 +1,16 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 with builtins;
 with lib;
 
 let
   cfg = config.roles.hardened;
-in {
+in
+{
   options.roles.hardened = {
     enable = mkEnableOption "Enable server hardenings";
   };
@@ -16,37 +22,38 @@ in {
       enable = true;
       maxretry = 5;
 
-      jails = let
-        mkJail = filterName: {
-          settings = {
-            port = "http,https";
-            filter = filterName;
+      jails =
+        let
+          mkJail = filterName: {
+            settings = {
+              port = "http,https";
+              filter = filterName;
+            };
           };
-        };
-        filterNames = [
-          "nginx-http-auth"
-          "nginx-bad-request"
-          "nginx-error-common"
-          "nginx-forbidden"
-        ];
-        nginxJails = listToAttrs (map (f: {
-          name = f;
-          value = mkJail f;
-        }) filterNames);
-      in 
-        nginxJails 
-        // 
-        { 
+          filterNames = [
+            "nginx-http-auth"
+            "nginx-bad-request"
+            "nginx-error-common"
+            "nginx-forbidden"
+          ];
+          nginxJails = listToAttrs (
+            map (f: {
+              name = f;
+              value = mkJail f;
+            }) filterNames
+          );
+        in
+        nginxJails
+        // {
           sshd = {
             settings = {
               port = "ssh";
               filter = "sshd";
               logpath = "/var/log/auth.log";
             };
-          };  
+          };
         }
-        //
-        {
+        // {
           nginx-botsearch = {
             settings = {
               port = "http,https";

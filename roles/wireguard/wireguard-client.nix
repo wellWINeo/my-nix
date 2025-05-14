@@ -1,18 +1,23 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  lib,
+  ...
+}:
 with lib;
 with types;
 
 let
   cfg = config.roles.wireguard-client;
-in {
+in
+{
   options.roles.wireguard-client = {
     enable = mkEnableOption "Enable WireGuard Client";
     ip = mkOption {
       type = str;
       description = "Client's IP address";
     };
-    endpoint = mkOption { 
-      type = str; 
+    endpoint = mkOption {
+      type = str;
       description = "Server's <ip>:<port>";
     };
     serverPubKey = mkOption {
@@ -26,7 +31,6 @@ in {
       ips = [ "${cfg.ip}/32" ];
 
       privateKeyFile = "/etc/nixos/secrets/wireguard-nixpi.privkey";
-
 
       peers = [
         {

@@ -1,14 +1,19 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  lib,
+  ...
+}:
 with lib;
 
 let
   cfg = config.roles.home-nginx;
-in {
+in
+{
   options.roles.home-nginx = {
     enable = mkEnableOption "Enable nginx for home server";
-    openFirewall = mkOption { 
-      type = types.bool; 
-      default = true; 
+    openFirewall = mkOption {
+      type = types.bool;
+      default = true;
       description = "Open Firewall";
     };
     ip = mkOption {

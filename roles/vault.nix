@@ -11,7 +11,7 @@ let
 in
 {
   options.roles.vault = {
-    enable = mkEnableOption "Enabl Vaulwarden";
+    enable = mkEnableOption "Enable Vaulwarden";
     baseDomain = mkOption {
       type = types.str;
       description = "Base domain";

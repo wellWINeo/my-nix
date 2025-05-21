@@ -26,36 +26,32 @@ in
       settings = {
         server = {
           hostname = cfg.hostname;
-          tls.enable = false;
-          proxy.trusted-networks = [
-            "127.0.0.0/8"
-            "::1"
-            "10.0.0.0/8"
-          ];
+          tls = {
+            enable = true;
+            implicit = true;
+          };
 
           listener = {
             smtp = {
-              bind = "127.0.0.1:10025";
+              bind = "0.0.0.0:25";
               protocol = "smtp";
-              proxy-protocol = true;
             };
 
             submission = {
-              bind = "127.0.0.1:10587";
+              bind = "0.0.0.0:587";
               protocol = "smtp";
               tls.implicit = false;
-              proxy-protocol = true;
             };
 
             submissions = {
-              bind = "127.0.0.1:10465";
+              bind = "0.0.0.0:465";
               protocol = "smtp";
               tls.implicit = false;
               proxy-protocol = true;
             };
 
             imap = {
-              bind = "127.0.0.1:10993";
+              bind = "0.0.0.0:993";
               protocol = "imap";
               tls.implicit = false;
               proxy-protocol = true;
@@ -97,8 +93,15 @@ in
           user = "admin";
           secret = "%{file:/etc/nixos/secrets/stalwart-admin-password}%";
         };
+
+        certificate.default = {
+          cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}";
+          private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}";
+        };
       };
     };
+
+    users.users.stalwart-mail.extraGroups = [ "web" ];
 
     networking.firewall.allowedTCPPorts = [
       25
@@ -108,35 +111,35 @@ in
     ];
 
     services.nginx = {
-      streamConfig = ''
-        # Proxy SMTP
-        server {
-          listen 25 proxy_protocol;
-          proxy_pass 127.0.0.1:10025;
-          proxy_protocol on;
-        }
+      # streamConfig = ''
+      #   # Proxy SMTP
+      #   server {
+      #     listen 25 proxy_protocol;
+      #     proxy_pass 127.0.0.1:10025;
+      #     proxy_protocol on;
+      #   }
 
-        # Proxy IMAPS
-        server {
-          listen 993 proxy_protocol;
-          proxy_pass 127.0.0.1:10993;
-          proxy_protocol on;
-        }
+      #   # Proxy IMAPS
+      #   server {
+      #     listen 993 proxy_protocol;
+      #     proxy_pass 127.0.0.1:10993;
+      #     proxy_protocol on;
+      #   }
 
-        # Proxy SMTPS
-        server {
-          listen 465 proxy_protocol;
-          proxy_pass 127.0.0.1:10465;
-          proxy_protocol on;
-        }
+      #   # Proxy SMTPS
+      #   server {
+      #     listen 465 proxy_protocol;
+      #     proxy_pass 127.0.0.1:10465;
+      #     proxy_protocol on;
+      #   }
 
-        # Proxy Submission (STARTTLS) 
-        server {
-          listen 587 proxy_protocol;
-          proxy_pass 127.0.0.1:10587;
-          proxy_protocol on;
-        }
-      '';
+      #   # Proxy Submission (STARTTLS)
+      #   server {
+      #     listen 587 proxy_protocol;
+      #     proxy_pass 127.0.0.1:10587;
+      #     proxy_protocol on;
+      #   }
+      # '';
 
       virtualHosts = {
         ${cfg.hostname} = {

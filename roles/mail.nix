@@ -101,7 +101,7 @@ in
 
         authentication."fallback-admin" = {
           user = "admin";
-          secret = "%{file:/etc/nixos/secrets/stalwart_admin_passwd}%";
+          secret = "%{file:/etc/nixos/secrets/stalwart-admin-password}%";
         };
       };
     };

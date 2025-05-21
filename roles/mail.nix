@@ -19,6 +19,8 @@ in
       openFirewall = false;
       settings = {
         server = {
+          hostname = cfg.domain;
+          tls.enable = false;
           proxy.trusted-networks = [
             "127.0.0.0/8"
             "::1"
@@ -26,21 +28,31 @@ in
           ];
 
           listener = {
-            "smtp" = {
+            smtp = {
               bind = "127.0.0.1:10025";
               protocol = "smtp";
+              proxy-protocol = true;
             };
 
-            "submissions" = {
+            submission = {
+              bind = "127.0.0.1:10587";
+              protocol = "smtp";
+              tls.implicit = false;
+              proxy-protocol = true;
+            };
+
+            submissions = {
               bind = "127.0.0.1:10465";
               protocol = "smtp";
               tls.implicit = false;
+              proxy-protocol = true;
             };
 
-            "imap" = {
+            imap = {
               bind = "127.0.0.1:10993";
               protocol = "imap";
               tls.implicit = false;
+              proxy-protocol = true;
             };
           };
         };
@@ -53,14 +65,20 @@ in
           directory = "internal";
         };
 
-        store."rocksdb" = {
+        store.rocksdb = {
           type = "rocksdb";
           path = "/var/lib/stalwart";
         };
 
-        directory."internal" = {
+        directory.internal = {
           type = "internal";
           store = "rocksdb";
+        };
+
+        tracer.journal = {
+          type = "journal";
+          level = "info";
+          enable = true;
         };
 
         tracer."stdout" = {
@@ -70,12 +88,24 @@ in
           enable = true;
         };
 
+        management = {
+          bind = [ "127.0.0.1:10080" ];
+          protocol = [ "http" ];
+        };
+
         authentication."fallback-admin" = {
           user = "admin";
           secret = "%{file:/etc/nixos/secrets/stalwart_admin_passwd}%";
         };
       };
     };
+
+    networking.firewall.allowedTCPPorts = [
+      25
+      465
+      587
+      993
+    ];
 
     services.nginx = {
       streamConfig = ''
@@ -99,7 +129,24 @@ in
           proxy_pass 127.0.0.1:10465;
           proxy_protocol on;
         }
+
+        # Proxy Submission (STARTTLS) 
+        server {
+          listen 587 proxy_protocol;
+          proxy_pass 127.0.0.1:10587;
+          proxy_protocol on;
+        }
       '';
+
+      virtualHosts = {
+        ${cfg.domain} = {
+          forceSSL = true;
+          enableACME = true;
+          locations."/" = {
+            proxyPass = "http://127.0.0.1:10080";
+          };
+        };
+      };
     };
   };
 }

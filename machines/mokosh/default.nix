@@ -17,6 +17,7 @@ in
     ../../roles/vault.nix
     ../../roles/obsidian-livesync.nix
     ../../roles/shadowsocks/server.nix
+    ../../roles/mail.nix
   ];
 
   # disk layout
@@ -65,6 +66,11 @@ in
   ]; # setup common group to gran nginx access to acme's certs
 
   roles.hardened.enable = true;
+
+  roles.mail = {
+    enable = true;
+    domain = "mail-test.${domainName}";
+  };
 
   roles.personelWebsite = {
     enable = true;

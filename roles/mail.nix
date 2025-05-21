@@ -57,7 +57,7 @@ in
 
             management = {
               bind = [ "127.0.0.1:10080" ];
-              protocol = [ "http" ];
+              protocol = "http";
               tls.enable = false;
             };
           };

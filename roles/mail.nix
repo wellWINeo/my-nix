@@ -40,21 +40,25 @@ in
             submission = {
               bind = "0.0.0.0:587";
               protocol = "smtp";
-              tls.implicit = false;
+              tls.enable = true;
             };
 
             submissions = {
               bind = "0.0.0.0:465";
               protocol = "smtp";
-              tls.implicit = false;
-              proxy-protocol = true;
+              tls.enable = true;
             };
 
             imap = {
               bind = "0.0.0.0:993";
               protocol = "imap";
-              tls.implicit = false;
-              proxy-protocol = true;
+              tls.enable = true;
+            };
+
+            management = {
+              bind = [ "127.0.0.1:10080" ];
+              protocol = [ "http" ];
+              tls.enable = false;
             };
           };
         };
@@ -84,20 +88,17 @@ in
           enable = true;
         };
 
-        management = {
-          bind = [ "127.0.0.1:10080" ];
-          protocol = [ "http" ];
-        };
-
         authentication."fallback-admin" = {
           user = "admin";
           secret = "%{file:/etc/nixos/secrets/stalwart-admin-password}%";
         };
 
         certificate.default = {
-          cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}";
-          private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}";
+          cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}%";
+          private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}%";
         };
+
+        webadmin.path = pkgs.stalwart-mail-webadmin;
       };
     };
 

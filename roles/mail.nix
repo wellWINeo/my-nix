@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, ... }:
 with lib;
 
 let
@@ -97,8 +97,6 @@ in
           cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}%";
           private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}%";
         };
-
-        webadmin.path = pkgs.stalwart-mail-webadmin;
       };
     };
 

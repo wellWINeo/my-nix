@@ -81,13 +81,7 @@ in
           store = "rocksdb";
         };
 
-        tracer.journal = {
-          type = "journal";
-          level = "info";
-          enable = true;
-        };
-
-        tracer."stdout" = {
+        tracer.stdout = {
           type = "stdout";
           level = "info";
           ansi = false;
@@ -104,6 +98,10 @@ in
           secret = "%{file:/etc/nixos/secrets/stalwart-admin-password}%";
         };
       };
+    };
+
+    systemd.services.stalwart-mail.unitConfig = {
+      ReadWritePaths = [ "/var/lib/stalwart" ];
     };
 
     networking.firewall.allowedTCPPorts = [

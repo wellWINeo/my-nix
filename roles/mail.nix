@@ -141,7 +141,7 @@ in
       virtualHosts = {
         ${cfg.domain} = {
           forceSSL = true;
-          enableACME = true;
+          enableACME = false;
           locations."/" = {
             proxyPass = "http://127.0.0.1:10080";
           };

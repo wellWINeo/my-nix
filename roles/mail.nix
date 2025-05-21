@@ -63,22 +63,22 @@ in
           };
         };
 
+        store.rocksdb = {
+          type = "rocksdb";
+          path = "/var/lib/private/stalwart";
+        };
+
+        directory.internal = {
+          type = "internal";
+          store = "rocksdb";
+        };
+
         storage = {
           data = "rocksdb";
           fts = "rocksdb";
           blob = "rocksdb";
           lookup = "rocksdb";
           directory = "internal";
-        };
-
-        store.rocksdb = {
-          type = "rocksdb";
-          path = "/var/lib/stalwart";
-        };
-
-        directory.internal = {
-          type = "internal";
-          store = "rocksdb";
         };
 
         tracer.stdout = {
@@ -100,8 +100,10 @@ in
       };
     };
 
-    systemd.services.stalwart-mail.unitConfig = {
-      ReadWritePaths = [ "/var/lib/stalwart" ];
+    systemd.tmpfiles.rules = [ "d /var/lib/private/stalwart 0750 stalwart-mail stalwart-mail -" ];
+
+    systemd.services.stalwart-mail.serviceConfig = {
+      StateDirectory = "stalwart";
     };
 
     networking.firewall.allowedTCPPorts = [

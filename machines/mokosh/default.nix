@@ -69,7 +69,8 @@ in
 
   roles.mail = {
     enable = true;
-    domain = "mail-test.${domainName}";
+    sslCertificatesDirectory = "/var/lib/acme/${domainName}";
+    hostname = "mail-test.${domainName}";
   };
 
   roles.personelWebsite = {

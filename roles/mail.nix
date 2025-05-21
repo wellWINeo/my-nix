@@ -7,9 +7,15 @@ in
 {
   options.roles.mail = {
     enable = mkEnableOption "Enable mail server with stalwart";
-    domain = mkOption {
+
+    sslCertificatesDirectory = mkOption {
+      type = types.path;
+      description = "Path to ssl certificates for nginx";
+    };
+
+    hostname = mkOption {
       type = types.string;
-      description = "Mail domain";
+      description = "Mail hostname";
     };
   };
 
@@ -19,7 +25,7 @@ in
       openFirewall = false;
       settings = {
         server = {
-          hostname = cfg.domain;
+          hostname = cfg.hostname;
           tls.enable = false;
           proxy.trusted-networks = [
             "127.0.0.0/8"
@@ -139,9 +145,11 @@ in
       '';
 
       virtualHosts = {
-        ${cfg.domain} = {
+        ${cfg.hostname} = {
           forceSSL = true;
           enableACME = false;
+          sslCertificate = "${cfg.sslCertificatesDirectory}/fullchain.pem";
+          sslCertificateKey = "${cfg.sslCertificatesDirectory}/key.pem";
           locations."/" = {
             proxyPass = "http://127.0.0.1:10080";
           };

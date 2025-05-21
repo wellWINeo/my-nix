@@ -100,10 +100,6 @@ in
       };
     };
 
-    systemd.services.stalwart-mail.serviceConfig = {
-      StateDirectory = "stalwart";
-    };
-
     networking.firewall.allowedTCPPorts = [
       25
       465

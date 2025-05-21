@@ -65,7 +65,7 @@ in
 
         store.rocksdb = {
           type = "rocksdb";
-          path = "/var/lib/private/stalwart";
+          path = "/var/lib/stalwart-mail";
         };
 
         directory.internal = {
@@ -99,8 +99,6 @@ in
         };
       };
     };
-
-    systemd.tmpfiles.rules = [ "d /var/lib/private/stalwart 0750 stalwart-mail stalwart-mail -" ];
 
     systemd.services.stalwart-mail.serviceConfig = {
       StateDirectory = "stalwart";

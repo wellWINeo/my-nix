@@ -97,6 +97,8 @@ in
           cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}%";
           private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}%";
         };
+
+        webadmin.auto-update = false;
       };
     };
 

@@ -99,79 +99,80 @@ in
         };
 
         webadmin.auto-update = false;
+
+        signature.ed25519 = {
+          private-key = "%{file:/etc/nixos/secrets/dkim.privkey}%";
+          domain = cfg.hostname;
+          selector = "default";
+          headers = [
+            "From"
+            "To"
+            "Cc"
+            "Date"
+            "Subject"
+            "Message-ID"
+            "Organization"
+            "MIME-Version"
+            "Content-Type"
+            "In-Reply-To"
+            "References"
+            "List-Id"
+            "User-Agent"
+            "Thread-Topic"
+            "Thread-Index"
+          ];
+          algorithm = "ed25519-sha256";
+          canonicalization = "relaxed/relaxed";
+          set-body-length = false;
+          report = false;
+        };
+
+        auth = {
+          dkim = {
+            verify = "relaxed";
+            sign = [
+              {
+                "if" = "listener != 'smtp'";
+                "then" = "'ed25519'";
+              }
+              { "else" = false; }
+            ];
+          };
+
+          spf.verify = {
+            ehlo = [
+              {
+                "if" = "listener = 'smtp'";
+                "then" = "relaxed";
+              }
+              { "else" = "disable"; }
+            ];
+            mail-from = [
+              {
+                "if" = "listener = 'smtp'";
+                "then" = "relaxed";
+              }
+              { "else" = "disable"; }
+            ];
+          };
+
+          arc = {
+            seal = "ed25519";
+            verify = "relaxed";
+          };
+
+          dmarc = {
+            verify = [
+              {
+                "if" = "listener = 'smtp'";
+                "then" = "relaxed";
+              }
+              { "else" = "disable"; }
+            ];
+          };
+        };
       };
 
-      signature.ed25519 = {
-        private-key = "%{file:/etc/nixos/secrets/dkim.privkey}%";
-        domain = cfg.hostname;
-        selector = "default";
-        headers = [
-          "From"
-          "To"
-          "Cc"
-          "Date"
-          "Subject"
-          "Message-ID"
-          "Organization"
-          "MIME-Version"
-          "Content-Type"
-          "In-Reply-To"
-          "References"
-          "List-Id"
-          "User-Agent"
-          "Thread-Topic"
-          "Thread-Index"
-        ];
-        algorithm = "ed25519-sha256";
-        canonicalization = "relaxed/relaxed";
-        set-body-length = false;
-        report = false;
-      };
-
-      auth = {
-        dkim = {
-          verify = "relaxed";
-          sign = [
-            {
-              "if" = "listener != 'smtp'";
-              "then" = "'ed25519'";
-            }
-            { "else" = false; }
-          ];
-        };
-
-        spf.verify = {
-          ehlo = [
-            {
-              "if" = "listener = 'smtp'";
-              "then" = "relaxed";
-            }
-            { "else" = "disable"; }
-          ];
-          mail-from = [
-            {
-              "if" = "listener = 'smtp'";
-              "then" = "relaxed";
-            }
-            { "else" = "disable"; }
-          ];
-        };
-
-        arc = {
-          seal = "ed25519";
-          verify = "relaxed";
-        };
-
-        dmarc = {
-          verify = [
-            {
-              "if" = "listener = 'smtp'";
-              "then" = "relaxed";
-            }
-            { "else" = "disable"; }
-          ];
-        };
-      };
     };
 
     users.users.stalwart-mail.extraGroups = [ "web" ];

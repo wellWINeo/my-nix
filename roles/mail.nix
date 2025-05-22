@@ -24,6 +24,9 @@ in
       enable = true;
       openFirewall = false;
       settings = {
+
+        lookup.default.hostname = cfg.hostname;
+
         server = {
           hostname = cfg.hostname;
           tls = {

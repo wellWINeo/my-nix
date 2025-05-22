@@ -100,6 +100,78 @@ in
 
         webadmin.auto-update = false;
       };
+
+      signature.ed25519 = {
+        private-key = "%{file:/etc/nixos/secrets/dkim.privkey}%";
+        domain = cfg.hostname;
+        selector = "default";
+        headers = [
+          "From"
+          "To"
+          "Cc"
+          "Date"
+          "Subject"
+          "Message-ID"
+          "Organization"
+          "MIME-Version"
+          "Content-Type"
+          "In-Reply-To"
+          "References"
+          "List-Id"
+          "User-Agent"
+          "Thread-Topic"
+          "Thread-Index"
+        ];
+        algorithm = "ed25519-sha256";
+        canonicalization = "relaxed/relaxed";
+        set-body-length = false;
+        report = false;
+      };
+
+      auth = {
+        dkim = {
+          verify = "relaxed";
+          sign = [
+            {
+              "if" = "listener != 'smtp'";
+              "then" = "'ed25519'";
+            }
+            { "else" = false; }
+          ];
+        };
+
+        spf.verify = {
+          ehlo = [
+            {
+              "if" = "listener = 'smtp'";
+              "then" = "relaxed";
+            }
+            { "else" = "disable"; }
+          ];
+          mail-from = [
+            {
+              "if" = "listener = 'smtp'";
+              "then" = "relaxed";
+            }
+            { "else" = "disable"; }
+          ];
+        };
+
+        arc = {
+          seal = "ed25519";
+          verify = "relaxed";
+        };
+
+        dmarc = {
+          verify = [
+            {
+              "if" = "listener = 'smtp'";
+              "then" = "relaxed";
+            }
+            { "else" = "disable"; }
+          ];
+        };
+      };
     };
 
     users.users.stalwart-mail.extraGroups = [ "web" ];
@@ -112,36 +184,6 @@ in
     ];
 
     services.nginx = {
-      # streamConfig = ''
-      #   # Proxy SMTP
-      #   server {
-      #     listen 25 proxy_protocol;
-      #     proxy_pass 127.0.0.1:10025;
-      #     proxy_protocol on;
-      #   }
-
-      #   # Proxy IMAPS
-      #   server {
-      #     listen 993 proxy_protocol;
-      #     proxy_pass 127.0.0.1:10993;
-      #     proxy_protocol on;
-      #   }
-
-      #   # Proxy SMTPS
-      #   server {
-      #     listen 465 proxy_protocol;
-      #     proxy_pass 127.0.0.1:10465;
-      #     proxy_protocol on;
-      #   }
-
-      #   # Proxy Submission (STARTTLS)
-      #   server {
-      #     listen 587 proxy_protocol;
-      #     proxy_pass 127.0.0.1:10587;
-      #     proxy_protocol on;
-      #   }
-      # '';
-
       virtualHosts = {
         ${cfg.hostname} = {
           forceSSL = true;

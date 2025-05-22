@@ -86,7 +86,7 @@ in
 
         tracer.stdout = {
           type = "stdout";
-          level = "info";
+          level = "trace";
           ansi = false;
           enable = true;
         };

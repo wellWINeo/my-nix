@@ -14,7 +14,7 @@ in
     };
 
     hostname = mkOption {
-      type = types.string;
+      type = types.str;
       description = "Mail hostname";
     };
   };

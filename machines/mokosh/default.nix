@@ -3,7 +3,6 @@
 let
   hostname = "mokosh";
   domainName = "uspenskiy.su";
-  secrets = import ../../secrets;
   ifname = "ens3";
 in
 {
@@ -15,7 +14,6 @@ in
     ../../roles/letsencrypt.nix
     ../../roles/wireguard/wireguard-router.nix
     ../../roles/vault.nix
-    ../../roles/obsidian-livesync.nix
     ../../roles/shadowsocks/server.nix
     ../../roles/mail.nix
   ];
@@ -152,11 +150,5 @@ in
     openFirewall = false;
   };
 
-  roles.obsidian-livesync = {
-    enable = true;
-    domain = domainName;
-    adminPassword = secrets.couchdbAdminPassword;
-  };
-
-  system.stateVersion = "24.05";
+  system.stateVersion = "25.05";
 }

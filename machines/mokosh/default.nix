@@ -146,11 +146,14 @@ in
   roles.vault = {
     enable = true;
     baseDomain = domainName;
+    enableWeb = true;
   };
 
   roles.shadowsocks-server = {
     enable = true;
     openFirewall = false;
+    baseDomain = domainName;
+    enableWeb = true;
   };
 
   system.stateVersion = "25.05";

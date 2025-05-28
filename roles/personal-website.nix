@@ -58,42 +58,6 @@ in
           tryFiles = "$uri $uri/ =404";
         };
       };
-
-      virtualHosts."vault.${cfg.domain}" = {
-        forceSSL = true;
-        enableACME = false;
-
-        sslCertificate = "/var/lib/acme/${cfg.domain}/fullchain.pem";
-        sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
-
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:8180";
-          proxyWebsockets = true;
-          recommendedProxySettings = true;
-        };
-      };
-
-      virtualHosts."gw.${cfg.domain}" = {
-        forceSSL = true;
-        enableACME = false;
-
-        sslCertificate = "/var/lib/acme/${cfg.domain}/fullchain.pem";
-        sslCertificateKey = "/var/lib/acme/${cfg.domain}/key.pem";
-
-        locations."/".return = "301 https://google.com/search?q=$request_uri";
-
-        locations."/fckrkn" = {
-          proxyPass = "http://127.0.0.1:8388/";
-          extraConfig = ''
-            proxy_redirect off;
-            proxy_buffering off;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";          
-          '';
-        };
-      };
     };
 
     environment.etc."/www/${cfg.domain}".source = pkgs.fetchFromGitHub {

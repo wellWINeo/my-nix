@@ -22,6 +22,13 @@ in
       default = true;
       description = "Open firewall";
     };
+
+    baseDomain = mkOption {
+      type = types.str;
+      description = "Domain";
+    };
+
+    enableWeb = mkEnableOption "Enable web";
   };
 
   config = mkIf cfg.enable {
@@ -44,6 +51,32 @@ in
       pluginOpts = "server";
       extraConfig = {
         nameserver = "1.1.1.1";
+      };
+    };
+
+    services.nginx = {
+      enable = true;
+
+      virtualHosts."gw.${cfg.baseDomain}" = {
+        forceSSL = true;
+        enableACME = false;
+
+        sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+        sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+
+        locations."/".return = "301 https://google.com/search?q=$request_uri";
+
+        locations."/fckrkn" = {
+          proxyPass = "http://127.0.0.1:8388/";
+          extraConfig = ''
+            proxy_redirect off;
+            proxy_buffering off;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";          
+          '';
+        };
       };
     };
   };

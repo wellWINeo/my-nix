@@ -78,7 +78,10 @@ in
 
   roles.letsencrypt = {
     enable = true;
-    domain = domainName;
+    domains = [
+      domainName
+      "uspenskiy.tech"
+    ];
   };
 
   roles.wireguardRouter = {

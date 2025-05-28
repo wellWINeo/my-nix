@@ -66,7 +66,7 @@ in
   roles.hardened.enable = true;
 
   roles.mail = {
-    enable = true;
+    enable = false; # temporarly disable due to lack binary cache
     sslCertificatesDirectory = "/var/lib/acme/${domainName}";
     hostname = "mail-test.${domainName}";
   };

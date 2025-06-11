@@ -33,5 +33,10 @@ in
         rpc-whitelist = "127.0.0.1,192.168.0.*,10.20.0.*";
       };
     };
+
+    # workaround to start transmission
+    systemd.services.transmission.serviceConfig = {
+      PrivateMounts = lib.mkForce false;
+    };
   };
 }

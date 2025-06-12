@@ -27,7 +27,7 @@ in
       isNormalUser = false;
       isSystemUser = true;
 
-      extraGroups = [ mediaGroup ];
+      group = mediaGroup;
     };
 
     # services.transmission = {

@@ -20,6 +20,7 @@ in
     extraGroups = [
       "users"
       "wheel"
+      "media"
     ];
     packages = with pkgs; [
       git

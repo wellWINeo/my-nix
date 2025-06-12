@@ -22,21 +22,21 @@ in
     mkIf cfg.enable {
       environment.systemPackages = with pkgs; [ transmission_4 ];
 
-      services.transmission = {
-        enable = true;
-        package = pkgs.transmission_4;
-        openFirewall = true;
-        openRPCPort = true;
-        downloadDirPermissions = "777";
-        user = torrentUser;
-        group = "media";
-        settings = {
-          incomplete-dir = "${baseDir}/Incomplete";
-          download-dir = "${baseDir}/Downloads";
-          rpc-bind-address = "0.0.0.0";
-          rpc-whitelist = "127.0.0.1,192.168.0.*,10.20.0.*";
-        };
-      };
+      # services.transmission = {
+      #   enable = true;
+      #   package = pkgs.transmission_4;
+      #   openFirewall = true;
+      #   openRPCPort = true;
+      #   downloadDirPermissions = "777";
+      #   user = torrentUser;
+      #   group = "media";
+      #   settings = {
+      #     incomplete-dir = "${baseDir}/Incomplete";
+      #     download-dir = "${baseDir}/Downloads";
+      #     rpc-bind-address = "0.0.0.0";
+      #     rpc-whitelist = "127.0.0.1,192.168.0.*,10.20.0.*";
+      #   };
+      # };
     }
     // defineMediaUser torrentUser;
 }

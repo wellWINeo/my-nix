@@ -38,3 +38,6 @@ install-secrets:
 
 check:
 	nix flake check 'path:.' --all-systems
+
+switch:
+	@sudo nixos-rebuild switch --flake "path:.#$(shell hostname)"

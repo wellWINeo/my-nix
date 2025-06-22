@@ -35,5 +35,8 @@ function FindProxyForURL(url, host) {
   // matrix
   if (host == "matrix-client.matrix.org" || host == "matrix.to") return proxy;
 
+  // deepl
+  if (host == "deepl.com" || dnsDomainIs(host, ".deepl.com")) return proxy;
+
   return "DIRECT";
 }

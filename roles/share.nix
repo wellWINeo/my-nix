@@ -62,6 +62,8 @@ in
           "guest ok" = "yes";
           "create mask" = "0666";
           "directory mask" = "0777";
+          "force create mode" = "0666";
+          "force directory mode" = "0777";
         };
 
         Homes = {

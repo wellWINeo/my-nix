@@ -62,8 +62,6 @@ in
           "guest ok" = "yes";
           "create mask" = "0666";
           "directory mask" = "0777";
-          "force create mode" = "0666";
-          "force directory mode" = "0777";
         };
 
         Homes = {
@@ -74,6 +72,8 @@ in
           writable = "yes";
           "create mask" = "0600";
           "directory mask" = "0700";
+          "force create mode" = "0600";
+          "force directory mode" = "0700";
           "fruit:aapl" = "yes";
           "fruit:time machine" = "yes";
           "vfs objects" = "catia fruit streams_xattr";

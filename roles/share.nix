@@ -70,8 +70,8 @@ in
           "valid users" = "%S";
           browseable = "yes";
           writable = "yes";
-          "create mask" = "0644";
-          "directory mask" = "0755";
+          "create mask" = "0600";
+          "directory mask" = "0700";
           "fruit:aapl" = "yes";
           "fruit:time machine" = "yes";
           "vfs objects" = "catia fruit streams_xattr";

@@ -38,5 +38,8 @@ function FindProxyForURL(url, host) {
   // deepl
   if (host == "deepl.com" || dnsDomainIs(host, ".deepl.com")) return proxy;
 
+  // grok.com
+  if (host == "grok.com") return proxy;
+
   return "DIRECT";
 }

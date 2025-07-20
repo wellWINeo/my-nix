@@ -134,10 +134,17 @@ in
         isInternal = false;
       }
 
-      # Google TV
+      # Philips 55 
       {
         pubKey = "Me6/vN0sbqunnSb4YwKWV7gs98AlRCWG/vBZfOtSOSA=";
         ip = "10.30.0.15";
+        isInternal = false;
+      }
+
+      # TLC 32
+      {
+        pubKey = "pPHnwKwS4auDJ3t8OMHJxBGnpbYDjyg/tdpD4yElcSc=";
+        ip = "10.30.0.20";
         isInternal = false;
       }
     ];

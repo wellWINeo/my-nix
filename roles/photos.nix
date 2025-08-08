@@ -48,7 +48,7 @@ in
         <name replace-wildcards="yes">PhotoPrism on %h</name>
         <service>
           <type>_http._tcp</type>
-          <domain-name>photos.${cfg.hostName}</domain-name>
+          <domain-name>photos</domain-name>
           <port>80</port>
           <txt-record>path=/</txt-record>
         </service>

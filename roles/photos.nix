@@ -30,8 +30,8 @@ in
       passwordFile = "/etc/nixos/secrets/photoPrismPassword";
       address = "0.0.0.0";
       settings = { 
-        PHOTOPRISM_UPLOAD_NSFW = true;
-        PHOTOPRISM_DETECT_NSFW = false;
+        PHOTOPRISM_UPLOAD_NSFW = "true";
+        PHOTOPRISM_DETECT_NSFW = "false";
         PHOTOPRISM_FFMPEG_ENCODER = "raspberry";
       };
     };

@@ -20,6 +20,7 @@ in
     ../../roles/router/nginx.nix
     ../../roles/shadowsocks/client.nix
     ../../roles/wireguard/wireguard-client.nix
+    ../../roles/photos.nix
     ../../hardware/rpi4.nix
   ];
 
@@ -127,6 +128,12 @@ in
     enable = true;
     openFirewall = true;
     ip = ip;
+  };
+
+  roles.photos = {
+    enable = true;
+    hostName = "${hostname}.local";
+    storagePath = "/mnt/storage/Photos";
   };
 
   roles.zeroconf.enable = true;

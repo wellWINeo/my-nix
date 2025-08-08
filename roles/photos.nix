@@ -40,19 +40,5 @@ in
         };
       };
     };
-
-    services.avahi.extraServiceFiles.photoprism = ''
-      <?xml version="1.0" standalone='no'?><!--*-nxml-*-->
-      <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
-      <service-group>
-        <name replace-wildcards="yes">PhotoPrism on %h</name>
-        <service>
-          <type>_http._tcp</type>
-          <domain-name>photos</domain-name>
-          <port>80</port>
-          <txt-record>path=/</txt-record>
-        </service>
-      </service-group>
-    '';
   };
 }

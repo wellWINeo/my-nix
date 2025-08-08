@@ -101,6 +101,7 @@ in
     enable = true;
     openFirewall = true;
     useLocalDNS = true;
+    ipAddress = ip;
   };
 
   roles.dhcp = {
@@ -132,7 +133,7 @@ in
 
   roles.photos = {
     enable = true;
-    hostName = "${hostname}.local";
+    hostName = hostname;
     storagePath = "/mnt/storage/Photos";
   };
 

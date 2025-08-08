@@ -27,6 +27,10 @@ in
       default = true;
       description = "Use local DNS by machine itself";
     };
+    ipAddress = mkOption {
+      type = types.str;
+      description = "IP address";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -40,6 +44,9 @@ in
       settings = {
         no-resolv = true;
         server = [ "127.0.0.1#8053" ];
+        address = ''
+          /photos.nixpi/${cfg.ipAddress}
+        '';
       };
     };
 

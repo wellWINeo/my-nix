@@ -33,6 +33,7 @@ in
         PHOTOPRISM_UPLOAD_NSFW = "true";
         PHOTOPRISM_DETECT_NSFW = "false";
         PHOTOPRISM_FFMPEG_ENCODER = "raspberry";
+        PHOTOPRISM_TEMP_PATH = "${cfg.storagePath}/tmp";
       };
     };
 

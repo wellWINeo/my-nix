@@ -134,6 +134,12 @@ in
         isInternal = false;
       }
 
+      {
+        pubKey = "9tKr4z0Em7MADdmdCrhBJ/lR73BfrhcPtrdZgihrHS0=";
+        ip = "10.30.0.11";
+        isInternal = false;
+      }
+
       # Philips 55 
       {
         pubKey = "Me6/vN0sbqunnSb4YwKWV7gs98AlRCWG/vBZfOtSOSA=";

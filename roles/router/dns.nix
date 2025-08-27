@@ -101,8 +101,9 @@ in
 
         # fallbacks to provider's dns servers :(
         .:9058 {
-          forward . dns://217.10.32.5 dns://217.10.35.5
-          max_fails 3
+          forward . dns://217.10.32.5 dns://217.10.35.5 {
+            max_fails 3
+          }
         }
 
         home.:9053 {

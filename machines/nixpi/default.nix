@@ -133,7 +133,6 @@ in
 
   roles.photos = {
     enable = true;
-    hostName = hostname;
     storagePath = "/mnt/storage/Photos";
   };
 

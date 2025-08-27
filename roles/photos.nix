@@ -13,9 +13,6 @@ in
 
   options.roles.photos = {
     enable = mkEnableOption "Enable Photos storage";
-    hostName = mkOption {
-      type = types.str;
-    };
     storagePath = mkOption {
       type = types.path;
     };
@@ -38,7 +35,7 @@ in
     };
 
     services.nginx.virtualHosts = {
-      "photos.${cfg.hostName}" = {
+      "photos.home" = {
         forceSSL = false;
         enableACME = false;
         locations."/" = {

@@ -52,7 +52,7 @@ in
 
     services.coredns = {
       enable = true;
-      config = '''
+      config = ''
         .:9053 {
           errors
           log

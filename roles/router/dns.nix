@@ -57,7 +57,7 @@ in
           errors
           log
           cache
-          forward . 127.0.0.1:9054 127.0.0.1:9055 127.0.0.1:9056 127.0.0.1:9057 {
+          forward . 127.0.0.1:9054 127.0.0.1:9055 127.0.0.1:9056 127.0.0.1:9057 127.0.0.1:9058 {
             policy sequential
             health_check 5s 
           }
@@ -66,7 +66,8 @@ in
         .:9054 {
           forward . https://cloudflare-dns.com/dns-query {
             health_check 5s 
-          } 
+          }
+        } 
         
         .:9055 {
           forward . tls://1.1.1.1 tls://1.0.0.1 {
@@ -86,6 +87,10 @@ in
             tls_servername dns.google
             health_check 5s 
           }
+        }
+
+        .:9058 {
+          forward . dns://217.10.32.5 dns://217.10.35.5
         }
 
         home.:9053 {

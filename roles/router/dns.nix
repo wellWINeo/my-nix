@@ -57,17 +57,17 @@ in
           errors
           log
           cache
-          forward . 127.0.0.1:9054 127.0.0.1:9055 127.0.0.1:9056 127.0.0.1:9057 127.0.0.1:9058 {
+          forward . 127.0.0.1:9055 127.0.0.1:9057 127.0.0.1:9058 {
             policy sequential
             health_check 5s 
           }
         }
 
-        .:9054 {
-          forward . https://cloudflare-dns.com/dns-query {
-            health_check 5s 
-          }
-        } 
+        #.:9054 {
+        #  forward . https://cloudflare-dns.com/dns-query {
+        #    health_check 5s 
+        #  }
+        #} 
         
         .:9055 {
           forward . tls://1.1.1.1 tls://1.0.0.1 {
@@ -76,11 +76,11 @@ in
           }
         }
 
-        .:9056 {
-          forward . https://dns.google/dns-query {
-            health_check 5s 
-          } 
-        }
+        #.:9056 {
+        #  forward . https://dns.google/dns-query {
+        #    health_check 5s 
+        #  } 
+        #}
         
         .:9057 {
           forward . tls://8.8.8.8 tls://8.8.4.4 {
@@ -89,6 +89,7 @@ in
           }
         }
 
+        # fallbacks to provider's dns servers :(
         .:9058 {
           forward . dns://217.10.32.5 dns://217.10.35.5
         }

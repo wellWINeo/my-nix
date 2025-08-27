@@ -35,25 +35,25 @@ in
 
   config = mkIf cfg.enable {
     networking = {
-      firewall.allowedUDPPorts = optionals cfg.openFirewall [ 53 9053 ];
+      firewall.allowedUDPPorts = optionals cfg.openFirewall [ 53 ];
       nameservers = optionals cfg.useLocalDNS [ "127.0.0.1" ];
     };
 
-    services.dnsmasq = {
-      enable = true;
-      settings = {
-        no-resolv = true;
-        server = [ "127.0.0.1#8053" ];
-        address = ''
-          /photos.nixpi/${cfg.ipAddress}
-        '';
-      };
-    };
+    # services.dnsmasq = {
+    #   enable = true;
+    #   settings = {
+    #     no-resolv = true;
+    #     server = [ "127.0.0.1#8053" ];
+    #     address = ''
+    #       /photos.nixpi/${cfg.ipAddress}
+    #     '';
+    #   };
+    # };
 
     services.coredns = {
       enable = true;
       config = ''
-        .:9053 {
+        . {
           errors
           log
           cache {
@@ -112,7 +112,7 @@ in
 
         home.:9053 {
           hosts {
-            192.168.0.20 photos.home 
+            ${cfg.ipAddress} photos.home 
           }
 
           cache
@@ -121,7 +121,7 @@ in
     };
 
     services.stubby = {
-      enable = true;
+      enable = false;
       settings = pkgs.stubby.passthru.settingsExample // {
         listen_addresses = [ "127.0.0.1@8053" ];
         upstream_recursive_servers = [

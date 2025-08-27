@@ -33,6 +33,7 @@ in
       enable = true;
 
       settings = {
+        port = 0; # disable builtin dns
         dhcp-range = "192.168.0.21,192.168.0.150,12h";
         dhcp-host = "${cfg.hostMAC},${cfg.hostIP}";
         dhcp-option = [

@@ -56,10 +56,18 @@ in
         .:9053 {
           errors
           log
-          cache
+          cache {
+            success 5000 3600 30
+            denial 2500 1800 30
+            prefetch 10 1m 10%
+            serve_stale 1h
+          }
+
           forward . 127.0.0.1:9055 127.0.0.1:9057 127.0.0.1:9058 {
             policy sequential
-            health_check 5s 
+            health_check 5s
+            max_fails 2
+            failfast_all_unhealthy_upstreams
           }
         }
 
@@ -72,7 +80,8 @@ in
         .:9055 {
           forward . tls://1.1.1.1 tls://1.0.0.1 {
             tls_servername cloudflare-dns.com
-            health_check 5s 
+            health_check 5s
+            max_fails 2
           }
         }
 
@@ -86,12 +95,14 @@ in
           forward . tls://8.8.8.8 tls://8.8.4.4 {
             tls_servername dns.google
             health_check 5s 
+            max_fails 2
           }
         }
 
         # fallbacks to provider's dns servers :(
         .:9058 {
           forward . dns://217.10.32.5 dns://217.10.35.5
+          max_fails 3
         }
 
         home.:9053 {

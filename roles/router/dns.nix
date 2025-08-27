@@ -67,10 +67,14 @@ in
             policy sequential
             health_check 5s
             max_fails 2
-            failfast_all_unhealthy_upstreams
+
+            # added in v1.12.1
+            # failfast_all_unhealthy_upstreams
           }
         }
 
+        # need to use external plugin:
+        # https://github.com/v-byte-cpu/coredns-https
         #.:9054 {
         #  forward . https://cloudflare-dns.com/dns-query {
         #    health_check 5s 

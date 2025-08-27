@@ -35,7 +35,7 @@ in
 
   config = mkIf cfg.enable {
     networking = {
-      firewall.allowedUDPPorts = optionals cfg.openFirewall [ 53 ];
+      firewall.allowedUDPPorts = optionals cfg.openFirewall [ 53 9053 ];
       nameservers = optionals cfg.useLocalDNS [ "127.0.0.1" ];
     };
 
@@ -48,6 +48,54 @@ in
           /photos.nixpi/${cfg.ipAddress}
         '';
       };
+    };
+
+    services.coredns = {
+      enable = true;
+      config = '''
+        .:9053 {
+          errors
+          log
+          cache
+          forward . 127.0.0.1:9054 127.0.0.1:9055 127.0.0.1:9056 127.0.0.1:9057 {
+            policy sequential
+            health_check 5s 
+          }
+        }
+
+        .:9054 {
+          forward . https://cloudflare-dns.com/dns-query {
+            health_check 5s 
+          } 
+        
+        .:9055 {
+          forward . tls://1.1.1.1 tls://1.0.0.1 {
+            tls_servername cloudflare-dns.com
+            health_check 5s 
+          }
+        }
+
+        .:9056 {
+          forward . https://dns.google/dns-query {
+            health_check 5s 
+          } 
+        }
+        
+        .:9057 {
+          forward . tls://8.8.8.8 tls://8.8.4.4 {
+            tls_servername dns.google
+            health_check 5s 
+          }
+        }
+
+        home.:9053 {
+          hosts {
+            192.168.0.20 photos.home 
+          }
+
+          cache
+        }
+      '';
     };
 
     services.stubby = {

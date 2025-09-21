@@ -16,6 +16,7 @@ in
     ../../roles/vault.nix
     ../../roles/shadowsocks/server.nix
     ../../roles/mail.nix
+    ../../roles/ebook/calibre.nix
   ];
 
   # disk layout
@@ -167,6 +168,11 @@ in
     openFirewall = false;
     baseDomain = domainName;
     enableWeb = true;
+  };
+
+  roles.calibre = {
+    enable = true;
+    baseDomain = domainName;
   };
 
   system.stateVersion = "25.05";

@@ -61,6 +61,18 @@ in
           }
         }
 
+        home {
+          hosts {
+            ${cfg.ipAddress} photos.home 
+          }
+
+          cache
+        }
+
+        ###
+        # upstreams
+        ###
+
         # need to use external plugin:
         # https://github.com/v-byte-cpu/coredns-https
         #.:9054 {
@@ -96,14 +108,6 @@ in
           forward . dns://217.10.32.5 dns://217.10.35.5 {
             max_fails 3
           }
-        }
-
-        home.:9053 {
-          hosts {
-            ${cfg.ipAddress} photos.home 
-          }
-
-          cache
         }
       '';
     };

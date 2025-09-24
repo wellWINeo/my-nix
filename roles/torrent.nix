@@ -41,7 +41,16 @@ in
         download-dir = "${baseDir}/Downloads";
         rpc-bind-address = "0.0.0.0";
         rpc-whitelist = "127.0.0.1,192.168.0.*,10.20.0.*";
+        rpc-host-whitelist = "transmission.home";
         umask = "002";
+      };
+    };
+
+    services.nginx.virtualHosts."torrent.home" = {
+      forceSSL = false;
+      enableACME = false;
+      locations."/" = {
+        proxyPass = "http://localhost:9091";
       };
     };
   };

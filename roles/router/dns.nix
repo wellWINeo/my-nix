@@ -64,6 +64,7 @@ in
         home {
           hosts {
             ${cfg.ipAddress} photos.home 
+            ${cfg.ipAddress} torrent.home 
           }
 
           cache

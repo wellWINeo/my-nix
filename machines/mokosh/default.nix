@@ -15,7 +15,7 @@ in
     ../../roles/wireguard/wireguard-router.nix
     ../../roles/vault.nix
     ../../roles/shadowsocks/server.nix
-    ../../roles/mail.nix
+    ../../roles/communication/mail.nix
     ../../roles/ebook/calibre.nix
   ];
 

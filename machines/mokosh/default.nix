@@ -16,7 +16,8 @@ in
     ../../roles/vault.nix
     ../../roles/shadowsocks/server.nix
     ../../roles/communication/mail.nix
-    ../../roles/ebook/calibre.nix
+    ../../roles/reading/calibre.nix
+    ../../roles/reading/rss.nix
   ];
 
   # disk layout
@@ -171,6 +172,11 @@ in
   };
 
   roles.calibre = {
+    enable = true;
+    baseDomain = domainName;
+  };
+
+  roles.rss = {
     enable = true;
     baseDomain = domainName;
   };

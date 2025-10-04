@@ -30,6 +30,8 @@ in
     services.nginx.virtualHosts."rss.${cfg.baseDomain}" = {
       forceSSL = true;
       enableACME = false;
+      sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+      sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
       locations."/" = {
         proxyPass = "http://${minifluxUrl}";
         recommendedProxySettings = true;

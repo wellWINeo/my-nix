@@ -3,7 +3,7 @@ with lib;
 
 let
   cfg = config.roles.rss;
-  minifluxUrl = "localhost:8200"; 
+  minifluxUrl = "localhost:8200";
 in
 {
   options.roles.rss = {
@@ -29,9 +29,10 @@ in
 
     services.nginx.virtualHosts."rss.${cfg.baseDomain}" = {
       forceSSL = true;
-      enableACME = true;
+      enableACME = false;
       locations."/" = {
         proxyPass = "http://${minifluxUrl}";
+        recommendedProxySettings = true;
       };
     };
   };

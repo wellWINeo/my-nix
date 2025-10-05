@@ -18,6 +18,7 @@ in
     ../../roles/communication/mail.nix
     ../../roles/reading/calibre.nix
     ../../roles/reading/rss.nix
+    ../../roles/blog.nix
   ];
 
   # disk layout
@@ -180,6 +181,12 @@ in
     enable = true;
     baseDomain = domainName;
   };
+
+  roles.blog = {
+    enable = true;
+    baseDomain = domainName;
+  };
+
 
   system.stateVersion = "25.05";
 }

@@ -19,7 +19,7 @@ in
     services.writefreely = {
       enable = true;
       admin = {
-        name = "o__ni";
+        name = "uspenskiy";
         initialPasswordFile = "/etc/nixos/secrets/writefreelyAdminPassword";
       };
       database.type = "sqlite3";

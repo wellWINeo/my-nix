@@ -1,10 +1,16 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 with lib;
 
 let
   cfg = config.roles.blog;
   hostname = "blog.${cfg.baseDomain}";
   port = 8300;
+  assetsDerivation = pkgs.stdenv.mkDerivation {
+    name = "Blog assets";
+    src = ../assets/blog;
+    buildPhase = "";
+    installPhase = "cp -r $src $out";
+  };
 in
 {
   options.roles.blog = {
@@ -46,8 +52,10 @@ in
       sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
 
+      root = assetsDerivation;
+
       locations."/assets" = {
-        tryFiles = "$uri = 404";
+        tryFiles = "$uri 404";
       };
 
       locations."/" = {

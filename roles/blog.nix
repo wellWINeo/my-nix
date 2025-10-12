@@ -47,7 +47,7 @@ in
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
 
       locations."/assets" = {
-        try_files = "$uri = 404";
+        tryFiles = "$uri = 404";
       };
 
       locations."/" = {

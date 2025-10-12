@@ -55,7 +55,7 @@ in
       root = assetsDerivation;
 
       locations."/assets" = {
-        tryFiles = "$uri 404";
+        tryFiles = "/$uri";
       };
 
       locations."/" = {

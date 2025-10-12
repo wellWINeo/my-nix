@@ -52,10 +52,8 @@ in
       sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
 
-      root = assetsDerivation;
-
-      locations."/assets" = {
-        tryFiles = "/$uri";
+      locations."/assets/" = {
+        root = assetsDerivation;
       };
 
       locations."/" = {

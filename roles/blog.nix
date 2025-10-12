@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 with lib;
 
 let
@@ -53,7 +58,11 @@ in
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
 
       locations."/assets/" = {
-        root = assetsDerivation;
+        alias = assetsDerivation + "/";
+        extraConfig = ''
+          expires 1y;
+          add_header Cache-Control "public, immutable";
+        '';
       };
 
       locations."/" = {

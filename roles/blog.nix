@@ -45,6 +45,11 @@ in
       enableACME = false;
       sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+
+      locations."/assets" = {
+        try_files = "$uri = 404";
+      };
+
       locations."/" = {
         proxyPass = "http://localhost:${toString port}";
         recommendedProxySettings = true;

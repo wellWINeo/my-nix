@@ -16,6 +16,7 @@ in
     ../../roles/vault.nix
     ../../roles/shadowsocks/server.nix
     ../../roles/communication/mail.nix
+    ../../roles/communication/dav.nix
     ../../roles/reading/calibre.nix
     ../../roles/reading/rss.nix
     ../../roles/blog.nix
@@ -185,6 +186,11 @@ in
   roles.blog = {
     enable = true;
     baseDomain = domainName;
+  };
+
+  roles.dav = {
+    enable = true;
+    baseDomain = "dav.${domainName}";
   };
 
 

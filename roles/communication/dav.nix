@@ -7,7 +7,7 @@ in
 {
   options.roles.dav = {
     enable = mkEnableOption "Enable DAV (calDAV/cardDAV) server";
-    domain = mkOption {
+    baseDomain = mkOption {
       type = types.str;
       description = "Domain name";
     };
@@ -17,18 +17,21 @@ in
     services.radicale = {
       enable = true;
       settings = {
-        server = {
-          hosts = [ "127.0.0.1:5232" ];
+        auth = {
+          type = "htpasswd";
+          htpasswd_filename = "/etc/nixos/secrets/radicalePasswd";
+          htpasswd_encryption = "autodetect";
+        };
 
-          auth = {
-            type = "htpasswd";
-            htpasswd_filename = "/etc/nixos/secrets";
-            htpasswd_encryption = "autodetect";
-          };
+        server.hosts =  [ "127.0.0.1:5232" ];
 
-          storage = {
-            filesystem_folder = "/var/lib/radicale/collections";
-          };
+        storage = {
+          filesystem_folder = "/var/lib/radicale/collections";
+        };
+
+        logging = {
+          level = "info";
+          mask_passwords = true;
         };
       };
       rights = {
@@ -51,9 +54,12 @@ in
 
     };
 
-    services.nginx.virtualHosts.${cfg.domain} = {
+    services.nginx.virtualHosts."dav.${cfg.baseDomain}" = {
       forceSSL = true;
-      enableACME = true;
+      enableACME = false;
+      sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+      sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+      
       locations."/" = {
         proxyPass = "http://127.0.0.1:5232/";
         proxyWebsockets = true;

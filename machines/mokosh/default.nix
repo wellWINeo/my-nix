@@ -190,7 +190,7 @@ in
 
   roles.dav = {
     enable = true;
-    baseDomain = "dav.${domainName}";
+    baseDomain = domainName;
   };
 
 

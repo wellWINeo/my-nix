@@ -100,8 +100,9 @@ in
           cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}%";
           private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}%";
         };
-
+        
         webadmin.auto-update = false;
+        webadmin.resource = "file:///opt/stalwart-webadmin/webadmin.zip";
 
         signature.ed25519 = {
           private-key = "%{file:/etc/nixos/secrets/dkim.privkey}%";

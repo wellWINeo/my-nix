@@ -29,7 +29,7 @@ let
 
   configFile = pkgs.writeText "shadowsocks.json" (builtins.toJSON opts);
 
-  isLibev = pkg: pkg == pkgs.shadowsocks-libev;
+  isLibev = pkg: getName pkg == "shadowsocks-libev";
   getTitle = pkg: if isLibev pkg then "libev" else "rust";
   getPostfix = isServer: if isServer then "server" else "local";
 in

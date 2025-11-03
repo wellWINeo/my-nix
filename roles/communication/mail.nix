@@ -55,7 +55,10 @@ in
             imap = {
               bind = "0.0.0.0:993";
               protocol = "imap";
-              tls.enable = true;
+              tls = {
+                enable = true;
+                implicit = true;
+              };
               parse.allow-invalid-tag = true;
             };
 

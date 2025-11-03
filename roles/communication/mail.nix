@@ -4,6 +4,34 @@ with lib;
 let
   cfg = config.roles.mail;
   mailHostname = "mail.${cfg.hostname}";
+
+  # helper to create a signature config to avoid duplication
+  signatureFor = sig: {
+    private-key = sig.privateKey;
+    domain = cfg.hostname;
+    selector = sig.selector;
+    headers = [
+      "From"
+      "To"
+      "Cc"
+      "Date"
+      "Subject"
+      "Message-ID"
+      "Organization"
+      "MIME-Version"
+      "Content-Type"
+      "In-Reply-To"
+      "References"
+      "List-Id"
+      "User-Agent"
+      "Thread-Topic"
+      "Thread-Index"
+    ];
+    algorithm = sig.algorithm;
+    canonicalization = "relaxed/relaxed";
+    set-body-length = false;
+    report = false;
+  };
 in
 {
   options.roles.mail = {
@@ -105,35 +133,20 @@ in
           cert = "%{file:${cfg.sslCertificatesDirectory}/fullchain.pem}%";
           private-key = "%{file:${cfg.sslCertificatesDirectory}/key.pem}%";
         };
-        
+
         webadmin.auto-update = false;
         webadmin.resource = "file:///opt/stalwart-webadmin/webadmin.zip";
 
-        signature.ed25519 = {
-          private-key = "%{file:/etc/nixos/secrets/dkim.privkey}%";
-          domain = cfg.hostname;
+        signature.ed25519 = signatureFor {
+          privateKey = "%{file:/etc/nixos/secrets/dkim.privkey}%";
           selector = "default";
-          headers = [
-            "From"
-            "To"
-            "Cc"
-            "Date"
-            "Subject"
-            "Message-ID"
-            "Organization"
-            "MIME-Version"
-            "Content-Type"
-            "In-Reply-To"
-            "References"
-            "List-Id"
-            "User-Agent"
-            "Thread-Topic"
-            "Thread-Index"
-          ];
           algorithm = "ed25519-sha256";
-          canonicalization = "relaxed/relaxed";
-          set-body-length = false;
-          report = false;
+        };
+
+        signature.rsa = signatureFor {
+          privateKey = "%{file:/etc/nixos/secrets/dkim.rsa.privkey}%";
+          selector = "rsa";
+          algorithm = "rsa-sha256";
         };
 
         auth = {
@@ -142,7 +155,7 @@ in
             sign = [
               {
                 "if" = "listener != 'smtp'";
-                "then" = "'ed25519'";
+                "then" = "['ed25519','rsa']";
               }
               { "else" = false; }
             ];

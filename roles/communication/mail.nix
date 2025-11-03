@@ -3,6 +3,7 @@ with lib;
 
 let
   cfg = config.roles.mail;
+  mailHostname = "mail.${cfg.hostname}";
 in
 {
   options.roles.mail = {
@@ -25,10 +26,10 @@ in
       openFirewall = false;
       settings = {
 
-        lookup.default.hostname = cfg.hostname;
+        lookup.default.hostname = mailHostname;
 
         server = {
-          hostname = cfg.hostname;
+          hostname = mailHostname;
           tls = {
             enable = true;
             implicit = true;
@@ -194,7 +195,7 @@ in
 
     services.nginx = {
       virtualHosts = {
-        ${cfg.hostname} = {
+        ${mailHostname} = {
           forceSSL = true;
           enableACME = false;
           sslCertificate = "${cfg.sslCertificatesDirectory}/fullchain.pem";

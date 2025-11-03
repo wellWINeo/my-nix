@@ -72,7 +72,7 @@ in
   roles.mail = {
     enable = true; # temporarly disable due to lack binary cache
     sslCertificatesDirectory = "/var/lib/acme/${domainName}";
-    hostname = "mail.${domainName}";
+    hostname = domainName;
   };
 
   roles.personelWebsite = {

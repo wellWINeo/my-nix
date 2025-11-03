@@ -56,6 +56,7 @@ in
               bind = "0.0.0.0:993";
               protocol = "imap";
               tls.enable = true;
+              parse.allow-invalid-tag = true;
             };
 
             management = {

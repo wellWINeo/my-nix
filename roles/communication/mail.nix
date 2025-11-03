@@ -26,7 +26,7 @@ in
       openFirewall = false;
       settings = {
 
-        lookup.default.hostname = mailHostname;
+        lookup.default.hostname = cfg.hostname;
 
         server = {
           hostname = mailHostname;

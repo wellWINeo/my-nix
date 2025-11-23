@@ -16,7 +16,18 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+
+      overlay = final: prev: {
+        miniflux-ai = final.callPackage ./pkgs/miniflux-ai.nix { };
+      };
+
+      nixpkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [ overlay ];
+        }
+      );
     in
     {
 
@@ -39,6 +50,16 @@
           ./users/o__ni
         ];
       };
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          miniflux-ai = pkgs.miniflux-ai;
+        }
+      );
 
       devShells = forAllSystems (
         system:

@@ -1,45 +1,48 @@
+const hosts = [
+  "2ip.ru", // just to check that it works
+
+  // youtube
+  "youtube.com",
+  "googlevideo.com",
+  "ytimg.com",
+  "youtu.be",
+  "googleapis.com",
+  "gstatic.com",
+  "ggpht.com",
+  "googleusercontent.com",
+
+  // rutracker
+  "rutracker.org",
+  "rutracker.cc",
+
+  "ntc.party",
+
+  "chatgpt.com",
+  "openai.com",
+
+  "deepl.com",
+
+  // Grok & X
+  "grok.com",
+  "x.com",
+
+  // linkedin
+  "linkedin.com",
+  "licdn.com",
+
+  // jetbrains
+  "jetbrains.com",
+  "jb.gg",
+]
+
+function isMatch(host) {
+  return hosts.some((h) => host === h || dnsDomainIs(host, "." + h));
+}
+
 function FindProxyForURL(url, host) {
   const proxy = "SOCKS 192.168.0.20:1080";
 
-  if (host == "2ip.ru") return proxy;
-
-  if (
-    host == "youtube.com" ||
-    dnsDomainIs(host, ".youtube.com") ||
-    dnsDomainIs(host, ".googlevideo.com") ||
-    dnsDomainIs(host, ".ytimg.com") ||
-    host == "youtu.be" ||
-    dnsDomainIs(host, ".youtu.be") ||
-    host == "googleapis.com" ||
-    dnsDomainIs(host, ".googleapis.com") ||
-    host == "gstatic.com" ||
-    dnsDomainIs(host, ".gstatic.com") ||
-    host == "ggpht.com" ||
-    dnsDomainIs(host, ".ggpht.com")
-  )
-    return proxy;
-
-  if (
-    host == "rutracker.org" ||
-    host == "static.rutracker.cc" ||
-    dnsDomainIs(host, ".rutracker.org")
-  )
-    return proxy;
-
-  if (host == "ntc.party") return proxy;
-
-  if (host == "chatgpt.com" || dnsDomainIs(host, ".chatgpt.com")) return proxy;
-
-  if (host == "openai.com" || dnsDomainIs(host, ".openai.com")) return proxy;
-
-  // matrix
-  if (host == "matrix-client.matrix.org" || host == "matrix.to") return proxy;
-
-  // deepl
-  if (host == "deepl.com" || dnsDomainIs(host, ".deepl.com")) return proxy;
-
-  // grok.com
-  if (host == "grok.com") return proxy;
-
+  if (isMatch(host)) return proxy;
+  
   return "DIRECT";
 }

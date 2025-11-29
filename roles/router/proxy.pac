@@ -33,6 +33,10 @@ const hosts = [
   // jetbrains
   "jetbrains.com",
   "jb.gg",
+
+  // whatsapp
+  "whatsapp.com",
+  "whatsapp.net",
 ]
 
 function isMatch(host) {

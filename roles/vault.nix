@@ -1,6 +1,5 @@
 {
   config,
-  pkgs,
   lib,
   ...
 }:
@@ -26,7 +25,7 @@ in
       enable = true;
       # backupDir = "/path/to/directory"; # TODO
       config = {
-        WEB_VAULT_FOLDER = "${pkgs.bitwarden_rs-vault}/share/vaultwarden/vault";
+        # WEB_VAULT_FOLDER = "${pkgs.vaultwarden.webvault}/share/vaultwarden/vault"; TODO: remove if not needed
         WEB_VAULT_ENABLED = true;
         DATA_FOLDER = "/var/lib/vault";
         IP_HEADER = "X-Real-IP";

@@ -18,8 +18,8 @@ in
     ../../roles/router/dns.nix
     ../../roles/router/dhcp.nix
     ../../roles/router/nginx.nix
-    ../../roles/shadowsocks/client.nix
-    ../../roles/wireguard/wireguard-client.nix
+    ../../roles/network/shadowsocks/client.nix
+    ../../roles/network/wireguard/wireguard-client.nix
     ../../roles/photos.nix
     ../../hardware/rpi4.nix
   ];

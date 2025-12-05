@@ -12,9 +12,9 @@ in
     ../../hardware/vm.nix
     ../../roles/personal-website.nix
     ../../roles/letsencrypt.nix
-    ../../roles/wireguard/wireguard-router.nix
+    ../../roles/network/wireguard/wireguard-router.nix
     ../../roles/vault.nix
-    ../../roles/shadowsocks/server.nix
+    ../../roles/network/shadowsocks/server.nix
     ../../roles/communication/mail.nix
     ../../roles/communication/dav.nix
     ../../roles/reading/calibre.nix

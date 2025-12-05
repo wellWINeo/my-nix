@@ -13,7 +13,7 @@ in
 {
   disabledModules = [ "services/networking/shadowsocks.nix" ];
 
-  imports = [ ../../common/shadowsocks.nix ];
+  imports = [ ../../../common/shadowsocks.nix ];
 
   options.roles.shadowsocks-server = {
     enable = mkEnableOption "Enable ShadowSocks Server";

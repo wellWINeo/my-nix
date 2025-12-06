@@ -20,6 +20,7 @@ in
     ../../roles/reading/calibre.nix
     ../../roles/reading/rss.nix
     ../../roles/blog.nix
+    ../../roles/n8n.nix
   ];
 
   # disk layout
@@ -191,6 +192,11 @@ in
   roles.dav = {
     enable = true;
     baseDomain = domainName;
+  };
+
+  roles.n8n = {
+    enable = true;
+    hostname = domainName;
   };
 
 

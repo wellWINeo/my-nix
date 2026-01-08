@@ -40,6 +40,16 @@
         ];
       };
 
+      # VPS 2 CPU, 4GB RAM
+      nixosConfigurations."veles" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          ./machines/veles
+          ./users/o__ni
+        ];
+      };
+
       devShells = forAllSystems (
         system:
         let

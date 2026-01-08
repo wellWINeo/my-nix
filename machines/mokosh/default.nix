@@ -145,7 +145,7 @@ in
         isInternal = false;
       }
 
-      # Philips 55 
+      # Philips 55
       {
         pubKey = "Me6/vN0sbqunnSb4YwKWV7gs98AlRCWG/vBZfOtSOSA=";
         ip = "10.30.0.15";
@@ -195,10 +195,9 @@ in
   };
 
   roles.n8n = {
-    enable = true;
+    enable = false;
     hostname = domainName;
   };
 
-
-  system.stateVersion = "25.05";
+  system.stateVersion = "25.11";
 }

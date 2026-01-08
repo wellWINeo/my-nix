@@ -54,6 +54,7 @@ in
   ###
   # Roles
   ###
-
   roles.hardened.enable = true;
+
+  system.stateVersion = "25.11";
 }

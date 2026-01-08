@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 with lib;
 
 let
@@ -26,6 +31,8 @@ in
         CREATE_ADMIN = 1;
       };
     };
+
+    services.postgresql.package = pkgs.postgresql_16;
 
     services.nginx.virtualHosts."rss.${cfg.baseDomain}" = {
       forceSSL = true;

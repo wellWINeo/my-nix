@@ -23,6 +23,8 @@ in
     ../../roles/n8n.nix
   ];
 
+  boot.loader.grub.device = "/dev/vda";
+
   # disk layout
   fileSystems = {
     "/" = {

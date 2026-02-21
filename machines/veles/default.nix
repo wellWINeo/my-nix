@@ -2,15 +2,15 @@
 
 let
   hostname = "veles";
-  ifname = "";
 in
 {
   imports = [
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-
   ];
+
+  boot.loader.grub.device = "/dev/sda";
 
   # disk layout
   fileSystems = {
@@ -20,36 +20,28 @@ in
     };
   };
 
-  swapDevices = [ { device = "/dev/disk-by-label/SWAP"; } ];
+  swapDevices = [
+    {
+      device = "/.swapfile";
+      size = 4 * 1024; # 4GiB
+    }
+  ];
 
   # network
   networking = {
     hostName = hostname;
     useDHCP = true;
-    nameservers = [ "1.1.1.1" ];
+    nameservers = [
+      "1.1.1.1"
+      "1.0.0.1"
+    ];
     firewall.enable = true;
-
-    interfaces."${ifname}" = {
-      ipv4.addresses = [
-        {
-          address = "93.183.127.202";
-          prefixLength = 24;
-        }
-      ];
-    };
-
-    defaultGateway = {
-      address = "";
-      interface = ifname;
-    };
   };
-
 
   services.openssh.settings = {
     PermitRootLogin = "no";
     PasswordAuthentication = false;
   };
-
 
   ###
   # Roles

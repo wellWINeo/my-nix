@@ -4,12 +4,14 @@
 
 let
   hostname = "veles";
+  domainName = "uspenskiy.su";
 in
 {
   imports = [
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
+    ../../roles/letsencrypt.nix
     ../../roles/network/stream-forwarder.nix
   ];
 
@@ -50,6 +52,11 @@ in
   # Roles
   ###
   roles.hardened.enable = true;
+
+  roles.letsencrypt = {
+    enable = true;
+    domains = [ domainName ];
+  };
 
   roles.stream-forwarder = {
     enable = true;

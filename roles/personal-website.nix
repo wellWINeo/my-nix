@@ -31,16 +31,6 @@ in
 
     services.nginx = {
       enable = true;
-      group = "web";
-
-      recommendedGzipSettings = true;
-      recommendedOptimisation = true;
-
-      virtualHosts.default = {
-        extraConfig = ''
-          access_log syslog:server=unix:/dev/log;
-        '';
-      };
 
       virtualHosts."${cfg.domain}" = {
         root = "/etc/www/${cfg.domain}";

@@ -20,7 +20,6 @@ in
     ../../roles/reading/calibre.nix
     ../../roles/reading/rss.nix
     ../../roles/blog.nix
-    ../../roles/n8n.nix
   ];
 
   boot.loader.grub.device = "/dev/vda";
@@ -194,11 +193,6 @@ in
   roles.dav = {
     enable = true;
     baseDomain = domainName;
-  };
-
-  roles.n8n = {
-    enable = false;
-    hostname = domainName;
   };
 
   system.stateVersion = "25.11";

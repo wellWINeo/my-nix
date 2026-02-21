@@ -1,4 +1,6 @@
-{ ... }:
+{
+  ...
+}:
 
 let
   hostname = "veles";
@@ -8,6 +10,7 @@ in
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
+    ../../roles/network/stream-forwarder.nix
   ];
 
   boot.loader.grub.device = "/dev/sda";
@@ -47,6 +50,16 @@ in
   # Roles
   ###
   roles.hardened.enable = true;
+
+  roles.stream-forwarder = {
+    enable = true;
+    forwards = [
+      {
+        listenAddress = "0.0.0.0:8443";
+        targetAddress = "93.183.127.202:443";
+      }
+    ];
+  };
 
   system.stateVersion = "25.11";
 }

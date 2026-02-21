@@ -23,7 +23,7 @@ in
           htpasswd_encryption = "autodetect";
         };
 
-        server.hosts =  [ "127.0.0.1:5232" ];
+        server.hosts = [ "127.0.0.1:5232" ];
 
         storage = {
           filesystem_folder = "/var/lib/radicale/collections";
@@ -59,7 +59,7 @@ in
       enableACME = false;
       sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
-      
+
       locations."/" = {
         proxyPass = "http://127.0.0.1:5232/";
         proxyWebsockets = true;

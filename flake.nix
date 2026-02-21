@@ -16,7 +16,14 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      nixpkgsFor = forAllSystems (system: import nixpkgs { inherit system; });
+      overlays = import ./overlays/default.nix;
+      nixpkgsFor = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system overlays;
+          config.allowUnfree = true;
+        }
+      );
     in
     {
 

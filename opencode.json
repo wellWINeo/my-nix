@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "read": {
+      "secrets/unlocked/*": "deny",
+      "secrets/secrets.json": "deny"
+    },
+    "edit": {
+      "secrets/unlocked/*": "deny",
+      "secrets/secrets.json": "deny"
+    },
+    "list": {
+      "secrets/unlocked/*": "deny",
+      "secrets/secrets.json": "deny"
+    }
+  }
+}

@@ -11,11 +11,6 @@ in
 {
   options.roles.home-nginx = {
     enable = mkEnableOption "Enable nginx for home server";
-    openFirewall = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Open Firewall";
-    };
     ip = mkOption {
       type = types.str;
       description = "IP Address";
@@ -23,8 +18,6 @@ in
   };
 
   config = mkIf cfg.enable {
-    networking.firewall.allowedTCPPorts = optionals cfg.openFirewall [ 80 ];
-
     services.nginx = {
       enable = true;
 

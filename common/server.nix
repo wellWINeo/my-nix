@@ -32,6 +32,12 @@ with lib;
     };
   };
 
+  # nginx ports
+  networking.firewall.allowedTCPPorts = mkIf config.services.nginx.enable [
+    80
+    443
+  ];
+
   users.groups.web = {
     members =
       optional config.services.nginx.enable "nginx"

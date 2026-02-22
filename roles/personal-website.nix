@@ -12,11 +12,6 @@ in
 {
   options.roles.personelWebsite = {
     enable = mkEnableOption "Enable personel website";
-    openFirewall = mkOption {
-      type = types.bool;
-      default = true;
-      description = "Open Firewall";
-    };
     domain = mkOption {
       type = types.str;
       description = "Domain name";
@@ -24,11 +19,6 @@ in
   };
 
   config = mkIf cfg.enable {
-    networking.firewall.allowedTCPPorts = optionals cfg.openFirewall [
-      80
-      443
-    ];
-
     services.nginx = {
       enable = true;
 

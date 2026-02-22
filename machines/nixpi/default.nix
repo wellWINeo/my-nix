@@ -127,7 +127,6 @@ in
 
   roles.home-nginx = {
     enable = true;
-    openFirewall = true;
     ip = ip;
   };
 

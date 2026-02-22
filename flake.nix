@@ -52,6 +52,7 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          { nixpkgs.overlays = import ./overlays; } # TODO: simplify overlays usage
           ./machines/veles
           ./users/o__ni
         ];

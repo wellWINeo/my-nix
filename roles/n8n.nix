@@ -37,6 +37,7 @@ in
       locations."/" = {
         proxyPass = "http://localhost:${toString port}";
         recommendedProxySettings = true;
+        proxyWebsockets = true;
       };
     };
   };

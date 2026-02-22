@@ -37,5 +37,6 @@ in
     };
 
     environment.etc."/www/proxy/proxy.pac".source = ./proxy.pac;
+    environment.etc."/www/proxy/proxy-tld.pac".source = ./proxy-tld.pac;
   };
 }

@@ -160,5 +160,7 @@ in
         };
       };
     };
+
+    networking.firewall.allowedUDPPorts = mkIf cfg.naive.enable [ naivePort ];
   };
 }

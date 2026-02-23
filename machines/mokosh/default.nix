@@ -3,6 +3,10 @@
 let
   hostname = "mokosh";
   domainName = "uspenskiy.su";
+  domainNames = {
+    primary = domainName;
+    secondary = "uspenskiy.tech";
+  };
   ifname = "ens3";
 in
 {
@@ -13,6 +17,7 @@ in
     ../../roles/personal-website.nix
     ../../roles/letsencrypt.nix
     ../../roles/network/wireguard/wireguard-router.nix
+    ../../roles/network/sing-box/server.nix
     ../../roles/vault.nix
     ../../roles/network/shadowsocks/server.nix
     ../../roles/communication/mail.nix
@@ -67,7 +72,7 @@ in
   roles.hardened.enable = true;
 
   roles.mail = {
-    enable = true; # temporarly disable due to lack binary cache
+    enable = true;
     sslCertificatesDirectory = "/var/lib/acme/${domainName}";
     hostname = domainName;
   };
@@ -80,8 +85,8 @@ in
   roles.letsencrypt = {
     enable = true;
     domains = [
-      domainName
-      "uspenskiy.tech"
+      domainNames.primary
+      domainNames.secondary
     ];
   };
 
@@ -183,6 +188,24 @@ in
   roles.blog = {
     enable = true;
     baseDomain = domainName;
+  };
+
+  roles.sing-box-server = {
+    enable = true;
+    baseDomain = domainNames.primary;
+    enableFallback = false;
+
+    vlessWs = {
+      enable = true;
+      path = "/vl-ws";
+    };
+
+    vlessGrpc = {
+      enable = true;
+      serviceName = "/vl-grpc";
+    };
+
+    naive.enable = true;
   };
 
   roles.dav = {

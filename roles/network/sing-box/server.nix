@@ -9,7 +9,7 @@ with lib;
 
 let
   cfg = config.roles.sing-box-server;
-  secrets = import ../../secrets;
+  secrets = import ../../../secrets;
 
   vlessWsPort = 9000;
   vlessGrpcPort = 9001;
@@ -116,6 +116,8 @@ in
     naive = {
       enable = mkEnableOption "NaiveProxy (QUIC on UDP 443)";
     };
+
+    enableFallback = mkEnableOption "Enable fallback redirect";
   };
 
   config = mkIf cfg.enable {
@@ -156,7 +158,7 @@ in
           '';
         };
 
-        locations."/" = {
+        locations."/" = mkIf cfg.enableFallback {
           return = "301 https://${cfg.baseDomain}$request_uri";
         };
       };

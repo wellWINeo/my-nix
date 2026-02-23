@@ -133,7 +133,6 @@ in
       settings = singBoxConfig;
     };
 
-    # Note: TCP 443 opened by common/server.nix:36-39 when nginx is enabled
     services.nginx = mkIf (cfg.vlessWs.enable || cfg.vlessGrpc.enable) {
       enable = true;
 
@@ -151,7 +150,7 @@ in
           recommendedProxySettings = true;
         };
 
-        locations.${cfg.vlessGrpc.serviceName} = mkIf cfg.vlessGrpc.enable {
+        locations."/${cfg.vlessGrpc.serviceName}" = mkIf cfg.vlessGrpc.enable {
           extraConfig = ''
             grpc_pass grpc://127.0.0.1:${toString vlessGrpcPort};
             grpc_set_header Host $host;

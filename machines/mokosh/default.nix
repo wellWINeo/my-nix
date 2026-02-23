@@ -202,7 +202,7 @@ in
 
     vlessGrpc = {
       enable = true;
-      serviceName = "/vl-grpc";
+      serviceName = "VlGrpc";
     };
 
     naive.enable = true;

@@ -138,6 +138,7 @@ in
       enable = true;
 
       virtualHosts."gw.${cfg.baseDomain}" = {
+        http2 = true;
         forceSSL = true;
         enableACME = false;
 

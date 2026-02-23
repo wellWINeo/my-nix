@@ -6,6 +6,7 @@ let
   ip = "192.168.0.20";
   gatewayIP = "192.168.0.1";
   secrets = import ../../secrets;
+  nixpiSingBoxUser = builtins.head secrets.singBoxUsers;
 in
 {
   imports = [
@@ -135,8 +136,8 @@ in
       enable = true;
       server = "gw.uspenskiy.su";
       auth = {
-        name = secrets.singBoxUsers [ 0 ].name;
-        uuid = secrets.singBoxUsers [ 0 ].uuid;
+        name = nixpiSingBoxUser.name;
+        uuid = nixpiSingBoxUser.uuid;
       };
     };
 
@@ -144,8 +145,8 @@ in
       enable = true;
       server = "gw.uspenskiy.su";
       auth = {
-        name = secrets.singBoxUsers [ 0 ].name;
-        uuid = secrets.singBoxUsers [ 0 ].uuid;
+        name = nixpiSingBoxUser.name;
+        uuid = nixpiSingBoxUser.uuid;
       };
     };
   };

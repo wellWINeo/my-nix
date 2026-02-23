@@ -14,6 +14,74 @@ let
   vlessWsPort = 9000;
   vlessGrpcPort = 9001;
   naivePort = 443;
+
+  singBoxConfig = {
+    log = {
+      level = "info";
+      output = "stdout";
+    };
+
+    inbounds = [
+      (mkIf cfg.vlessWs.enable {
+        type = "vless";
+        tag = "vless-ws-in";
+        listen = "127.0.0.1";
+        listen_port = vlessWsPort;
+        users = map (u: {
+          name = u.name;
+          uuid = u.uuid;
+        }) secrets.singBoxUsers;
+        transport = {
+          type = "ws";
+          path = cfg.vlessWs.path;
+        };
+      })
+
+      (mkIf cfg.vlessGrpc.enable {
+        type = "vless";
+        tag = "vless-grpc-in";
+        listen = "127.0.0.1";
+        listen_port = vlessGrpcPort;
+        users = map (u: {
+          name = u.name;
+          uuid = u.uuid;
+        }) secrets.singBoxUsers;
+        transport = {
+          type = "grpc";
+          service_name = cfg.vlessGrpc.serviceName;
+        };
+      })
+
+      (mkIf cfg.naive.enable {
+        type = "naive";
+        tag = "naive-in";
+        listen = "::";
+        listen_port = naivePort;
+        network = "udp";
+        users = map (u: {
+          username = u.name;
+          password = u.password;
+        }) secrets.singBoxUsers;
+        tls = {
+          enabled = true;
+          server_name = "gw.${cfg.baseDomain}";
+          certificate_path = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+          key_path = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+        };
+      })
+    ];
+
+    outbounds = [
+      {
+        type = "direct";
+        tag = "direct-out";
+      }
+    ];
+
+    route = {
+      final = "direct-out";
+    };
+  };
 in
 {
   options.roles.sing-box-server = {
@@ -46,5 +114,9 @@ in
   };
 
   config = mkIf cfg.enable {
+    services.sing-box = {
+      enable = true;
+      settings = singBoxConfig;
+    };
   };
 }

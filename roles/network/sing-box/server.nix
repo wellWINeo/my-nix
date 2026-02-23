@@ -129,5 +129,35 @@ in
       enable = true;
       settings = singBoxConfig;
     };
+
+    services.nginx = {
+      enable = true;
+
+      virtualHosts."gw.${cfg.baseDomain}" = {
+        forceSSL = true;
+        enableACME = false;
+
+        sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+        sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+
+        locations.${cfg.vlessWs.path} = mkIf cfg.vlessWs.enable {
+          proxyPass = "http://127.0.0.1:${toString vlessWsPort}";
+          proxyWebsockets = true;
+          recommendedProxySettings = true;
+        };
+
+        locations."/${cfg.vlessGrpc.serviceName}" = mkIf cfg.vlessGrpc.enable {
+          extraConfig = ''
+            grpc_pass grpc://127.0.0.1:${toString vlessGrpcPort};
+            grpc_set_header Host $host;
+            grpc_set_header X-Real-IP $remote_addr;
+          '';
+        };
+
+        locations."/" = {
+          return = "301 https://${cfg.baseDomain}$request_uri";
+        };
+      };
+    };
   };
 }

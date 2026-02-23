@@ -108,7 +108,8 @@ in
       enable = mkEnableOption "VLESS over gRPC";
       serviceName = mkOption {
         type = types.str;
-        default = "vl-grpc";
+        default = "/vl-grpc";
+        description = "Service name with leading / (e.g., '/vl-grpc')";
       };
     };
 
@@ -130,7 +131,7 @@ in
       settings = singBoxConfig;
     };
 
-    services.nginx = {
+    services.nginx = mkIf (cfg.vlessWs.enable || cfg.vlessGrpc.enable) {
       enable = true;
 
       virtualHosts."gw.${cfg.baseDomain}" = {
@@ -146,7 +147,7 @@ in
           recommendedProxySettings = true;
         };
 
-        locations."/${cfg.vlessGrpc.serviceName}" = mkIf cfg.vlessGrpc.enable {
+        locations.${cfg.vlessGrpc.serviceName} = mkIf cfg.vlessGrpc.enable {
           extraConfig = ''
             grpc_pass grpc://127.0.0.1:${toString vlessGrpcPort};
             grpc_set_header Host $host;

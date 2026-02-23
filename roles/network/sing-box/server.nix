@@ -131,6 +131,7 @@ in
       settings = singBoxConfig;
     };
 
+    # Note: TCP 443 opened by common/server.nix:36-39 when nginx is enabled
     services.nginx = mkIf (cfg.vlessWs.enable || cfg.vlessGrpc.enable) {
       enable = true;
 

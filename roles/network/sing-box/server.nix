@@ -131,6 +131,10 @@ in
       settings = singBoxConfig;
     };
 
+    networking.firewall.allowedTCPPorts = lib.optionals (cfg.vlessWs.enable || cfg.vlessGrpc.enable) [
+      443
+    ];
+
     services.nginx = mkIf (cfg.vlessWs.enable || cfg.vlessGrpc.enable) {
       enable = true;
 

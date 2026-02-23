@@ -20,6 +20,7 @@ in
     ../../roles/router/nginx.nix
     ../../roles/network/shadowsocks/client.nix
     ../../roles/network/wireguard/wireguard-client.nix
+    ../../roles/network/sing-box/client.nix
     ../../roles/photos.nix
     ../../hardware/rpi4.nix
   ];
@@ -123,6 +124,30 @@ in
     ip = "10.20.0.25";
     endpoint = "93.183.127.202:51820";
     serverPubKey = secrets.wireguard.mokosh-pubkey;
+  };
+
+  roles.sing-box-client = {
+    enable = true;
+    port = 1081;
+    openFirewall = true;
+
+    vlessWs = {
+      enable = true;
+      server = "gw.uspenskiy.su";
+      auth = {
+        name = secrets.singBoxUsers [ 0 ].name;
+        uuid = secrets.singBoxUsers [ 0 ].uuid;
+      };
+    };
+
+    vlessGrpc = {
+      enable = true;
+      server = "gw.uspenskiy.su";
+      auth = {
+        name = secrets.singBoxUsers [ 0 ].name;
+        uuid = secrets.singBoxUsers [ 0 ].uuid;
+      };
+    };
   };
 
   roles.home-nginx = {

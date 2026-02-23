@@ -4,9 +4,10 @@ function FindProxyForURL(url, host) {
   if (
     dnsDomainIs(host, ".ru") ||
     dnsDomainIs(host, ".su") ||
-    dnsDomainIs(host, ".xn--p1ai")
+    dnsDomainIs(host, ".xn--p1ai") ||
+    dnsDomainIs(host, ".home") ||
+    dnsDomainIs(host, ".local")
   ) {
-    // .рф
     return "DIRECT";
   }
 

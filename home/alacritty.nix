@@ -1,4 +1,9 @@
-{ lib, pkgs, ... }:
+{
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 
 {
   programs.alacritty = {
@@ -7,7 +12,7 @@
     settings = {
       general.live_config_reload = true;
 
-      terminal.shell.program = "${pkgs.fish}/bin/fish";
+      terminal.shell.program = config.shellPath;
 
       selection = {
         save_to_clipboard = false;

@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, config, ... }:
 
 {
   programs.tmux = {
@@ -7,7 +7,7 @@
     baseIndex = 1;
     mouse = true;
     keyMode = "vi";
-    shell = "${pkgs.fish}/bin/fish";
+    shell = config.shellPath;
 
     extraConfig = ''
       # Pane base index

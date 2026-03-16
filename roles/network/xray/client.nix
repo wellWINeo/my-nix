@@ -212,5 +212,6 @@ in
     };
 
     networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [ cfg.port ];
+    networking.firewall.allowedUDPPorts = mkIf cfg.openFirewall [ cfg.port ];
   };
 }

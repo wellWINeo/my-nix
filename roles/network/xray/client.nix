@@ -43,7 +43,7 @@ in
       auth = {
         name = mkOption {
           type = types.str;
-          description = "Username for authentication";
+          description = "Username (kept for sing-box parity; not used in xray VLESS config)";
         };
 
         uuid = mkOption {
@@ -76,7 +76,7 @@ in
       auth = {
         name = mkOption {
           type = types.str;
-          description = "Username for authentication";
+          description = "Username (kept for sing-box parity; not used in xray VLESS config)";
         };
 
         uuid = mkOption {

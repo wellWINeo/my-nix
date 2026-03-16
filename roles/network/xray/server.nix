@@ -119,6 +119,10 @@ in
         assertion = cfg.vlessWs.enable || cfg.vlessGrpc.enable;
         message = "At least one xray inbound must be enabled";
       }
+      {
+        assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
+        message = "roles.xray-server.vlessGrpc.serviceName must not start with '/' (xray uses it as a gRPC service name, not a path)";
+      }
     ];
 
     services.xray = {

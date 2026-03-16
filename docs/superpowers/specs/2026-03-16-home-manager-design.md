@@ -30,6 +30,8 @@ Follows nixpkgs to avoid duplicate nixpkgs evaluations.
 
 ### New directory: `home/`
 
+A top-level `home/` directory (rather than nesting under `users/o__ni/`) because home-manager modules are reusable across contexts (standalone macOS, NixOS integration) and conceptually parallel to `roles/` (system services) and `common/` (shared system config). This is the standard convention in the home-manager ecosystem.
+
 ```
 home/
 ├── default.nix      # Root module — imports alacritty and tmux, sets home basics
@@ -39,19 +41,19 @@ home/
 
 ### Flake outputs
 
-**Standalone macOS** — new `homeConfigurations` output:
+**Standalone macOS** — new `homeConfigurations` output (note: `home-manager` must be destructured from `inputs` or referenced as `inputs.home-manager`):
 
 ```nix
-homeConfigurations."o__ni" = home-manager.lib.homeManagerConfiguration {
+homeConfigurations."o__ni" = inputs.home-manager.lib.homeManagerConfiguration {
   pkgs = nixpkgs.legacyPackages.aarch64-darwin;
   modules = [ ./home ];
 };
 ```
 
-**NixOS machines** — add to each machine's imports:
+**NixOS machines** — add to each machine's `modules` list:
 
 ```nix
-home-manager.nixosModules.home-manager
+inputs.home-manager.nixosModules.home-manager
 {
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
@@ -64,6 +66,8 @@ This ensures `home/default.nix` is the single source of truth for both contexts.
 ## Module Details
 
 ### home/default.nix
+
+Module signature: `{ config, lib, pkgs, ... }:`
 
 Root module that:
 - Imports `./alacritty.nix` and `./tmux.nix`
@@ -101,7 +105,7 @@ Translates the existing `~/.config/alacritty/alacritty.toml` into `programs.alac
 
 **Platform handling:** `decorations = "Buttonless"` and `option_as_alt = "Both"` are macOS-specific. Use `lib.mkIf pkgs.stdenv.isDarwin` to conditionally set these, with sensible Linux defaults (or omit them).
 
-**Shell path:** On macOS standalone, fish is at `/opt/homebrew/bin/fish`. On NixOS, fish would come from nixpkgs. Use `pkgs.stdenv.isDarwin` to select the right path.
+**Shell path:** Use `${pkgs.fish}/bin/fish` for a portable Nix-managed path on all platforms. This avoids hardcoding `/opt/homebrew/bin/fish` which is brittle (ARM-only, requires Homebrew). Fish will be pulled from nixpkgs as a dependency.
 
 ### home/tmux.nix
 
@@ -180,7 +184,15 @@ bind -n M-4 select-window -t 4
 bind e new-window -n "tmux-config" "vim ~/.tmux.conf"
 ```
 
-**Shell path:** Same platform-dependent logic as alacritty — `/opt/homebrew/bin/fish` on macOS, fish from nixpkgs on NixOS.
+**Shell path:** Use `${pkgs.fish}/bin/fish` — same portable approach as alacritty.
+
+### Note on existing dotfiles
+
+On first `home-manager switch`, if `~/.config/alacritty/alacritty.toml` or `~/.config/tmux/tmux.conf` already exist as regular files, activation will fail. Back up and remove existing dotfiles before first activation.
+
+### Note on vestigial tmux bindings
+
+The `bind r source-file` and `bind e new-window "vim ~/.tmux.conf"` bindings reference manual config files. Under declarative management these are vestigial — remove `bind e` entirely, and update `bind r` to reload from the home-manager managed path or remove it.
 
 ## Files Changed
 
@@ -190,6 +202,8 @@ bind e new-window -n "tmux-config" "vim ~/.tmux.conf"
 | `home/default.nix` | New — root home module |
 | `home/alacritty.nix` | New — alacritty config |
 | `home/tmux.nix` | New — tmux config |
+| `AGENTS.md` | Add `home/` to directory purposes table, document new build command |
+| `flake.lock` | Auto-updated by adding home-manager input |
 
 ## Testing
 

@@ -45,10 +45,12 @@ home/
 
 ```nix
 homeConfigurations."o__ni" = inputs.home-manager.lib.homeManagerConfiguration {
-  pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+  pkgs = nixpkgsFor.aarch64-darwin;
   modules = [ ./home ];
 };
 ```
+
+Uses `nixpkgsFor` (not `nixpkgs.legacyPackages`) to include overlays consistently with the rest of the flake.
 
 **NixOS machines** — add to each machine's `modules` list:
 
@@ -57,9 +59,11 @@ inputs.home-manager.nixosModules.home-manager
 {
   home-manager.useGlobalPkgs = true;
   home-manager.useUserPackages = true;
-  home-manager.users.o__ni = import ../../home;
+  home-manager.users.o__ni = import ./home;
 }
 ```
+
+Note: path is `./home` relative to `flake.nix` at the repo root.
 
 This ensures `home/default.nix` is the single source of truth for both contexts.
 
@@ -103,7 +107,7 @@ Translates the existing `~/.config/alacritty/alacritty.toml` into `programs.alac
 | Env TERM | xterm-256color |
 | live_config_reload | true |
 
-**Platform handling:** `decorations = "Buttonless"` and `option_as_alt = "Both"` are macOS-specific. Use `lib.mkIf pkgs.stdenv.isDarwin` to conditionally set these, with sensible Linux defaults (or omit them).
+**Platform handling:** `decorations = "Buttonless"` and `option_as_alt = "Both"` are macOS-specific. Use `lib.optionalAttrs pkgs.stdenv.isDarwin` to conditionally include these (not `mkIf`, since settings is a freeform attrset, not a module option).
 
 **Shell path:** Use `${pkgs.fish}/bin/fish` for a portable Nix-managed path on all platforms. This avoids hardcoding `/opt/homebrew/bin/fish` which is brittle (ARM-only, requires Homebrew). Fish will be pulled from nixpkgs as a dependency.
 
@@ -130,8 +134,8 @@ setw -g pane-base-index 1
 
 # Status bar styling
 set -g status-style bg=black,fg=white
-set -g status-left ''
-set -g status-right ''
+set -g status-left ""
+set -g status-right ""
 set -g status-justify left
 set -g window-status-format ' #I:#W '
 set -g window-status-current-format ' [#I:#W] '

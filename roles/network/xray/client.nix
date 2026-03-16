@@ -88,13 +88,6 @@ let
             };
           };
         }
-      ]
-      # Safety fallback: handles any traffic not matched by balancer
-      ++ [
-        {
-          protocol = "freedom";
-          tag = "direct-out";
-        }
       ];
 
     routing = {

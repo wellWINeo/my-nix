@@ -125,5 +125,36 @@ in
       enable = true;
       settings = xrayConfig;
     };
+
+    services.nginx = mkIf (cfg.vlessWs.enable || cfg.vlessGrpc.enable) {
+      enable = true;
+
+      virtualHosts."gw.${cfg.baseDomain}" = {
+        http2 = true;
+        forceSSL = true;
+        enableACME = false;
+
+        sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+        sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+
+        locations.${cfg.vlessWs.path} = mkIf cfg.vlessWs.enable {
+          proxyPass = "http://127.0.0.1:${toString vlessWsPort}";
+          proxyWebsockets = true;
+          recommendedProxySettings = true;
+        };
+
+        locations."/${cfg.vlessGrpc.serviceName}" = mkIf cfg.vlessGrpc.enable {
+          extraConfig = ''
+            grpc_pass grpc://127.0.0.1:${toString vlessGrpcPort};
+            grpc_set_header Host $host;
+            grpc_set_header X-Real-IP $remote_addr;
+          '';
+        };
+
+        locations."/" = mkIf cfg.enableFallback {
+          return = "301 https://${cfg.baseDomain}$request_uri";
+        };
+      };
+    };
   };
 }

@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
+    home-manager = {
+      url = "github:nix-community/home-manager/release-25.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -56,6 +60,12 @@
           ./machines/veles
           ./users/o__ni
         ];
+      };
+
+      # standalone home-manager for macOS
+      homeConfigurations."o__ni" = inputs.home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgsFor.aarch64-darwin;
+        modules = [ ./home ];
       };
 
       devShells = forAllSystems (

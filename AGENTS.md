@@ -31,6 +31,12 @@ make switch
 
 # Build without switching (dry run)
 nixos-rebuild build --flake "path:.#$(hostname)"
+
+# Build standalone home-manager config (macOS)
+nix build 'path:.#homeConfigurations.o__ni.activationPackage'
+
+# Activate standalone home-manager config (macOS, first time or after update)
+nix run 'path:.#homeConfigurations.o__ni.activationPackage'
 ```
 
 Note: There are no automated tests. Validation is via `nix flake check` and manual deployment testing.
@@ -133,6 +139,7 @@ services.nginx.virtualHosts.${hostname} = {
 | `users/` | User account definitions |
 | `secrets/` | Encrypted secrets (gitignored) |
 | `assets/` | Static files for services |
+| `home/` | Home-manager modules (user environment config) |
 
 ## Secrets
 

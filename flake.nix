@@ -36,6 +36,12 @@
         system = "aarch64-linux";
         specialArgs = inputs;
         modules = [
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.o__ni = import ./home;
+          }
           ./machines/nixpi
           ./users/o__ni
         ];
@@ -46,6 +52,12 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.o__ni = import ./home;
+          }
           ./machines/mokosh
           ./users/o__ni
         ];
@@ -56,10 +68,22 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          inputs.home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.o__ni = import ./home;
+          }
           { nixpkgs.overlays = import ./overlays; } # TODO: simplify overlays usage
           ./machines/veles
           ./users/o__ni
         ];
+      };
+
+      # standalone home-manager for macOS
+      homeConfigurations."o__ni" = inputs.home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgsFor.aarch64-darwin;
+        modules = [ ./home ];
       };
 
       devShells = forAllSystems (

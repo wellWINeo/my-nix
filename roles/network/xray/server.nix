@@ -73,8 +73,7 @@ let
           realitySettings = {
             target = "${cfg.reality.fakeSni}:443";
             serverNames = [ cfg.reality.fakeSni ];
-            # Placeholder replaced at activation time by system.activationScripts.xray-config
-            privateKey = "__XRAY_PRIVATE_KEY__";
+            # privateKey is injected at service start via jq — never stored in Nix store
             # `or []` safe default if field missing from secrets.json
             shortIds = secrets.xrayRealityShortIds or [ ];
           };
@@ -238,24 +237,35 @@ in
       }
     ];
 
-    # Write template to /etc/xray/config.json at activation time,
-    # injecting the private key from disk (never stored in Nix store).
-    system.activationScripts.xray-config = {
-      text = ''
-        install -d -m 700 /etc/xray
-        key=$(cat ${lib.escapeShellArg (toString cfg.reality.privateKeyFile)})
-        ${pkgs.jq}/bin/jq --arg key "$key" \
-          '.inbounds[0].streamSettings.realitySettings.privateKey = $key' \
-          ${configTemplateFile} > /etc/xray/config.json
-        chmod 600 /etc/xray/config.json
-        chown root:root /etc/xray/config.json
+    # Xray service: injects the private key at startup using the same
+    # config-templating pattern as common/shadowsocks.nix —
+    # PrivateTmp isolates the generated config inside the service's
+    # private tmpfs mount namespace so it never touches persistent storage.
+    # LoadCredential loads the key file before privilege drop so the
+    # DynamicUser can read it from $CREDENTIALS_DIRECTORY.
+    systemd.services.xray = {
+      description = "Xray Reality Daemon";
+      after = [ "network.target" ];
+      wantedBy = [ "multi-user.target" ];
+      path = [
+        pkgs.xray
+        pkgs.jq
+      ];
+      serviceConfig = {
+        PrivateTmp = true;
+        LoadCredential = "private-key:${cfg.reality.privateKeyFile}";
+        DynamicUser = true;
+        CapabilityBoundingSet = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
+        AmbientCapabilities = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
+        NoNewPrivileges = true;
+      };
+      script = ''
+        cat ${configTemplateFile} \
+          | jq --arg key "$(cat "$CREDENTIALS_DIRECTORY/private-key")" \
+              '.inbounds[0].streamSettings.realitySettings.privateKey = $key' \
+          > /tmp/xray.json
+        exec xray -config /tmp/xray.json
       '';
-      deps = [ ];
-    };
-
-    services.xray = {
-      enable = true;
-      settingsFile = "/etc/xray/config.json";
     };
 
     networking.firewall.allowedTCPPorts = [ 443 ];

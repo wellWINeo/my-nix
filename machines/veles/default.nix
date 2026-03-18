@@ -13,7 +13,6 @@ in
     ../../hardware/vm.nix
     ../../roles/letsencrypt.nix
     ../../roles/network/stream-forwarder.nix
-    ../../roles/n8n.nix
   ];
 
   boot.loader.grub.device = "/dev/sda";
@@ -44,6 +43,9 @@ in
     firewall.enable = true;
   };
 
+  services.qemuGuest.enable = true;
+  services.spice-vdagentd.enable = true;
+
   services.openssh.settings = {
     PermitRootLogin = "no";
     PasswordAuthentication = false;
@@ -67,11 +69,6 @@ in
         targetAddress = "93.183.127.202:443";
       }
     ];
-  };
-
-  roles.n8n = {
-    enable = true;
-    hostname = domainName;
   };
 
   system.stateVersion = "25.11";

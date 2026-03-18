@@ -13,57 +13,146 @@ let
 
   vlessWsPort = 9000;
   vlessGrpcPort = 9001;
+  vlessXhttpPort = 9002;
 
-  xrayConfig = {
+  # Template config with placeholder for private key.
+  # Uses services.xray.settingsFile (not .settings) to avoid the
+  # xray -test checkPhase which would reject the placeholder.
+  xrayConfigTemplate = {
     log = {
       loglevel = "info";
     };
 
-    inbounds =
-      lib.optionals cfg.vlessWs.enable [
-        {
-          listen = "127.0.0.1";
-          port = vlessWsPort;
-          protocol = "vless";
-          tag = "vless-ws-in";
-          settings = {
-            clients = map (u: {
-              id = u.uuid;
-              email = "${u.name}@xray";
-            }) secrets.singBoxUsers;
-            decryption = "none";
+    inbounds = [
+      # Main inbound: VLESS + Reality on port 443.
+      # Handles direct TCP+Vision connections; fallbacks route
+      # WS/gRPC/xHTTP to internal sub-inbounds.
+      {
+        port = 443;
+        protocol = "vless";
+        tag = "vless-reality-in";
+        settings = {
+          clients = map (u: {
+            id = u.uuid;
+            flow = "xtls-rprx-vision";
+            email = "${u.name}@xray";
+          }) secrets.singBoxUsers;
+          decryption = "none";
+          fallbacks =
+            lib.optionals cfg.vlessWs.enable [
+              {
+                path = cfg.vlessWs.path;
+                dest = vlessWsPort;
+                xver = 1;
+              }
+            ]
+            ++ lib.optionals cfg.vlessGrpc.enable [
+              {
+                path = "/${cfg.vlessGrpc.serviceName}";
+                dest = vlessGrpcPort;
+                xver = 1;
+              }
+            ]
+            ++ lib.optionals cfg.vlessXhttp.enable [
+              {
+                path = cfg.vlessXhttp.path;
+                dest = vlessXhttpPort;
+                xver = 1;
+              }
+            ];
+        };
+        streamSettings = {
+          network = "tcp";
+          security = "reality";
+          realitySettings = {
+            target = "${cfg.reality.fakeSni}:443";
+            serverNames = [ cfg.reality.fakeSni ];
+            # Placeholder replaced at activation time by system.activationScripts.xray-config
+            privateKey = "__XRAY_PRIVATE_KEY__";
+            # `or []` safe default if field missing from secrets.json
+            shortIds = secrets.xrayRealityShortIds or [ ];
           };
-          streamSettings = {
-            network = "ws";
-            security = "none";
-            wsSettings = {
-              path = cfg.vlessWs.path;
-            };
+        };
+      }
+    ]
+    # Internal WS sub-inbound (only created when vlessWs is enabled)
+    ++ lib.optionals cfg.vlessWs.enable [
+      {
+        listen = "127.0.0.1";
+        port = vlessWsPort;
+        protocol = "vless";
+        tag = "vless-ws-in";
+        settings = {
+          clients = map (u: {
+            id = u.uuid;
+            email = "${u.name}@xray";
+          }) secrets.singBoxUsers;
+          decryption = "none";
+        };
+        streamSettings = {
+          network = "ws";
+          security = "none";
+          wsSettings = {
+            path = cfg.vlessWs.path;
           };
-        }
-      ]
-      ++ lib.optionals cfg.vlessGrpc.enable [
-        {
-          listen = "127.0.0.1";
-          port = vlessGrpcPort;
-          protocol = "vless";
-          tag = "vless-grpc-in";
-          settings = {
-            clients = map (u: {
-              id = u.uuid;
-              email = "${u.name}@xray";
-            }) secrets.singBoxUsers;
-            decryption = "none";
+          sockopt = {
+            acceptProxyProtocol = true;
           };
-          streamSettings = {
-            network = "grpc";
-            security = "none";
-            grpcSettings = {
-              serviceName = cfg.vlessGrpc.serviceName;
-            };
+        };
+      }
+    ]
+    # Internal gRPC sub-inbound
+    ++ lib.optionals cfg.vlessGrpc.enable [
+      {
+        listen = "127.0.0.1";
+        port = vlessGrpcPort;
+        protocol = "vless";
+        tag = "vless-grpc-in";
+        settings = {
+          clients = map (u: {
+            id = u.uuid;
+            email = "${u.name}@xray";
+          }) secrets.singBoxUsers;
+          decryption = "none";
+        };
+        streamSettings = {
+          network = "grpc";
+          security = "none";
+          grpcSettings = {
+            serviceName = cfg.vlessGrpc.serviceName;
           };
-        }
-      ];
+          sockopt = {
+            acceptProxyProtocol = true;
+          };
+        };
+      }
+    ]
+    # Internal xHTTP sub-inbound
+    ++ lib.optionals cfg.vlessXhttp.enable [
+      {
+        listen = "127.0.0.1";
+        port = vlessXhttpPort;
+        protocol = "vless";
+        tag = "vless-xhttp-in";
+        settings = {
+          clients = map (u: {
+            id = u.uuid;
+            email = "${u.name}@xray";
+          }) secrets.singBoxUsers;
+          decryption = "none";
+        };
+        streamSettings = {
+          network = "xhttp";
+          security = "none";
+          xhttpSettings = {
+            path = cfg.vlessXhttp.path;
+          };
+          sockopt = {
+            acceptProxyProtocol = true;
+          };
+        };
+      }
+    ];
 
     outbounds = [
       {
@@ -76,21 +165,38 @@ let
       rules = [
         {
           type = "field";
-          inboundTag = lib.optionals cfg.vlessWs.enable [ "vless-ws-in" ]
-            ++ lib.optionals cfg.vlessGrpc.enable [ "vless-grpc-in" ];
+          inboundTag = [
+            "vless-reality-in"
+          ]
+          ++ lib.optionals cfg.vlessWs.enable [ "vless-ws-in" ]
+          ++ lib.optionals cfg.vlessGrpc.enable [ "vless-grpc-in" ]
+          ++ lib.optionals cfg.vlessXhttp.enable [ "vless-xhttp-in" ];
           outboundTag = "direct-out";
         }
       ];
     };
   };
+
+  configTemplateFile = pkgs.writeText "xray-config-template.json" (
+    builtins.toJSON xrayConfigTemplate
+  );
 in
 {
   options.roles.xray-server = {
-    enable = mkEnableOption "xray anti-censorship proxy server";
+    enable = mkEnableOption "xray anti-censorship proxy server with Reality";
 
-    baseDomain = mkOption {
-      type = types.str;
-      description = "Base domain for certificates and hostnames";
+    reality = {
+      privateKeyFile = mkOption {
+        type = types.path;
+        description = "Path to the Reality private key file on disk (not stored in Nix store)";
+        example = "/etc/nixos/secrets/xray-reality-private-key";
+      };
+
+      fakeSni = mkOption {
+        type = types.str;
+        default = "api.oneme.ru";
+        description = "Target server to impersonate (fake SNI). Unauthorized connections are forwarded here.";
+      };
     };
 
     vlessWs = {
@@ -98,6 +204,7 @@ in
       path = mkOption {
         type = types.str;
         default = "/vl-ws";
+        description = "WebSocket path";
       };
     };
 
@@ -110,55 +217,44 @@ in
       };
     };
 
-    enableFallback = mkEnableOption "Enable fallback redirect";
+    vlessXhttp = {
+      enable = mkEnableOption "VLESS over xHTTP";
+      path = mkOption {
+        type = types.str;
+        default = "/vl-xhttp";
+        description = "xHTTP path";
+      };
+    };
   };
 
   config = mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.vlessWs.enable || cfg.vlessGrpc.enable;
-        message = "At least one xray inbound must be enabled";
-      }
-      {
         assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
-        message = "roles.xray-server.vlessGrpc.serviceName must not start with '/' (xray uses it as a gRPC service name, not a path)";
+        message = "roles.xray-server.vlessGrpc.serviceName must not start with '/'";
       }
     ];
 
+    # Write template to /etc/xray/config.json at activation time,
+    # injecting the private key from disk (never stored in Nix store).
+    system.activationScripts.xray-config = {
+      text = ''
+        install -d -m 700 /etc/xray
+        key=$(cat ${lib.escapeShellArg (toString cfg.reality.privateKeyFile)})
+        ${pkgs.jq}/bin/jq --arg key "$key" \
+          '.inbounds[0].streamSettings.realitySettings.privateKey = $key' \
+          ${configTemplateFile} > /etc/xray/config.json
+        chmod 600 /etc/xray/config.json
+        chown root:root /etc/xray/config.json
+      '';
+      deps = [ ];
+    };
+
     services.xray = {
       enable = true;
-      settings = xrayConfig;
+      settingsFile = "/etc/xray/config.json";
     };
 
-    services.nginx = mkIf (cfg.vlessWs.enable || cfg.vlessGrpc.enable) {
-      enable = true;
-
-      virtualHosts."gw.${cfg.baseDomain}" = {
-        http2 = true;
-        forceSSL = true;
-        enableACME = false;
-
-        sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
-        sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
-
-        locations.${cfg.vlessWs.path} = mkIf cfg.vlessWs.enable {
-          proxyPass = "http://127.0.0.1:${toString vlessWsPort}";
-          proxyWebsockets = true;
-          recommendedProxySettings = true;
-        };
-
-        locations."/${cfg.vlessGrpc.serviceName}" = mkIf cfg.vlessGrpc.enable {
-          extraConfig = ''
-            grpc_pass grpc://127.0.0.1:${toString vlessGrpcPort};
-            grpc_set_header Host $host;
-            grpc_set_header X-Real-IP $remote_addr;
-          '';
-        };
-
-        locations."/" = mkIf cfg.enableFallback {
-          return = "301 https://${cfg.baseDomain}$request_uri";
-        };
-      };
-    };
+    networking.firewall.allowedTCPPorts = [ 443 ];
   };
 }

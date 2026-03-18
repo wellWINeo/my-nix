@@ -4,15 +4,14 @@
 
 let
   hostname = "veles";
-  domainName = "uspenskiy.su";
 in
 {
   imports = [
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-    ../../roles/letsencrypt.nix
     ../../roles/network/stream-forwarder.nix
+    ../../roles/network/xray/server.nix
   ];
 
   boot.loader.grub.device = "/dev/sda";
@@ -56,9 +55,15 @@ in
   ###
   roles.hardened.enable = true;
 
-  roles.letsencrypt = {
+  roles.xray-server = {
     enable = true;
-    domains = [ domainName ];
+    reality = {
+      privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+      fakeSni = "api.oneme.ru";
+    };
+    vlessWs.enable = true;
+    vlessGrpc.enable = true;
+    vlessXhttp.enable = true;
   };
 
   roles.stream-forwarder = {

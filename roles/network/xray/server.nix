@@ -15,6 +15,12 @@ let
   vlessGrpcPort = 9001;
   vlessXhttpPort = 9002;
 
+  # Clients for sub-inbounds (no flow — framed transports don't use Vision)
+  vlessClients = map (u: {
+    id = u.uuid;
+    email = "${u.name}@xray";
+  }) secrets.singBoxUsers;
+
   # Template config with placeholder for private key.
   # Uses services.xray.settingsFile (not .settings) to avoid the
   # xray -test checkPhase which would reject the placeholder.
@@ -83,10 +89,7 @@ let
         protocol = "vless";
         tag = "vless-ws-in";
         settings = {
-          clients = map (u: {
-            id = u.uuid;
-            email = "${u.name}@xray";
-          }) secrets.singBoxUsers;
+          clients = vlessClients;
           decryption = "none";
         };
         streamSettings = {
@@ -109,10 +112,7 @@ let
         protocol = "vless";
         tag = "vless-grpc-in";
         settings = {
-          clients = map (u: {
-            id = u.uuid;
-            email = "${u.name}@xray";
-          }) secrets.singBoxUsers;
+          clients = vlessClients;
           decryption = "none";
         };
         streamSettings = {
@@ -135,10 +135,7 @@ let
         protocol = "vless";
         tag = "vless-xhttp-in";
         settings = {
-          clients = map (u: {
-            id = u.uuid;
-            email = "${u.name}@xray";
-          }) secrets.singBoxUsers;
+          clients = vlessClients;
           decryption = "none";
         };
         streamSettings = {
@@ -232,10 +229,6 @@ in
       {
         assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
         message = "roles.xray-server.vlessGrpc.serviceName must not start with '/'";
-      }
-      {
-        assertion = cfg.reality.privateKeyFile != "";
-        message = "roles.xray-server.reality.privateKeyFile must be set";
       }
     ];
 

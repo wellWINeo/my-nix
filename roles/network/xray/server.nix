@@ -233,6 +233,10 @@ in
         assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
         message = "roles.xray-server.vlessGrpc.serviceName must not start with '/'";
       }
+      {
+        assertion = cfg.reality.privateKeyFile != "";
+        message = "roles.xray-server.reality.privateKeyFile must be set";
+      }
     ];
 
     # Write template to /etc/xray/config.json at activation time,

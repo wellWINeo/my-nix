@@ -230,6 +230,12 @@ in
         assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
         message = "roles.xray-server.vlessGrpc.serviceName must not start with '/'";
       }
+      {
+        # Empty shortIds causes xray to accept any shortId, bypassing the
+        # Reality fingerprinting layer. Secrets must contain xrayRealityShortIds.
+        assertion = (secrets.xrayRealityShortIds or [ ]) != [ ];
+        message = "secrets.xrayRealityShortIds must be set before deploying xray-server (add to secrets.json and run make lock)";
+      }
     ];
 
     # Write template to /etc/xray/config.json at activation time,

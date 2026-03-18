@@ -36,6 +36,8 @@ let
               serverName = transport.server;
             };
           };
+      # Merge: `extra` keys win over `securitySettings` keys if there is a collision.
+      # Callers must not pass `security`, `realitySettings`, or `tlsSettings` in `extra`.
     in
     securitySettings // transport.extra;
 
@@ -269,6 +271,7 @@ in
       auth = {
         name = mkOption {
           type = types.str;
+          default = "";
           description = "Username (informational only; xray VLESS uses UUID)";
         };
         uuid = mkOption {
@@ -295,6 +298,7 @@ in
       auth = {
         name = mkOption {
           type = types.str;
+          default = "";
           description = "Username (kept for parity; unused in xray VLESS config)";
         };
         uuid = mkOption {
@@ -327,6 +331,7 @@ in
       auth = {
         name = mkOption {
           type = types.str;
+          default = "";
           description = "Username (kept for parity; unused in xray VLESS config)";
         };
         uuid = mkOption {
@@ -359,6 +364,7 @@ in
       auth = {
         name = mkOption {
           type = types.str;
+          default = "";
           description = "Username (informational only)";
         };
         uuid = mkOption {
@@ -385,8 +391,13 @@ in
       {
         assertion =
           !cfg.reality.enable
-          || (cfg.reality.publicKey != "" && cfg.reality.shortId != "" && cfg.reality.serverName != "");
-        message = "roles.xray-client.reality.publicKey, shortId, and serverName must be set when reality.enable = true";
+          || (
+            cfg.reality.publicKey != ""
+            && cfg.reality.shortId != ""
+            && cfg.reality.serverName != ""
+            && cfg.reality.fingerprint != ""
+          );
+        message = "roles.xray-client.reality.publicKey, shortId, serverName, and fingerprint must be set when reality.enable = true";
       }
     ];
 

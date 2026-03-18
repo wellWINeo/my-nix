@@ -75,7 +75,7 @@ let
             serverNames = [ cfg.reality.fakeSni ];
             # privateKey is injected at service start via jq — never stored in Nix store
             # `or []` safe default if field missing from secrets.json
-            shortIds = secrets.xrayRealityShortIds or [ ];
+            shortIds = secrets.xray.reality.shortIds or [ ];
           };
         };
       }
@@ -231,9 +231,9 @@ in
       }
       {
         # Empty shortIds causes xray to accept any shortId, bypassing the
-        # Reality fingerprinting layer. Secrets must contain xrayRealityShortIds.
-        assertion = (secrets.xrayRealityShortIds or [ ]) != [ ];
-        message = "secrets.xrayRealityShortIds must be set before deploying xray-server (add to secrets.json and run make lock)";
+        # Reality fingerprinting layer. Secrets must contain xray.reality.shortIds.
+        assertion = (secrets.xray.reality.shortIds or [ ]) != [ ];
+        message = "secrets.xray.reality.shortIds must be set before deploying xray-server (add to secrets.json and run make lock)";
       }
     ];
 

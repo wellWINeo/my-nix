@@ -58,7 +58,7 @@ in
   roles.xray-server = {
     enable = true;
     reality = {
-      privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+      privateKeyFile = "/etc/nixos/secrets/veles-xray-reality.privkey";
       fakeSni = "api.oneme.ru";
     };
     vlessWs.enable = true;

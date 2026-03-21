@@ -11,13 +11,18 @@ let
   cfg = config.roles.xray-client;
 
   # Build streamSettings for a given transport.
-  # When reality.enable = true, uses Reality TLS with shared settings.
+  # When reality.enable = true, uses Reality TLS with per-transport or shared SNI.
   # When false, uses regular TLS with serverName from the transport.
   # Note: transport.server is only used in the TLS (non-Reality) branch;
   # it is silently ignored when Reality is enabled.
   mkStreamSettings =
     transport:
     let
+      sni =
+        if (transport.serverName or "") != "" then
+          transport.serverName
+        else
+          cfg.reality.serverName;
       securitySettings =
         if cfg.reality.enable then
           {
@@ -25,7 +30,7 @@ let
             realitySettings = {
               publicKey = cfg.reality.publicKey;
               shortId = cfg.reality.shortId;
-              serverName = cfg.reality.serverName;
+              serverName = sni;
               fingerprint = cfg.reality.fingerprint;
             };
           }
@@ -73,7 +78,7 @@ let
                 users = [
                   {
                     id = cfg.vlessTcp.auth.uuid;
-                    # Vision flow: ONLY set on direct TCP; never on WS/gRPC/xHTTP
+                    # Vision flow: ONLY set on direct TCP; never on gRPC/xHTTP
                     flow = "xtls-rprx-vision";
                     encryption = "none";
                   }
@@ -83,38 +88,9 @@ let
           };
           streamSettings = mkStreamSettings {
             server = cfg.vlessTcp.server;
+            serverName = cfg.vlessTcp.serverName;
             extra = {
               network = "tcp";
-            };
-          };
-        }
-      ]
-      ++ lib.optionals cfg.vlessWs.enable [
-        {
-          protocol = "vless";
-          tag = "vless-ws-out";
-          settings = {
-            vnext = [
-              {
-                address = cfg.vlessWs.server;
-                port = cfg.vlessWs.port;
-                users = [
-                  {
-                    id = cfg.vlessWs.auth.uuid;
-                    # No flow for WS — framed transport, Vision not applicable
-                    encryption = "none";
-                  }
-                ];
-              }
-            ];
-          };
-          streamSettings = mkStreamSettings {
-            server = cfg.vlessWs.server;
-            extra = {
-              network = "ws";
-              wsSettings = {
-                path = cfg.vlessWs.path;
-              };
             };
           };
         }
@@ -139,6 +115,7 @@ let
           };
           streamSettings = mkStreamSettings {
             server = cfg.vlessGrpc.server;
+            serverName = cfg.vlessGrpc.serverName;
             extra = {
               network = "grpc";
               grpcSettings = {
@@ -168,6 +145,7 @@ let
           };
           streamSettings = mkStreamSettings {
             server = cfg.vlessXhttp.server;
+            serverName = cfg.vlessXhttp.serverName;
             extra = {
               network = "xhttp";
               xhttpSettings = {
@@ -197,7 +175,6 @@ let
           tag = "proxy-balancer";
           selector =
             lib.optionals cfg.vlessTcp.enable [ "vless-tcp-out" ]
-            ++ lib.optionals cfg.vlessWs.enable [ "vless-ws-out" ]
             ++ lib.optionals cfg.vlessGrpc.enable [ "vless-grpc-out" ]
             ++ lib.optionals cfg.vlessXhttp.enable [ "vless-xhttp-out" ];
           strategy = {
@@ -244,7 +221,7 @@ in
       serverName = mkOption {
         type = types.str;
         default = "api.oneme.ru";
-        description = "SNI to present during TLS handshake";
+        description = "SNI to present during TLS handshake (used when transport doesn't override serverName)";
       };
 
       fingerprint = mkOption {
@@ -279,38 +256,11 @@ in
           description = "UUID for authentication";
         };
       };
-    };
 
-    vlessWs = {
-      enable = mkEnableOption "VLESS over WebSocket";
-
-      server = mkOption {
+      serverName = mkOption {
         type = types.str;
-        description = "Server domain (e.g., veles IP or domain)";
-      };
-
-      port = mkOption {
-        type = types.port;
-        default = 443;
-        description = "Server port";
-      };
-
-      auth = {
-        name = mkOption {
-          type = types.str;
-          default = "";
-          description = "Username (kept for parity; unused in xray VLESS config)";
-        };
-        uuid = mkOption {
-          type = types.str;
-          description = "UUID for authentication";
-        };
-      };
-
-      path = mkOption {
-        type = types.str;
-        default = "/vl-ws";
-        description = "WebSocket path";
+        default = "";
+        description = "Reality SNI for this transport (overrides shared reality.serverName)";
       };
     };
 
@@ -342,8 +292,14 @@ in
 
       serviceName = mkOption {
         type = types.str;
-        default = "vl-grpc";
+        default = "VlGrpc";
         description = "gRPC service name (must match server)";
+      };
+
+      serverName = mkOption {
+        type = types.str;
+        default = "";
+        description = "Reality SNI for this transport (overrides shared reality.serverName)";
       };
     };
 
@@ -378,6 +334,12 @@ in
         default = "/vl-xhttp";
         description = "xHTTP path";
       };
+
+      serverName = mkOption {
+        type = types.str;
+        default = "";
+        description = "Reality SNI for this transport (overrides shared reality.serverName)";
+      };
     };
   };
 
@@ -385,7 +347,7 @@ in
     assertions = [
       {
         assertion =
-          cfg.vlessTcp.enable || cfg.vlessWs.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
+          cfg.vlessTcp.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
         message = "At least one xray-client outbound must be enabled";
       }
       {

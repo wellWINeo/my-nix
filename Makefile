@@ -36,6 +36,9 @@ install-secrets:
 		install -m $$perm -o $$owner -g $$group ./secrets/unlocked/$$filename $(SECRETS_DIRECTORY)/$$filename; \
 	done
 
+fmt:
+	nixfmt $(shell find . -name '*.nix')
+
 check:
 	nix flake check 'path:.' --all-systems
 

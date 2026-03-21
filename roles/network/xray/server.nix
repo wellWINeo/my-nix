@@ -208,7 +208,7 @@ in
       enable = mkEnableOption "VLESS over gRPC";
       serviceName = mkOption {
         type = types.str;
-        default = "vl-grpc";
+        default = "VlGrpc";
         description = "gRPC service name (no leading slash)";
       };
     };

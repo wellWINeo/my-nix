@@ -59,6 +59,7 @@ let
             network = "tcp";
             security = "reality";
             realitySettings = mkRealitySettings cfg.vlessTcp.sni;
+            sockopt.acceptProxyProtocol = true;
           };
         }
       ]
@@ -82,6 +83,7 @@ let
             grpcSettings = {
               serviceName = cfg.vlessGrpc.serviceName;
             };
+            sockopt.acceptProxyProtocol = true;
           };
         }
       ]
@@ -103,6 +105,7 @@ let
             xhttpSettings = {
               path = cfg.vlessXhttp.path;
             };
+            sockopt.acceptProxyProtocol = true;
           };
         }
       ];
@@ -220,6 +223,7 @@ in
             listen 443;
             ssl_preread on;
             proxy_pass $xray_backend;
+            proxy_protocol on;
           }
         '';
     };

@@ -44,28 +44,6 @@ let
             email = "${u.name}@xray";
           }) secrets.singBoxUsers;
           decryption = "none";
-          fallbacks =
-            lib.optionals cfg.vlessWs.enable [
-              {
-                path = cfg.vlessWs.path;
-                dest = vlessWsPort;
-                xver = 1;
-              }
-            ]
-            ++ lib.optionals cfg.vlessGrpc.enable [
-              {
-                path = "/${cfg.vlessGrpc.serviceName}";
-                dest = vlessGrpcPort;
-                xver = 1;
-              }
-            ]
-            ++ lib.optionals cfg.vlessXhttp.enable [
-              {
-                path = cfg.vlessXhttp.path;
-                dest = vlessXhttpPort;
-                xver = 1;
-              }
-            ];
         };
         streamSettings = {
           network = "tcp";
@@ -76,6 +54,28 @@ let
             # privateKey is injected at service start via jq — never stored in Nix store
             # `or []` safe default if field missing from secrets.json
             shortIds = secrets.xray.reality.shortIds or [ ];
+            fallbacks =
+              lib.optionals cfg.vlessWs.enable [
+                {
+                  path = cfg.vlessWs.path;
+                  dest = vlessWsPort;
+                  xver = 1;
+                }
+              ]
+              ++ lib.optionals cfg.vlessGrpc.enable [
+                {
+                  path = "/${cfg.vlessGrpc.serviceName}";
+                  dest = vlessGrpcPort;
+                  xver = 1;
+                }
+              ]
+              ++ lib.optionals cfg.vlessXhttp.enable [
+                {
+                  path = cfg.vlessXhttp.path;
+                  dest = vlessXhttpPort;
+                  xver = 1;
+                }
+              ];
           };
         };
       }

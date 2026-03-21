@@ -76,7 +76,9 @@ let
           streamSettings = {
             network = "grpc";
             security = "reality";
-            realitySettings = mkRealitySettings cfg.vlessGrpc.sni;
+            realitySettings = (mkRealitySettings cfg.vlessGrpc.sni) // {
+              alpn = [ "h2" ];
+            };
             grpcSettings = {
               serviceName = cfg.vlessGrpc.serviceName;
             };

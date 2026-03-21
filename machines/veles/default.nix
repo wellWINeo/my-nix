@@ -57,13 +57,19 @@ in
 
   roles.xray-server = {
     enable = true;
-    reality = {
-      privateKeyFile = "/etc/nixos/secrets/veles-xray-reality.privkey";
-      fakeSni = "api.oneme.ru";
+    reality.privateKeyFile = "/etc/nixos/secrets/veles-xray-reality.privkey";
+    vlessTcp = {
+      enable = true;
+      sni = "api.oneme.ru";
     };
-    vlessWs.enable = true;
-    vlessGrpc.enable = true;
-    vlessXhttp.enable = true;
+    vlessGrpc = {
+      enable = true;
+      sni = "avatars.mds.yandex.net";
+    };
+    vlessXhttp = {
+      enable = true;
+      sni = "onlymir.ru";
+    };
   };
 
   roles.stream-forwarder = {

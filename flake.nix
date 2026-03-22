@@ -51,7 +51,7 @@
         ];
       };
 
-      # VPS 2 CPU, 4GB RAM
+      # VPS 1 CPU, 1GB RAM
       nixosConfigurations."veles" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = inputs;

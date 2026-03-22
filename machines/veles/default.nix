@@ -19,7 +19,7 @@ in
   # disk layout
   fileSystems = {
     "/" = {
-      device = "/dev/disk/by-label/NIXOS";
+      device = "/dev/disk/by-label/NIXROOT";
       fsType = "ext4";
     };
   };
@@ -27,7 +27,7 @@ in
   swapDevices = [
     {
       device = "/.swapfile";
-      size = 4 * 1024; # 4GiB
+      size = 2 * 1024; # 2GiB
     }
   ];
 

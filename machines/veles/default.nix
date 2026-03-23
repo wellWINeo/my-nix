@@ -18,7 +18,7 @@ in
     loader.grub.device = "/dev/sda";
 
     # ipv6 on twc has poor performance
-    kernel.systctl."net.ipv6.conf.all.disable_ipv6" = 1;
+    kernel.sysctl."net.ipv6.conf.all.disable_ipv6" = 1;
   };
 
   # disk layout

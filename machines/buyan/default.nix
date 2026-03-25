@@ -67,7 +67,7 @@ in
     reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
     vlessTcp = {
       enable = true;
-      sni = "ghrc.io";
+      sni = "ghcr.io";
     };
     vlessGrpc = {
       enable = true;

@@ -64,7 +64,7 @@ in
 
   roles.xray-server = {
     enable = true;
-    reality.privateKeyFile = "/etc/nixos/secrets/buyan-xray-reality.privkey";
+    reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
     vlessTcp = {
       enable = true;
       sni = "ghcr.io";

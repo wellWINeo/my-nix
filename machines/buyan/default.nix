@@ -1,26 +1,19 @@
-{
-  ...
-}:
+{ ... }:
 
 let
-  hostname = "veles";
-  mokoshIp = (import ../../secrets/secrets.json).ip.mokosh.address;
+  hostname = "buyan";
+  ifname = "ens3";
+  ip = (import ../../secrets).ip.buyan;
 in
 {
   imports = [
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-    ../../roles/network/stream-forwarder.nix
     ../../roles/network/xray/server.nix
   ];
 
-  boot = {
-    loader.grub.device = "/dev/sda";
-
-    # ipv6 on twc has poor performance
-    kernel.sysctl."net.ipv6.conf.all.disable_ipv6" = 1;
-  };
+  boot.loader.grub.device = "/dev/vda";
 
   # disk layout
   fileSystems = {
@@ -40,16 +33,24 @@ in
   # network
   networking = {
     hostName = hostname;
-    useDHCP = true;
-    nameservers = [
-      "1.1.1.1"
-      "1.0.0.1"
-    ];
+    useDHCP = false;
+    nameservers = [ "1.1.1.1" ];
     firewall.enable = true;
-  };
 
-  services.qemuGuest.enable = true;
-  services.spice-vdagentd.enable = true;
+    interfaces."${ifname}" = {
+      ipv4.addresses = [
+        {
+          address = ip.address;
+          prefixLength = 24;
+        }
+      ];
+    };
+
+    defaultGateway = {
+      address = ip.gateway;
+      interface = ifname;
+    };
+  };
 
   services.openssh.settings = {
     PermitRootLogin = "no";
@@ -63,29 +64,19 @@ in
 
   roles.xray-server = {
     enable = true;
-    reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+    reality.privateKeyFile = "/etc/nixos/secrets/buyan-xray-reality.privkey";
     vlessTcp = {
       enable = true;
-      sni = "api.oneme.ru";
+      sni = "ghcr.io";
     };
     vlessGrpc = {
       enable = true;
-      sni = "avatars.mds.yandex.net";
+      sni = "ghcr.io";
     };
     vlessXhttp = {
       enable = true;
-      sni = "onlymir.ru";
+      sni = "ghcr.io";
     };
-  };
-
-  roles.stream-forwarder = {
-    enable = true;
-    forwards = [
-      {
-        listenAddress = "0.0.0.0:8443";
-        targetAddress = "${mokoshIp}:443";
-      }
-    ];
   };
 
   system.stateVersion = "25.11";

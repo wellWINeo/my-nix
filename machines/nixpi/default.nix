@@ -6,6 +6,7 @@ let
   ip = "192.168.0.20";
   gatewayIP = "192.168.0.1";
   secrets = import ../../secrets;
+  mokoshIp = secrets.ip.mokosh.address;
   nixpiSingBoxUser = builtins.head secrets.singBoxUsers;
 in
 {
@@ -123,7 +124,7 @@ in
   roles.wireguard-client = {
     enable = true;
     ip = "10.20.0.25";
-    endpoint = "93.183.127.202:51820";
+    endpoint = "${mokoshIp}:51820";
     serverPubKey = secrets.wireguard.mokosh-pubkey;
   };
 

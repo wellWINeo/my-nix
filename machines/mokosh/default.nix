@@ -8,6 +8,7 @@ let
     secondary = "uspenskiy.tech";
   };
   ifname = "ens3";
+  ip = (import ../../secrets).ip.mokosh;
 in
 {
   imports = [
@@ -49,14 +50,14 @@ in
     interfaces."${ifname}" = {
       ipv4.addresses = [
         {
-          address = "93.183.127.202";
+          address = ip.address;
           prefixLength = 24;
         }
       ];
     };
 
     defaultGateway = {
-      address = "93.183.127.1";
+      address = ip.gateway;
       interface = ifname;
     };
   };

@@ -12,6 +12,9 @@ unlock-files:
 
 unlock: unlock-json unlock-files
 
+setup-dummy-secrets:
+	cp secrets/secrets.dummy.json $(SECRETS_JSON)
+
 # lock
 lock-json:
 	gpg --symmetric ${SECRETS_JSON}

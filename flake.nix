@@ -51,13 +51,23 @@
         ];
       };
 
-      # VPS 1 CPU, 1GB RAM
+      # VPS 1 CPU, 1GB RAM (RU)
       nixosConfigurations."veles" = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
           { nixpkgs.overlays = import ./overlays; } # TODO: simplify overlays usage
           ./machines/veles
+          ./users/o__ni
+        ];
+      };
+
+      # VPS 1 CPU, 1GB RAM (NL)
+      nixosConfigurations."buyan" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          ./machines/buyan
           ./users/o__ni
         ];
       };

@@ -4,7 +4,7 @@
 
 let
   hostname = "veles";
-  mokoshIp = (import ../../secrets/secrets.json).ip.mokosh.address;
+  mokoshIp = (import ../../secrets).ip.mokosh.address;
 in
 {
   imports = [

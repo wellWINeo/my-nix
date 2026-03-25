@@ -18,11 +18,7 @@ let
   mkStreamSettings =
     transport:
     let
-      sni =
-        if (transport.serverName or "") != "" then
-          transport.serverName
-        else
-          cfg.reality.serverName;
+      sni = if (transport.serverName or "") != "" then transport.serverName else cfg.reality.serverName;
       securitySettings =
         if cfg.reality.enable then
           {
@@ -346,8 +342,7 @@ in
   config = mkIf cfg.enable {
     assertions = [
       {
-        assertion =
-          cfg.vlessTcp.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
+        assertion = cfg.vlessTcp.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
         message = "At least one xray-client outbound must be enabled";
       }
       {

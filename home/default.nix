@@ -9,7 +9,7 @@ with lib;
 
 {
   imports = [
-    ./alacritty.nix
+    ./software/alacritty
     ./tmux.nix
   ];
 

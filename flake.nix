@@ -84,7 +84,7 @@
         ];
       };
 
-      homeConfigurations."o__ni@DodoBook" = inputs.home-manager.lib.homeManagerConfiguration {
+      homeConfigurations."o__ni@DodoBook.local" = inputs.home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgsFor.aarch64-darwin;
         modules = [
           ./home

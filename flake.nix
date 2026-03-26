@@ -73,9 +73,26 @@
       };
 
       # standalone home-manager for macOS
-      homeConfigurations."o__ni" = inputs.home-manager.lib.homeManagerConfiguration {
+      homeConfigurations."o__ni@Stepans-Macbook-Pro" = inputs.home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgsFor.aarch64-darwin;
-        modules = [ ./home ];
+        modules = [
+          ./home
+          {
+            software.alacritty.enable = true;
+            software.alacritty.theme = "one-dark";
+          }
+        ];
+      };
+
+      homeConfigurations."o__ni@DodoBook" = inputs.home-manager.lib.homeManagerConfiguration {
+        pkgs = nixpkgsFor.aarch64-darwin;
+        modules = [
+          ./home
+          {
+            software.alacritty.enable = true;
+            software.alacritty.theme = "one-half-light";
+          }
+        ];
       };
 
       devShells = forAllSystems (

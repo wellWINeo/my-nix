@@ -19,8 +19,7 @@ let
   mkStreamSettings =
     transport:
     let
-      sni =
-        if (transport.serverName or "") != "" then transport.serverName else cfg.reality.serverName;
+      sni = if (transport.serverName or "") != "" then transport.serverName else cfg.reality.serverName;
       securitySettings =
         if cfg.reality.enable then
           {

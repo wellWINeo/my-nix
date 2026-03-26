@@ -88,15 +88,12 @@ in
       enable = true;
       streamConfig =
         let
-          defaultPort =
-            if allNginxEntries != [ ] then (builtins.head allNginxEntries).port else 9000;
+          defaultPort = if allNginxEntries != [ ] then (builtins.head allNginxEntries).port else 9000;
         in
         ''
           map $ssl_preread_server_name $xray_backend {
           ${
-            lib.concatMapStrings (
-              t: "    ${t.sni}  127.0.0.1:${toString t.port};\n"
-            ) allNginxEntries
+            lib.concatMapStrings (t: "    ${t.sni}  127.0.0.1:${toString t.port};\n") allNginxEntries
           }    default  127.0.0.1:${toString defaultPort};
           }
 

@@ -73,7 +73,7 @@
       };
 
       # standalone home-manager for macOS
-      homeConfigurations."o__ni@Stepans-Macbook-Pro" = inputs.home-manager.lib.homeManagerConfiguration {
+      homeConfigurations."o__ni@Stepans-MacBook-Pro" = inputs.home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgsFor.aarch64-darwin;
         modules = [
           ./home

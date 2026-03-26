@@ -1,14 +1,17 @@
+# roles/network/xray/server.nix
+#
+# Defines roles.xray.server options and exports _serverConfig fragment.
+# The coordinator (default.nix) owns systemd, nginx, and firewall.
 {
   config,
   lib,
-  pkgs,
   ...
 }:
 
 with lib;
 
 let
-  cfg = config.roles.xray-server;
+  cfg = config.roles.xray.server;
   secrets = import ../../../secrets;
 
   vlessTcpPort = 9000;
@@ -28,23 +31,15 @@ let
     email = "${u.name}@xray";
   }) secrets.singBoxUsers;
 
-  # Shared Reality settings (privateKey injected at runtime)
+  # Shared Reality settings (privateKey injected at runtime by coordinator)
   mkRealitySettings = sni: {
     target = "${sni}:443";
     serverNames = [ sni ];
     shortIds = secrets.xray.reality.shortIds or [ ];
   };
 
-  # Template config with placeholder for private key.
-  # Uses services.xray.settingsFile (not .settings) to avoid the
-  # xray -test checkPhase which would reject the placeholder.
-  xrayConfigTemplate = {
-    log = {
-      loglevel = "info";
-    };
-
+  serverConfig = {
     inbounds =
-      # TCP + Vision + Reality
       lib.optionals cfg.vlessTcp.enable [
         {
           listen = "127.0.0.1";
@@ -63,7 +58,6 @@ let
           };
         }
       ]
-      # gRPC + Reality
       ++ lib.optionals cfg.vlessGrpc.enable [
         {
           listen = "127.0.0.1";
@@ -87,7 +81,6 @@ let
           };
         }
       ]
-      # xHTTP + Reality
       ++ lib.optionals cfg.vlessXhttp.enable [
         {
           listen = "127.0.0.1";
@@ -128,15 +121,32 @@ let
           outboundTag = "direct-out";
         }
       ];
+      balancers = [ ];
     };
-  };
 
-  configTemplateFile = pkgs.writeText "xray-config-template.json" (
-    builtins.toJSON xrayConfigTemplate
-  );
+    nginxSniEntries =
+      lib.optionals cfg.vlessTcp.enable [
+        {
+          sni = cfg.vlessTcp.sni;
+          port = vlessTcpPort;
+        }
+      ]
+      ++ lib.optionals cfg.vlessGrpc.enable [
+        {
+          sni = cfg.vlessGrpc.sni;
+          port = vlessGrpcPort;
+        }
+      ]
+      ++ lib.optionals cfg.vlessXhttp.enable [
+        {
+          sni = cfg.vlessXhttp.sni;
+          port = vlessXhttpPort;
+        }
+      ];
+  };
 in
 {
-  options.roles.xray-server = {
+  options.roles.xray.server = {
     enable = mkEnableOption "xray anti-censorship proxy server with Reality";
 
     reality = {
@@ -185,90 +195,22 @@ in
     };
   };
 
-  config = mkIf cfg.enable {
+  config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [
       {
         assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
-        message = "roles.xray-server.vlessGrpc.serviceName must not start with '/'";
+        message = "roles.xray.server.vlessGrpc.serviceName must not start with '/'";
       }
       {
         assertion = (secrets.xray.reality.shortIds or [ ]) != [ ];
-        message = "secrets.xray.reality.shortIds must be set before deploying xray-server (add to secrets.json and run make lock)";
+        message = "secrets.xray.reality.shortIds must be set before deploying xray server";
       }
       {
         assertion = cfg.vlessTcp.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
-        message = "At least one xray-server transport must be enabled";
+        message = "At least one xray server transport must be enabled";
       }
     ];
 
-    # nginx SNI routing: L4 proxy that reads TLS SNI and routes to
-    # the correct xray inbound. Never terminates TLS.
-    services.nginx = {
-      enable = true;
-      streamConfig =
-        let
-          enabledTransports =
-            lib.optionals cfg.vlessTcp.enable [
-              {
-                sni = cfg.vlessTcp.sni;
-                port = vlessTcpPort;
-              }
-            ]
-            ++ lib.optionals cfg.vlessGrpc.enable [
-              {
-                sni = cfg.vlessGrpc.sni;
-                port = vlessGrpcPort;
-              }
-            ]
-            ++ lib.optionals cfg.vlessXhttp.enable [
-              {
-                sni = cfg.vlessXhttp.sni;
-                port = vlessXhttpPort;
-              }
-            ];
-          defaultPort = if cfg.vlessTcp.enable then vlessTcpPort else (builtins.head enabledTransports).port;
-        in
-        ''
-          map $ssl_preread_server_name $xray_backend {
-          ${
-            lib.concatMapStrings (t: "    ${t.sni}  127.0.0.1:${toString t.port};\n") enabledTransports
-          }    default  127.0.0.1:${toString defaultPort};
-          }
-
-          server {
-            listen 443;
-            ssl_preread on;
-            proxy_pass $xray_backend;
-            proxy_protocol on;
-          }
-        '';
-    };
-
-    systemd.services.xray = {
-      description = "Xray Reality Daemon";
-      after = [ "network.target" ];
-      wantedBy = [ "multi-user.target" ];
-      path = [
-        pkgs.xray
-        pkgs.jq
-      ];
-      serviceConfig = {
-        PrivateTmp = true;
-        LoadCredential = "private-key:${cfg.reality.privateKeyFile}";
-        DynamicUser = true;
-        CapabilityBoundingSet = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
-        AmbientCapabilities = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
-        NoNewPrivileges = true;
-      };
-      script = ''
-        cat ${configTemplateFile} \
-          | jq --arg key "$(cat "$CREDENTIALS_DIRECTORY/private-key")" \
-              '.inbounds[].streamSettings.realitySettings.privateKey = $key' \
-          > /tmp/xray.json
-        exec xray -config /tmp/xray.json
-      '';
-    };
-
-    networking.firewall.allowedTCPPorts = [ 443 ];
+    roles.xray._serverConfig = serverConfig;
   };
 }

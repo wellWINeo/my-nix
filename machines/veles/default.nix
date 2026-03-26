@@ -12,7 +12,7 @@ in
     ../../common/server.nix
     ../../hardware/vm.nix
     ../../roles/network/stream-forwarder.nix
-    ../../roles/network/xray/server.nix
+    ../../roles/network/xray
   ];
 
   boot = {
@@ -61,20 +61,23 @@ in
   ###
   roles.hardened.enable = true;
 
-  roles.xray-server = {
+  roles.xray = {
     enable = true;
-    reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
-    vlessTcp = {
+    server = {
       enable = true;
-      sni = "api.oneme.ru";
-    };
-    vlessGrpc = {
-      enable = true;
-      sni = "avatars.mds.yandex.net";
-    };
-    vlessXhttp = {
-      enable = true;
-      sni = "onlymir.ru";
+      reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+      vlessTcp = {
+        enable = true;
+        sni = "api.oneme.ru";
+      };
+      vlessGrpc = {
+        enable = true;
+        sni = "avatars.mds.yandex.net";
+      };
+      vlessXhttp = {
+        enable = true;
+        sni = "onlymir.ru";
+      };
     };
   };
 

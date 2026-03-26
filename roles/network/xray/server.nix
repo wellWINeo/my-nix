@@ -208,15 +208,31 @@ in
       streamConfig =
         let
           enabledTransports =
-            lib.optionals cfg.vlessTcp.enable [ { sni = cfg.vlessTcp.sni; port = vlessTcpPort; } ]
-            ++ lib.optionals cfg.vlessGrpc.enable [ { sni = cfg.vlessGrpc.sni; port = vlessGrpcPort; } ]
-            ++ lib.optionals cfg.vlessXhttp.enable [ { sni = cfg.vlessXhttp.sni; port = vlessXhttpPort; } ];
-          defaultPort =
-            if cfg.vlessTcp.enable then vlessTcpPort else (builtins.head enabledTransports).port;
+            lib.optionals cfg.vlessTcp.enable [
+              {
+                sni = cfg.vlessTcp.sni;
+                port = vlessTcpPort;
+              }
+            ]
+            ++ lib.optionals cfg.vlessGrpc.enable [
+              {
+                sni = cfg.vlessGrpc.sni;
+                port = vlessGrpcPort;
+              }
+            ]
+            ++ lib.optionals cfg.vlessXhttp.enable [
+              {
+                sni = cfg.vlessXhttp.sni;
+                port = vlessXhttpPort;
+              }
+            ];
+          defaultPort = if cfg.vlessTcp.enable then vlessTcpPort else (builtins.head enabledTransports).port;
         in
         ''
           map $ssl_preread_server_name $xray_backend {
-          ${lib.concatMapStrings (t: "    ${t.sni}  127.0.0.1:${toString t.port};\n") enabledTransports}    default  127.0.0.1:${toString defaultPort};
+          ${
+            lib.concatMapStrings (t: "    ${t.sni}  127.0.0.1:${toString t.port};\n") enabledTransports
+          }    default  127.0.0.1:${toString defaultPort};
           }
 
           server {

@@ -13,6 +13,8 @@ This is a NixOS configuration repository using Flakes to manage multiple machine
 
 ```bash
 # Check flake validity (syntax, eval)
+# Requires secrets/secrets.json — if not unlocked, use the dummy file first:
+make setup-dummy-secrets  # copies secrets/secrets.dummy.json → secrets/secrets.json
 make check
 # Or directly:
 nix flake check 'path:.' --all-systems
@@ -152,10 +154,15 @@ services.nginx.virtualHosts.${hostname} = {
 
 **Commands**:
 ```bash
-make unlock      # Decrypt all secrets
-make lock        # Re-encrypt secrets
-make install-secrets  # Copy to /etc/nixos/secrets/
+make unlock              # Decrypt all secrets (requires GPG key)
+make lock                # Re-encrypt secrets
+make install-secrets     # Copy to /etc/nixos/secrets/
+make setup-dummy-secrets # Copy secrets.dummy.json → secrets.json (no GPG needed)
 ```
+
+**Working without real secrets (agents/CI)**: If `secrets.json` is not decrypted (no GPG
+access), run `make setup-dummy-secrets` before `make check`. This uses
+`secrets/secrets.dummy.json` — a committed file with fake-but-valid placeholder values.
 
 **Access pattern**:
 ```nix

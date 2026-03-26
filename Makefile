@@ -45,5 +45,8 @@ check:
 switch:
 	@sudo nixos-rebuild switch --flake "path:.#$(shell hostname)"
 
-apply-home:
-	nix run 'path:.#homeConfigurations.o__ni.activationPackage'
+apply\:home:
+	nix run "path:.#homeConfigurations.\"$$(whoami)@$$(hostname)\".activationPackage"
+
+apply\:home\:%:
+	nix run "path:.#homeConfigurations.\"$*\".activationPackage"

@@ -1,7 +1,8 @@
 # roles/network/xray/server.nix
 #
-# Defines roles.xray.server options and exports _serverConfig fragment.
-# The coordinator (default.nix) owns systemd, nginx, and firewall.
+# Defines roles.xray.server options and exports _serverConfig fragment by
+# folding over the transport registry. The coordinator (default.nix) still
+# owns systemd, nginx, and firewall.
 {
   config,
   lib,
@@ -13,95 +14,31 @@ with lib;
 let
   cfg = config.roles.xray.server;
   secrets = import ../../../secrets;
+  transports = import ./transports { inherit lib; };
+  transportList = lib.attrValues transports;
 
-  vlessTcpPort = 9000;
-  vlessGrpcPort = 9001;
-  vlessXhttpPort = 9002;
+  shortIds = secrets.xray.reality.shortIds or [ ];
 
-  # Clients with Vision flow (TCP only)
-  vlessTcpClients = map (u: {
-    id = u.uuid;
-    flow = "xtls-rprx-vision";
-    email = "${u.name}@xray";
-  }) secrets.singBoxUsers;
+  clients = {
+    withFlow = map (u: {
+      id = u.uuid;
+      flow = "xtls-rprx-vision";
+      email = "${u.name}@xray";
+    }) secrets.singBoxUsers;
 
-  # Clients without flow (gRPC, xHTTP)
-  vlessClients = map (u: {
-    id = u.uuid;
-    email = "${u.name}@xray";
-  }) secrets.singBoxUsers;
-
-  # Shared Reality settings (privateKey injected at runtime by coordinator)
-  mkRealitySettings = sni: {
-    target = "${sni}:443";
-    serverNames = [ sni ];
-    shortIds = secrets.xray.reality.shortIds or [ ];
+    noFlow = map (u: {
+      id = u.uuid;
+      email = "${u.name}@xray";
+    }) secrets.singBoxUsers;
   };
 
+  enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;
+
   serverConfig = {
-    inbounds =
-      lib.optionals cfg.vlessTcp.enable [
-        {
-          listen = "127.0.0.1";
-          port = vlessTcpPort;
-          protocol = "vless";
-          tag = "vless-tcp-in";
-          settings = {
-            clients = vlessTcpClients;
-            decryption = "none";
-          };
-          streamSettings = {
-            network = "tcp";
-            security = "reality";
-            realitySettings = mkRealitySettings cfg.vlessTcp.sni;
-            sockopt.acceptProxyProtocol = true;
-          };
-        }
-      ]
-      ++ lib.optionals cfg.vlessGrpc.enable [
-        {
-          listen = "127.0.0.1";
-          port = vlessGrpcPort;
-          protocol = "vless";
-          tag = "vless-grpc-in";
-          settings = {
-            clients = vlessClients;
-            decryption = "none";
-          };
-          streamSettings = {
-            network = "grpc";
-            security = "reality";
-            realitySettings = (mkRealitySettings cfg.vlessGrpc.sni) // {
-              alpn = [ "h2" ];
-            };
-            grpcSettings = {
-              serviceName = cfg.vlessGrpc.serviceName;
-            };
-            sockopt.acceptProxyProtocol = true;
-          };
-        }
-      ]
-      ++ lib.optionals cfg.vlessXhttp.enable [
-        {
-          listen = "127.0.0.1";
-          port = vlessXhttpPort;
-          protocol = "vless";
-          tag = "vless-xhttp-in";
-          settings = {
-            clients = vlessClients;
-            decryption = "none";
-          };
-          streamSettings = {
-            network = "xhttp";
-            security = "reality";
-            realitySettings = mkRealitySettings cfg.vlessXhttp.sni;
-            xhttpSettings = {
-              path = cfg.vlessXhttp.path;
-            };
-            sockopt.acceptProxyProtocol = true;
-          };
-        }
-      ];
+    inbounds = map (t: t.mkServerInbound {
+      cfg = cfg.${t.name};
+      inherit clients shortIds;
+    }) enabledTransports;
 
     outbounds = [
       {
@@ -114,35 +51,17 @@ let
       rules = [
         {
           type = "field";
-          inboundTag =
-            lib.optionals cfg.vlessTcp.enable [ "vless-tcp-in" ]
-            ++ lib.optionals cfg.vlessGrpc.enable [ "vless-grpc-in" ]
-            ++ lib.optionals cfg.vlessXhttp.enable [ "vless-xhttp-in" ];
+          inboundTag = map (t: "${t.tagPrefix}-in") enabledTransports;
           outboundTag = "direct-out";
         }
       ];
       balancers = [ ];
     };
 
-    nginxSniEntries =
-      lib.optionals cfg.vlessTcp.enable [
-        {
-          sni = cfg.vlessTcp.sni;
-          port = vlessTcpPort;
-        }
-      ]
-      ++ lib.optionals cfg.vlessGrpc.enable [
-        {
-          sni = cfg.vlessGrpc.sni;
-          port = vlessGrpcPort;
-        }
-      ]
-      ++ lib.optionals cfg.vlessXhttp.enable [
-        {
-          sni = cfg.vlessXhttp.sni;
-          port = vlessXhttpPort;
-        }
-      ];
+    nginxSniEntries = map (t: {
+      sni = cfg.${t.name}.sni;
+      port = t.serverPort;
+    }) enabledTransports;
   };
 in
 {
@@ -155,59 +74,34 @@ in
         description = "Path to the Reality private key file on disk (not stored in Nix store)";
         example = "/etc/nixos/secrets/xray-reality-private-key";
       };
-    };
 
-    vlessTcp = {
-      enable = mkEnableOption "VLESS over direct TCP with Vision flow";
-      sni = mkOption {
+      publicKey = mkOption {
         type = types.str;
-        default = "api.oneme.ru";
-        description = "Reality SNI and camouflage target for TCP+Vision transport";
+        default = "";
+        description = "Reality public key (public, not secret). Required when subscriptions are enabled.";
       };
     };
 
-    vlessGrpc = {
-      enable = mkEnableOption "VLESS over gRPC";
-      sni = mkOption {
-        type = types.str;
-        default = "avatars.mds.yandex.net";
-        description = "Reality SNI and camouflage target for gRPC transport";
-      };
-      serviceName = mkOption {
-        type = types.str;
-        default = "VlGrpc";
-        description = "gRPC service name (no leading slash)";
-      };
+    publicAddress = mkOption {
+      type = types.str;
+      default = "";
+      description = "Public hostname clients use to reach this xray server. Required when subscriptions are enabled.";
     };
-
-    vlessXhttp = {
-      enable = mkEnableOption "VLESS over xHTTP";
-      sni = mkOption {
-        type = types.str;
-        default = "onlymir.ru";
-        description = "Reality SNI and camouflage target for xHTTP transport";
-      };
-      path = mkOption {
-        type = types.str;
-        default = "/vl-xhttp";
-        description = "xHTTP path";
-      };
-    };
-  };
+  } // lib.mapAttrs (_: t: t.serverOptions) transports;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [
-      {
-        assertion = !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
-        message = "roles.xray.server.vlessGrpc.serviceName must not start with '/'";
-      }
       {
         assertion = (secrets.xray.reality.shortIds or [ ]) != [ ];
         message = "secrets.xray.reality.shortIds must be set before deploying xray server";
       }
       {
-        assertion = cfg.vlessTcp.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
+        assertion = lib.any (t: cfg.${t.name}.enable) transportList;
         message = "At least one xray server transport must be enabled";
+      }
+      {
+        assertion = !cfg.vlessGrpc.enable || !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
+        message = "roles.xray.server.vlessGrpc.serviceName must not start with '/'";
       }
     ];
 

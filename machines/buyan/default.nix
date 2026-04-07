@@ -10,7 +10,7 @@ in
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-    ../../roles/network/xray/server.nix
+    ../../roles/network/xray
   ];
 
   boot.loader.grub.device = "/dev/vda";
@@ -62,20 +62,23 @@ in
   ###
   roles.hardened.enable = true;
 
-  roles.xray-server = {
+  roles.xray = {
     enable = true;
-    reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
-    vlessTcp = {
+    server = {
       enable = true;
-      sni = "ghcr.io";
-    };
-    vlessGrpc = {
-      enable = true;
-      sni = "update.googleapis.com";
-    };
-    vlessXhttp = {
-      enable = true;
-      sni = "dl.google.com";
+      reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+      vlessTcp = {
+        enable = true;
+        sni = "ghcr.io";
+      };
+      vlessGrpc = {
+        enable = true;
+        sni = "update.googleapis.com";
+      };
+      vlessXhttp = {
+        enable = true;
+        sni = "dl.google.com";
+      };
     };
   };
 

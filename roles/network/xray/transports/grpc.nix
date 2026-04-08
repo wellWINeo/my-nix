@@ -27,8 +27,15 @@ rec {
 
   clientOptions = {
     enable = mkEnableOption "VLESS over gRPC";
-    server = mkOption { type = types.str; description = "Server domain or IP"; };
-    port = mkOption { type = types.port; default = 443; description = "Server port"; };
+    server = mkOption {
+      type = types.str;
+      description = "Server domain or IP";
+    };
+    port = mkOption {
+      type = types.port;
+      default = 443;
+      description = "Server port";
+    };
     serverName = mkOption {
       type = types.str;
       default = "";
@@ -40,8 +47,15 @@ rec {
       description = "gRPC service name (must match server)";
     };
     auth = {
-      name = mkOption { type = types.str; default = ""; description = "Username (informational)"; };
-      uuid = mkOption { type = types.str; description = "UUID for authentication"; };
+      name = mkOption {
+        type = types.str;
+        default = "";
+        description = "Username (informational)";
+      };
+      uuid = mkOption {
+        type = types.str;
+        description = "UUID for authentication";
+      };
     };
   };
 
@@ -68,7 +82,10 @@ rec {
 
   subscriptionUpstreamOptions = {
     enable = mkEnableOption "advertise VLESS+gRPC in generated subscriptions";
-    sni = mkOption { type = types.str; description = "Reality SNI for gRPC"; };
+    sni = mkOption {
+      type = types.str;
+      description = "Reality SNI for gRPC";
+    };
     serviceName = mkOption {
       type = types.str;
       default = "VlGrpc";
@@ -77,7 +94,11 @@ rec {
   };
 
   mkServerInbound =
-    { cfg, clients, shortIds }:
+    {
+      cfg,
+      clients,
+      shortIds,
+    }:
     {
       listen = "127.0.0.1";
       port = serverPort;
@@ -90,16 +111,28 @@ rec {
       streamSettings = {
         network = "grpc";
         security = "reality";
-        realitySettings = (helpers.mkRealityServerSettings { inherit (cfg) sni; inherit shortIds; }) // {
-          alpn = [ "h2" ];
+        realitySettings =
+          (helpers.mkRealityServerSettings {
+            inherit (cfg) sni;
+            inherit shortIds;
+          })
+          // {
+            alpn = [ "h2" ];
+          };
+        grpcSettings = {
+          serviceName = cfg.serviceName;
         };
-        grpcSettings = { serviceName = cfg.serviceName; };
         sockopt.acceptProxyProtocol = true;
       };
     };
 
   mkRelayInbound =
-    { cfg, serverCfg, clients, shortIds }:
+    {
+      cfg,
+      serverCfg,
+      clients,
+      shortIds,
+    }:
     {
       listen = "127.0.0.1";
       port = relayPort;
@@ -112,10 +145,17 @@ rec {
       streamSettings = {
         network = "grpc";
         security = "reality";
-        realitySettings = (helpers.mkRealityServerSettings { inherit (cfg) sni; inherit shortIds; }) // {
-          alpn = [ "h2" ];
+        realitySettings =
+          (helpers.mkRealityServerSettings {
+            inherit (cfg) sni;
+            inherit shortIds;
+          })
+          // {
+            alpn = [ "h2" ];
+          };
+        grpcSettings = {
+          serviceName = serverCfg.serviceName;
         };
-        grpcSettings = { serviceName = serverCfg.serviceName; };
         sockopt.acceptProxyProtocol = true;
       };
     };
@@ -134,12 +174,19 @@ rec {
           reality = realityCfg;
           serverName = cfg.serverName;
         };
-        grpcSettings = { serviceName = cfg.serviceName; };
+        grpcSettings = {
+          serviceName = cfg.serviceName;
+        };
       };
     };
 
   mkRelayOutbound =
-    { cfg, realityCfg, user, serverAddr }:
+    {
+      cfg,
+      realityCfg,
+      user,
+      serverAddr,
+    }:
     helpers.mkVnextOutbound {
       tag = "relay-grpc-out";
       address = serverAddr;
@@ -152,7 +199,9 @@ rec {
           reality = realityCfg;
           serverName = cfg.serverName;
         };
-        grpcSettings = { serviceName = cfg.serviceName; };
+        grpcSettings = {
+          serviceName = cfg.serviceName;
+        };
       };
     };
 

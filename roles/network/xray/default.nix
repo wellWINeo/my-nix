@@ -30,12 +30,12 @@ let
   subsCfg = config.roles.xray.subscriptions;
   subsCoLocated = cfg.server.enable && subsCfg.enable;
   subsStreamEntry = lib.optionals subsCoLocated [
-    { sni = subsCfg.sni; port = 8444; }
+    {
+      sni = subsCfg.sni;
+      port = 8444;
+    }
   ];
-  allNginxEntries =
-    serverConfig.nginxSniEntries
-    ++ relayConfig.nginxSniEntries
-    ++ subsStreamEntry;
+  allNginxEntries = serverConfig.nginxSniEntries ++ relayConfig.nginxSniEntries ++ subsStreamEntry;
 
   xrayConfigTemplate = {
     log = {

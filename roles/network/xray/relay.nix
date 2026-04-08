@@ -38,26 +38,31 @@ let
   enabledOutbound = lib.filter (t: cfg.target.${t.name}.enable) transportList;
 
   relayConfig = {
-    inbounds = map (t: t.mkRelayInbound {
-      cfg = cfg.${t.name};
-      serverCfg = serverCfg.${t.name};
-      inherit clients shortIds;
-    }) enabledInbound;
+    inbounds = map (
+      t:
+      t.mkRelayInbound {
+        cfg = cfg.${t.name};
+        serverCfg = serverCfg.${t.name};
+        inherit clients shortIds;
+      }
+    ) enabledInbound;
 
-    outbounds = map (t: t.mkRelayOutbound {
-      cfg = cfg.target.${t.name};
-      realityCfg = cfg.target.reality;
-      user = cfg.user;
-      serverAddr = cfg.target.server;
-    }) enabledOutbound;
+    outbounds = map (
+      t:
+      t.mkRelayOutbound {
+        cfg = cfg.target.${t.name};
+        realityCfg = cfg.target.reality;
+        user = cfg.user;
+        serverAddr = cfg.target.server;
+      }
+    ) enabledOutbound;
 
     routing = {
       rules = lib.optionals (enabledInbound != [ ]) [
         {
           type = "field";
-          inboundTag = map (t:
-            if t.name == "vlessGrpc" then "vless-grpcFwd-in"
-            else "${t.tagPrefix}-fwd-in"
+          inboundTag = map (
+            t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
           ) enabledInbound;
           balancerTag = "relay-balancer";
         }
@@ -66,7 +71,9 @@ let
         {
           tag = "relay-balancer";
           selector = map (t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-out") enabledOutbound;
-          strategy = { type = "leastPing"; };
+          strategy = {
+            type = "leastPing";
+          };
         }
       ];
     };
@@ -93,13 +100,31 @@ in
       };
 
       reality = {
-        publicKey = mkOption { type = types.str; default = ""; description = "Target server's Reality public key"; };
-        shortId = mkOption { type = types.str; default = ""; description = "Authorized shortId"; };
-        serverName = mkOption { type = types.str; default = ""; description = "Fallback SNI"; };
-        fingerprint = mkOption { type = types.str; default = "chrome"; description = "uTLS fingerprint"; };
+        publicKey = mkOption {
+          type = types.str;
+          default = "";
+          description = "Target server's Reality public key";
+        };
+        shortId = mkOption {
+          type = types.str;
+          default = "";
+          description = "Authorized shortId";
+        };
+        serverName = mkOption {
+          type = types.str;
+          default = "";
+          description = "Fallback SNI";
+        };
+        fingerprint = mkOption {
+          type = types.str;
+          default = "chrome";
+          description = "uTLS fingerprint";
+        };
       };
-    } // lib.mapAttrs (_: t: t.relayTargetOptions) transports;
-  } // lib.mapAttrs (_: t: t.relayInboundOptions) transports;
+    }
+    // lib.mapAttrs (_: t: t.relayTargetOptions) transports;
+  }
+  // lib.mapAttrs (_: t: t.relayInboundOptions) transports;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [

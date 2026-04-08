@@ -21,7 +21,9 @@ let
   realityCfg = cfg.reality;
 
   xrayConfig = {
-    log = { loglevel = "info"; };
+    log = {
+      loglevel = "info";
+    };
 
     inbounds = [
       {
@@ -37,10 +39,13 @@ let
     ];
 
     outbounds =
-      (map (t: t.mkClientOutbound {
-        cfg = cfg.${t.name};
-        inherit realityCfg;
-      }) enabledTransports)
+      (map (
+        t:
+        t.mkClientOutbound {
+          cfg = cfg.${t.name};
+          inherit realityCfg;
+        }
+      ) enabledTransports)
       ++ [
         {
           protocol = "freedom";
@@ -60,7 +65,9 @@ let
         {
           tag = "proxy-balancer";
           selector = map (t: "${t.tagPrefix}-out") enabledTransports;
-          strategy = { type = "random"; };
+          strategy = {
+            type = "random";
+          };
         }
       ];
     };
@@ -84,12 +91,29 @@ in
 
     reality = {
       enable = mkEnableOption "Reality TLS";
-      publicKey = mkOption { type = types.str; default = ""; description = "Server's Reality public key"; };
-      shortId = mkOption { type = types.str; default = ""; description = "Authorized shortId"; };
-      serverName = mkOption { type = types.str; default = ""; description = "Fallback SNI"; };
-      fingerprint = mkOption { type = types.str; default = "chrome"; description = "uTLS fingerprint"; };
+      publicKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Server's Reality public key";
+      };
+      shortId = mkOption {
+        type = types.str;
+        default = "";
+        description = "Authorized shortId";
+      };
+      serverName = mkOption {
+        type = types.str;
+        default = "";
+        description = "Fallback SNI";
+      };
+      fingerprint = mkOption {
+        type = types.str;
+        default = "chrome";
+        description = "uTLS fingerprint";
+      };
     };
-  } // lib.mapAttrs (_: t: t.clientOptions) transports;
+  }
+  // lib.mapAttrs (_: t: t.clientOptions) transports;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [

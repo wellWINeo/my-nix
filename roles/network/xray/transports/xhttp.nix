@@ -27,8 +27,15 @@ rec {
 
   clientOptions = {
     enable = mkEnableOption "VLESS over xHTTP";
-    server = mkOption { type = types.str; description = "Server domain or IP"; };
-    port = mkOption { type = types.port; default = 443; description = "Server port"; };
+    server = mkOption {
+      type = types.str;
+      description = "Server domain or IP";
+    };
+    port = mkOption {
+      type = types.port;
+      default = 443;
+      description = "Server port";
+    };
     serverName = mkOption {
       type = types.str;
       default = "";
@@ -40,8 +47,15 @@ rec {
       description = "xHTTP path";
     };
     auth = {
-      name = mkOption { type = types.str; default = ""; description = "Username (informational)"; };
-      uuid = mkOption { type = types.str; description = "UUID for authentication"; };
+      name = mkOption {
+        type = types.str;
+        default = "";
+        description = "Username (informational)";
+      };
+      uuid = mkOption {
+        type = types.str;
+        description = "UUID for authentication";
+      };
     };
   };
 
@@ -68,12 +82,23 @@ rec {
 
   subscriptionUpstreamOptions = {
     enable = mkEnableOption "advertise VLESS+xHTTP in generated subscriptions";
-    sni = mkOption { type = types.str; description = "Reality SNI for xHTTP"; };
-    path = mkOption { type = types.str; default = "/vl-xhttp"; description = "xHTTP path"; };
+    sni = mkOption {
+      type = types.str;
+      description = "Reality SNI for xHTTP";
+    };
+    path = mkOption {
+      type = types.str;
+      default = "/vl-xhttp";
+      description = "xHTTP path";
+    };
   };
 
   mkServerInbound =
-    { cfg, clients, shortIds }:
+    {
+      cfg,
+      clients,
+      shortIds,
+    }:
     {
       listen = "127.0.0.1";
       port = serverPort;
@@ -86,14 +111,24 @@ rec {
       streamSettings = {
         network = "xhttp";
         security = "reality";
-        realitySettings = helpers.mkRealityServerSettings { inherit (cfg) sni; inherit shortIds; };
-        xhttpSettings = { path = cfg.path; };
+        realitySettings = helpers.mkRealityServerSettings {
+          inherit (cfg) sni;
+          inherit shortIds;
+        };
+        xhttpSettings = {
+          path = cfg.path;
+        };
         sockopt.acceptProxyProtocol = true;
       };
     };
 
   mkRelayInbound =
-    { cfg, serverCfg, clients, shortIds }:
+    {
+      cfg,
+      serverCfg,
+      clients,
+      shortIds,
+    }:
     {
       listen = "127.0.0.1";
       port = relayPort;
@@ -106,8 +141,13 @@ rec {
       streamSettings = {
         network = "xhttp";
         security = "reality";
-        realitySettings = helpers.mkRealityServerSettings { inherit (cfg) sni; inherit shortIds; };
-        xhttpSettings = { path = serverCfg.path; };
+        realitySettings = helpers.mkRealityServerSettings {
+          inherit (cfg) sni;
+          inherit shortIds;
+        };
+        xhttpSettings = {
+          path = serverCfg.path;
+        };
         sockopt.acceptProxyProtocol = true;
       };
     };
@@ -126,12 +166,19 @@ rec {
           reality = realityCfg;
           serverName = cfg.serverName;
         };
-        xhttpSettings = { path = cfg.path; };
+        xhttpSettings = {
+          path = cfg.path;
+        };
       };
     };
 
   mkRelayOutbound =
-    { cfg, realityCfg, user, serverAddr }:
+    {
+      cfg,
+      realityCfg,
+      user,
+      serverAddr,
+    }:
     helpers.mkVnextOutbound {
       tag = "relay-xhttp-out";
       address = serverAddr;
@@ -144,7 +191,9 @@ rec {
           reality = realityCfg;
           serverName = cfg.serverName;
         };
-        xhttpSettings = { path = cfg.path; };
+        xhttpSettings = {
+          path = cfg.path;
+        };
       };
     };
 

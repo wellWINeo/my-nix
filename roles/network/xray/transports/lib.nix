@@ -53,10 +53,13 @@ rec {
             address = address;
             port = port;
             users = [
-              ({
-                id = uuid;
-                encryption = "none";
-              } // extraUser)
+              (
+                {
+                  id = uuid;
+                  encryption = "none";
+                }
+                // extraUser
+              )
             ];
           }
         ];
@@ -69,16 +72,38 @@ rec {
   urlEncode =
     str:
     let
-      replace = pairs: s: foldl' (acc: p: builtins.replaceStrings [ (elemAt p 0) ] [ (elemAt p 1) ] acc) s pairs;
+      replace =
+        pairs: s: foldl' (acc: p: builtins.replaceStrings [ (elemAt p 0) ] [ (elemAt p 1) ] acc) s pairs;
     in
     replace [
-      [ "%" "%25" ]
-      [ " " "%20" ]
-      [ "/" "%2F" ]
-      [ "?" "%3F" ]
-      [ "#" "%23" ]
-      [ "&" "%26" ]
-      [ "=" "%3D" ]
+      [
+        "%"
+        "%25"
+      ]
+      [
+        " "
+        "%20"
+      ]
+      [
+        "/"
+        "%2F"
+      ]
+      [
+        "?"
+        "%3F"
+      ]
+      [
+        "#"
+        "%23"
+      ]
+      [
+        "&"
+        "%26"
+      ]
+      [
+        "="
+        "%3D"
+      ]
     ] str;
 
   # Build a `vless://uuid@addr:port?k=v&...#tag` URI string from a params

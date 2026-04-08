@@ -65,7 +65,8 @@ in
         default = "";
         description = "Reality public key of the upstream xray server. Defaults to roles.xray.server.reality.publicKey when co-located.";
       };
-    } // lib.mapAttrs (_: t: t.subscriptionUpstreamOptions) transports;
+    }
+    // lib.mapAttrs (_: t: t.subscriptionUpstreamOptions) transports;
   };
 
   config = mkIf (config.roles.xray.enable && cfg.enable) (
@@ -73,22 +74,26 @@ in
       enabledUpstreamTransports = lib.filter (t: cfg.upstream.${t.name}.enable) transportList;
 
       shortIdHead =
-        if (secrets.xray.reality.shortIds or [ ]) != [ ]
-        then builtins.head secrets.xray.reality.shortIds
-        else "";
+        if (secrets.xray.reality.shortIds or [ ]) != [ ] then
+          builtins.head secrets.xray.reality.shortIds
+        else
+          "";
 
       # Build one user's newline-joined list of vless:// URIs.
       userUrisText =
         user:
         let
-          uris = map (t: t.mkSubscriptionEntry {
-            serverAddr = cfg.upstream.publicAddress;
-            uuid = user.uuid;
-            fingerprint = cfg.fingerprint;
-            realityPublicKey = cfg.upstream.realityPublicKey;
-            shortId = shortIdHead;
-            cfg = cfg.upstream.${t.name};
-          }) enabledUpstreamTransports;
+          uris = map (
+            t:
+            t.mkSubscriptionEntry {
+              serverAddr = cfg.upstream.publicAddress;
+              uuid = user.uuid;
+              fingerprint = cfg.fingerprint;
+              realityPublicKey = cfg.upstream.realityPublicKey;
+              shortId = shortIdHead;
+              cfg = cfg.upstream.${t.name};
+            }
+          ) enabledUpstreamTransports;
         in
         lib.concatStringsSep "\n" uris;
 
@@ -103,74 +108,77 @@ in
     in
     {
       assertions = [
-      {
-        assertion = cfg.upstream.publicAddress != "";
-        message = "roles.xray.subscriptions.upstream.publicAddress must be set (explicitly or via roles.xray.server.publicAddress when co-located)";
-      }
-      {
-        assertion = cfg.upstream.realityPublicKey != "";
-        message = "roles.xray.subscriptions.upstream.realityPublicKey must be set";
-      }
-      {
-        assertion = shortIdHead != "";
-        message = "secrets.xray.reality.shortIds must be non-empty for subscription generation";
-      }
-      {
-        assertion = lib.any (t: cfg.upstream.${t.name}.enable) transportList;
-        message = "At least one roles.xray.subscriptions.upstream.<transport>.enable must be true";
-      }
-    ];
-
-    # Co-located default: mirror local server values unless overridden.
-    roles.xray.subscriptions.upstream = mkIf coLocated (
-      {
-        publicAddress = mkDefault serverCfg.publicAddress;
-        realityPublicKey = mkDefault serverCfg.reality.publicKey;
-      }
-      // lib.mapAttrs (name: t:
-        let sCfg = serverCfg.${name}; in
         {
-          enable = mkDefault sCfg.enable;
-          sni = mkDefault sCfg.sni;
+          assertion = cfg.upstream.publicAddress != "";
+          message = "roles.xray.subscriptions.upstream.publicAddress must be set (explicitly or via roles.xray.server.publicAddress when co-located)";
         }
-        // lib.optionalAttrs (name == "vlessGrpc") { serviceName = mkDefault sCfg.serviceName; }
-        // lib.optionalAttrs (name == "vlessXhttp") { path = mkDefault sCfg.path; }
-      ) transports
-    );
+        {
+          assertion = cfg.upstream.realityPublicKey != "";
+          message = "roles.xray.subscriptions.upstream.realityPublicKey must be set";
+        }
+        {
+          assertion = shortIdHead != "";
+          message = "secrets.xray.reality.shortIds must be non-empty for subscription generation";
+        }
+        {
+          assertion = lib.any (t: cfg.upstream.${t.name}.enable) transportList;
+          message = "At least one roles.xray.subscriptions.upstream.<transport>.enable must be true";
+        }
+      ];
 
-    services.nginx = {
-      enable = true;
-
-      commonHttpConfig = ''
-        limit_req_zone $binary_remote_addr zone=xray_config:10m rate=10r/m;
-      '';
-
-      virtualHosts."${cfg.sni}" = {
-        listen = [
+      # Co-located default: mirror local server values unless overridden.
+      roles.xray.subscriptions.upstream = mkIf coLocated (
+        {
+          publicAddress = mkDefault serverCfg.publicAddress;
+          realityPublicKey = mkDefault serverCfg.reality.publicKey;
+        }
+        // lib.mapAttrs (
+          name: t:
+          let
+            sCfg = serverCfg.${name};
+          in
           {
-            addr = listenAddr;
-            port = listenPort;
-            ssl = true;
+            enable = mkDefault sCfg.enable;
+            sni = mkDefault sCfg.sni;
           }
-        ];
-        sslCertificate = cfg.cert;
-        sslCertificateKey = cfg.key;
+          // lib.optionalAttrs (name == "vlessGrpc") { serviceName = mkDefault sCfg.serviceName; }
+          // lib.optionalAttrs (name == "vlessXhttp") { path = mkDefault sCfg.path; }
+        ) transports
+      );
 
-        locations."~ ^/xray-config/(?<sub_uuid>[A-Za-z0-9-]+)$" = {
-          extraConfig = ''
-            alias ${subscriptionsDir}/$sub_uuid;
-            default_type text/plain;
-            autoindex off;
-            limit_req zone=xray_config burst=5 nodelay;
-            add_header Cache-Control "no-store";
-          '';
+      services.nginx = {
+        enable = true;
+
+        commonHttpConfig = ''
+          limit_req_zone $binary_remote_addr zone=xray_config:10m rate=10r/m;
+        '';
+
+        virtualHosts."${cfg.sni}" = {
+          listen = [
+            {
+              addr = listenAddr;
+              port = listenPort;
+              ssl = true;
+            }
+          ];
+          sslCertificate = cfg.cert;
+          sslCertificateKey = cfg.key;
+
+          locations."~ ^/xray-config/(?<sub_uuid>[A-Za-z0-9-]+)$" = {
+            extraConfig = ''
+              alias ${subscriptionsDir}/$sub_uuid;
+              default_type text/plain;
+              autoindex off;
+              limit_req zone=xray_config burst=5 nodelay;
+              add_header Cache-Control "no-store";
+            '';
+          };
         };
       };
-    };
 
-    # When standalone, open 443 directly. When co-located, 443 is already
-    # open and stream-mapped by default.nix.
-    networking.firewall.allowedTCPPorts = mkIf (!coLocated) [ 443 ];
+      # When standalone, open 443 directly. When co-located, 443 is already
+      # open and stream-mapped by default.nix.
+      networking.firewall.allowedTCPPorts = mkIf (!coLocated) [ 443 ];
     }
   );
 }

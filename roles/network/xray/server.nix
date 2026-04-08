@@ -35,10 +35,13 @@ let
   enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;
 
   serverConfig = {
-    inbounds = map (t: t.mkServerInbound {
-      cfg = cfg.${t.name};
-      inherit clients shortIds;
-    }) enabledTransports;
+    inbounds = map (
+      t:
+      t.mkServerInbound {
+        cfg = cfg.${t.name};
+        inherit clients shortIds;
+      }
+    ) enabledTransports;
 
     outbounds = [
       {
@@ -87,7 +90,8 @@ in
       default = "";
       description = "Public hostname clients use to reach this xray server. Required when subscriptions are enabled.";
     };
-  } // lib.mapAttrs (_: t: t.serverOptions) transports;
+  }
+  // lib.mapAttrs (_: t: t.serverOptions) transports;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [

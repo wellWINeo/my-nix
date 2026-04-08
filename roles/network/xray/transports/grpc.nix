@@ -5,7 +5,7 @@
 
 with lib;
 
-{
+rec {
   name = "vlessGrpc";
   tagPrefix = "vless-grpc";
   serverPort = 9001;
@@ -80,7 +80,7 @@ with lib;
     { cfg, clients, shortIds }:
     {
       listen = "127.0.0.1";
-      port = 9001;
+      port = serverPort;
       protocol = "vless";
       tag = "vless-grpc-in";
       settings = {
@@ -102,7 +102,7 @@ with lib;
     { cfg, serverCfg, clients, shortIds }:
     {
       listen = "127.0.0.1";
-      port = 9011;
+      port = relayPort;
       protocol = "vless";
       tag = "vless-grpcFwd-in";
       settings = {
@@ -139,7 +139,7 @@ with lib;
     };
 
   mkRelayOutbound =
-    { cfg, targetCfg, realityCfg, user, serverAddr }:
+    { cfg, realityCfg, user, serverAddr }:
     helpers.mkVnextOutbound {
       tag = "relay-grpc-out";
       address = serverAddr;

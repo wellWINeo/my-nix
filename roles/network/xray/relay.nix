@@ -46,7 +46,6 @@ let
 
     outbounds = map (t: t.mkRelayOutbound {
       cfg = cfg.target.${t.name};
-      targetCfg = cfg.target;
       realityCfg = cfg.target.reality;
       user = cfg.user;
       serverAddr = cfg.target.server;

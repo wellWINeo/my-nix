@@ -5,7 +5,7 @@
 
 with lib;
 
-{
+rec {
   name = "vlessTcp";
   tagPrefix = "vless-tcp";
   serverPort = 9000;
@@ -67,7 +67,7 @@ with lib;
     { cfg, clients, shortIds }:
     {
       listen = "127.0.0.1";
-      port = 9000;
+      port = serverPort;
       protocol = "vless";
       tag = "vless-tcp-in";
       settings = {
@@ -86,7 +86,7 @@ with lib;
     { cfg, serverCfg, clients, shortIds }:
     {
       listen = "127.0.0.1";
-      port = 9010;
+      port = relayPort;
       protocol = "vless";
       tag = "vless-tcp-fwd-in";
       settings = {
@@ -120,7 +120,7 @@ with lib;
     };
 
   mkRelayOutbound =
-    { cfg, targetCfg, realityCfg, user, serverAddr }:
+    { cfg, realityCfg, user, serverAddr }:
     helpers.mkVnextOutbound {
       tag = "relay-tcp-out";
       address = serverAddr;

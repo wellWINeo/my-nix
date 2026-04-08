@@ -5,7 +5,7 @@
 
 with lib;
 
-{
+rec {
   name = "vlessXhttp";
   tagPrefix = "vless-xhttp";
   serverPort = 9002;
@@ -76,7 +76,7 @@ with lib;
     { cfg, clients, shortIds }:
     {
       listen = "127.0.0.1";
-      port = 9002;
+      port = serverPort;
       protocol = "vless";
       tag = "vless-xhttp-in";
       settings = {
@@ -96,7 +96,7 @@ with lib;
     { cfg, serverCfg, clients, shortIds }:
     {
       listen = "127.0.0.1";
-      port = 9012;
+      port = relayPort;
       protocol = "vless";
       tag = "vless-xhttp-fwd-in";
       settings = {
@@ -131,7 +131,7 @@ with lib;
     };
 
   mkRelayOutbound =
-    { cfg, targetCfg, realityCfg, user, serverAddr }:
+    { cfg, realityCfg, user, serverAddr }:
     helpers.mkVnextOutbound {
       tag = "relay-xhttp-out";
       address = serverAddr;

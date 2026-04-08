@@ -25,37 +25,6 @@ let
 
   coLocated = config.roles.xray.enable && serverCfg.enable;
 
-  enabledUpstreamTransports = lib.filter (t: cfg.upstream.${t.name}.enable) transportList;
-
-  shortIdHead =
-    if (secrets.xray.reality.shortIds or [ ]) != [ ]
-    then builtins.head secrets.xray.reality.shortIds
-    else "";
-
-  # Build one user's newline-joined list of vless:// URIs.
-  userUrisText =
-    user:
-    let
-      uris = map (t: t.mkSubscriptionEntry {
-        serverAddr = cfg.upstream.publicAddress;
-        uuid = user.uuid;
-        fingerprint = cfg.fingerprint;
-        realityPublicKey = cfg.upstream.realityPublicKey;
-        shortId = shortIdHead;
-        cfg = cfg.upstream.${t.name};
-      }) enabledUpstreamTransports;
-    in
-    lib.concatStringsSep "\n" uris;
-
-  subscriptionsDir = pkgs.runCommand "xray-subscriptions" { } (
-    ''
-      mkdir -p $out
-    ''
-    + lib.concatMapStrings (u: ''
-      printf '%s' ${lib.escapeShellArg (userUrisText u)} | base64 -w0 > $out/${u.uuid}
-    '') secrets.singBoxUsers
-  );
-
   listenPort = if coLocated then 8444 else 443;
   listenAddr = if coLocated then "127.0.0.1" else "0.0.0.0";
 in
@@ -99,8 +68,41 @@ in
     } // lib.mapAttrs (_: t: t.subscriptionUpstreamOptions) transports;
   };
 
-  config = mkIf (config.roles.xray.enable && cfg.enable) {
-    assertions = [
+  config = mkIf (config.roles.xray.enable && cfg.enable) (
+    let
+      enabledUpstreamTransports = lib.filter (t: cfg.upstream.${t.name}.enable) transportList;
+
+      shortIdHead =
+        if (secrets.xray.reality.shortIds or [ ]) != [ ]
+        then builtins.head secrets.xray.reality.shortIds
+        else "";
+
+      # Build one user's newline-joined list of vless:// URIs.
+      userUrisText =
+        user:
+        let
+          uris = map (t: t.mkSubscriptionEntry {
+            serverAddr = cfg.upstream.publicAddress;
+            uuid = user.uuid;
+            fingerprint = cfg.fingerprint;
+            realityPublicKey = cfg.upstream.realityPublicKey;
+            shortId = shortIdHead;
+            cfg = cfg.upstream.${t.name};
+          }) enabledUpstreamTransports;
+        in
+        lib.concatStringsSep "\n" uris;
+
+      subscriptionsDir = pkgs.runCommand "xray-subscriptions" { } (
+        ''
+          mkdir -p $out
+        ''
+        + lib.concatMapStrings (u: ''
+          printf '%s' ${lib.escapeShellArg (userUrisText u)} | base64 -w0 > $out/${u.uuid}
+        '') secrets.singBoxUsers
+      );
+    in
+    {
+      assertions = [
       {
         assertion = cfg.upstream.publicAddress != "";
         message = "roles.xray.subscriptions.upstream.publicAddress must be set (explicitly or via roles.xray.server.publicAddress when co-located)";
@@ -169,5 +171,6 @@ in
     # When standalone, open 443 directly. When co-located, 443 is already
     # open and stream-mapped by default.nix.
     networking.firewall.allowedTCPPorts = mkIf (!coLocated) [ 443 ];
-  };
+    }
+  );
 }

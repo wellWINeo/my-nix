@@ -27,7 +27,15 @@ let
   serverConfig = if cfg.server.enable then cfg._serverConfig else emptyConfig;
   relayConfig = if cfg.relay.enable then cfg._relayConfig else emptyConfig;
 
-  allNginxEntries = serverConfig.nginxSniEntries ++ relayConfig.nginxSniEntries;
+  subsCfg = config.roles.xray.subscriptions;
+  subsCoLocated = cfg.server.enable && subsCfg.enable;
+  subsStreamEntry = lib.optionals subsCoLocated [
+    {
+      sni = subsCfg.sni;
+      port = 8444;
+    }
+  ];
+  allNginxEntries = serverConfig.nginxSniEntries ++ relayConfig.nginxSniEntries ++ subsStreamEntry;
 
   xrayConfigTemplate = {
     log = {
@@ -50,6 +58,7 @@ in
     ./server.nix
     ./client.nix
     ./relay.nix
+    ./subscriptions.nix
   ];
 
   options.roles.xray = {
@@ -84,7 +93,7 @@ in
 
     # Server/relay: systemd service, nginx, firewall
     # (only when server is enabled; client uses services.xray independently)
-    services.nginx = mkIf cfg.server.enable {
+    services.nginx = mkIf (cfg.server.enable || subsCoLocated) {
       enable = true;
       streamConfig =
         let

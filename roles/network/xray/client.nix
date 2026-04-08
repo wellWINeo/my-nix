@@ -1,7 +1,7 @@
 # roles/network/xray/client.nix
 #
 # Defines roles.xray.client options. Runs its own xray process (independent
-# from server/relay). Uses shared option helpers from options.nix.
+# from server/relay). Built by folding over the transport registry.
 {
   config,
   lib,
@@ -13,33 +13,12 @@ with lib;
 
 let
   cfg = config.roles.xray.client;
-  opts = import ./options.nix { inherit lib; };
+  transports = import ./transports { inherit lib; };
+  transportList = lib.attrValues transports;
 
-  # Build streamSettings for a given transport.
-  mkStreamSettings =
-    transport:
-    let
-      sni = if (transport.serverName or "") != "" then transport.serverName else cfg.reality.serverName;
-      securitySettings =
-        if cfg.reality.enable then
-          {
-            security = "reality";
-            realitySettings = {
-              publicKey = cfg.reality.publicKey;
-              shortId = cfg.reality.shortId;
-              serverName = sni;
-              fingerprint = cfg.reality.fingerprint;
-            };
-          }
-        else
-          {
-            security = "tls";
-            tlsSettings = {
-              serverName = transport.server;
-            };
-          };
-    in
-    securitySettings // transport.extra;
+  enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;
+
+  realityCfg = cfg.reality;
 
   xrayConfig = {
     log = {
@@ -60,94 +39,13 @@ let
     ];
 
     outbounds =
-      lib.optionals cfg.vlessTcp.enable [
-        {
-          protocol = "vless";
-          tag = "vless-tcp-out";
-          settings = {
-            vnext = [
-              {
-                address = cfg.vlessTcp.server;
-                port = cfg.vlessTcp.port;
-                users = [
-                  {
-                    id = cfg.vlessTcp.auth.uuid;
-                    flow = "xtls-rprx-vision";
-                    encryption = "none";
-                  }
-                ];
-              }
-            ];
-          };
-          streamSettings = mkStreamSettings {
-            server = cfg.vlessTcp.server;
-            serverName = cfg.vlessTcp.serverName;
-            extra = {
-              network = "tcp";
-            };
-          };
+      (map (
+        t:
+        t.mkClientOutbound {
+          cfg = cfg.${t.name};
+          inherit realityCfg;
         }
-      ]
-      ++ lib.optionals cfg.vlessGrpc.enable [
-        {
-          protocol = "vless";
-          tag = "vless-grpc-out";
-          settings = {
-            vnext = [
-              {
-                address = cfg.vlessGrpc.server;
-                port = cfg.vlessGrpc.port;
-                users = [
-                  {
-                    id = cfg.vlessGrpc.auth.uuid;
-                    encryption = "none";
-                  }
-                ];
-              }
-            ];
-          };
-          streamSettings = mkStreamSettings {
-            server = cfg.vlessGrpc.server;
-            serverName = cfg.vlessGrpc.serverName;
-            extra = {
-              network = "grpc";
-              grpcSettings = {
-                serviceName = cfg.vlessGrpc.serviceName;
-              };
-            };
-          };
-        }
-      ]
-      ++ lib.optionals cfg.vlessXhttp.enable [
-        {
-          protocol = "vless";
-          tag = "vless-xhttp-out";
-          settings = {
-            vnext = [
-              {
-                address = cfg.vlessXhttp.server;
-                port = cfg.vlessXhttp.port;
-                users = [
-                  {
-                    id = cfg.vlessXhttp.auth.uuid;
-                    encryption = "none";
-                  }
-                ];
-              }
-            ];
-          };
-          streamSettings = mkStreamSettings {
-            server = cfg.vlessXhttp.server;
-            serverName = cfg.vlessXhttp.serverName;
-            extra = {
-              network = "xhttp";
-              xhttpSettings = {
-                path = cfg.vlessXhttp.path;
-              };
-            };
-          };
-        }
-      ]
+      ) enabledTransports)
       ++ [
         {
           protocol = "freedom";
@@ -166,10 +64,7 @@ let
       balancers = [
         {
           tag = "proxy-balancer";
-          selector =
-            lib.optionals cfg.vlessTcp.enable [ "vless-tcp-out" ]
-            ++ lib.optionals cfg.vlessGrpc.enable [ "vless-grpc-out" ]
-            ++ lib.optionals cfg.vlessXhttp.enable [ "vless-xhttp-out" ];
+          selector = map (t: "${t.tagPrefix}-out") enabledTransports;
           strategy = {
             type = "random";
           };
@@ -194,17 +89,36 @@ in
       description = "Open firewall for SOCKS port";
     };
 
-    reality = opts.mkRealityClientOptions { };
-
-    vlessTcp = opts.mkVlessTcpOptions { includeConnection = true; };
-    vlessGrpc = opts.mkVlessGrpcOptions { includeConnection = true; };
-    vlessXhttp = opts.mkVlessXhttpOptions { includeConnection = true; };
-  };
+    reality = {
+      enable = mkEnableOption "Reality TLS";
+      publicKey = mkOption {
+        type = types.str;
+        default = "";
+        description = "Server's Reality public key";
+      };
+      shortId = mkOption {
+        type = types.str;
+        default = "";
+        description = "Authorized shortId";
+      };
+      serverName = mkOption {
+        type = types.str;
+        default = "";
+        description = "Fallback SNI";
+      };
+      fingerprint = mkOption {
+        type = types.str;
+        default = "chrome";
+        description = "uTLS fingerprint";
+      };
+    };
+  }
+  // lib.mapAttrs (_: t: t.clientOptions) transports;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [
       {
-        assertion = cfg.vlessTcp.enable || cfg.vlessGrpc.enable || cfg.vlessXhttp.enable;
+        assertion = lib.any (t: cfg.${t.name}.enable) transportList;
         message = "At least one xray client outbound must be enabled";
       }
       {
@@ -216,7 +130,7 @@ in
             && cfg.reality.serverName != ""
             && cfg.reality.fingerprint != ""
           );
-        message = "roles.xray.client.reality.publicKey, shortId, serverName, and fingerprint must be set when reality.enable = true";
+        message = "roles.xray.client.reality.{publicKey,shortId,serverName,fingerprint} must be set when reality.enable = true";
       }
     ];
 

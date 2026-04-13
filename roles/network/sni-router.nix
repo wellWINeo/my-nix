@@ -74,7 +74,9 @@ in
       enable = true;
       streamConfig = ''
         map $ssl_preread_server_name $sni_backend {
-        ${lib.concatMapStrings (e: "    ${e.sni}  ${e.backend};\n") cfg.entries}    default  ${defaultBackend};
+        ${
+          lib.concatMapStrings (e: "    ${e.sni}  ${e.backend};\n") cfg.entries
+        }    default  ${defaultBackend};
         }
 
         server {

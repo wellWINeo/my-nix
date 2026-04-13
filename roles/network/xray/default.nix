@@ -34,11 +34,24 @@ let
   subsCoLocated = cfg.server.enable && subsCfg.enable;
 
   # Build sni-router entries from config fragments (port → backend address)
-  serverSniEntries = map (e: { sni = e.sni; backend = "127.0.0.1:${toString e.port}"; }) serverConfig.nginxSniEntries;
-  relaySniEntries = map (e: { sni = e.sni; backend = "127.0.0.1:${toString e.port}"; }) relayConfig.nginxSniEntries;
-  subsSniEntries = if subsCoLocated then [
-    { sni = subsCfg.sni; backend = "127.0.0.1:8444"; }
-  ] else [ ];
+  serverSniEntries = map (e: {
+    sni = e.sni;
+    backend = "127.0.0.1:${toString e.port}";
+  }) serverConfig.nginxSniEntries;
+  relaySniEntries = map (e: {
+    sni = e.sni;
+    backend = "127.0.0.1:${toString e.port}";
+  }) relayConfig.nginxSniEntries;
+  subsSniEntries =
+    if subsCoLocated then
+      [
+        {
+          sni = subsCfg.sni;
+          backend = "127.0.0.1:8444";
+        }
+      ]
+    else
+      [ ];
 
   xrayConfigTemplate = {
     log = {

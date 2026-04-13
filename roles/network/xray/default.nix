@@ -1,7 +1,7 @@
 # roles/network/xray/default.nix
 #
 # Coordinator: imports server/client/relay sub-modules, merges their config
-# fragments, and owns systemd, nginx, and firewall configuration.
+# fragments, and owns systemd configuration. SNI routing delegated to sni-router.
 {
   config,
   lib,
@@ -24,18 +24,34 @@ let
     nginxSniEntries = [ ];
   };
 
+  serverCfg = config.roles.xray.server;
+  relayCfg = config.roles.xray.relay;
+  subsCfg = config.roles.xray.subscriptions;
+
   serverConfig = if cfg.server.enable then cfg._serverConfig else emptyConfig;
   relayConfig = if cfg.relay.enable then cfg._relayConfig else emptyConfig;
 
-  subsCfg = config.roles.xray.subscriptions;
   subsCoLocated = cfg.server.enable && subsCfg.enable;
-  subsStreamEntry = lib.optionals subsCoLocated [
-    {
-      sni = subsCfg.sni;
-      port = 8444;
-    }
-  ];
-  allNginxEntries = serverConfig.nginxSniEntries ++ relayConfig.nginxSniEntries ++ subsStreamEntry;
+
+  # Build sni-router entries from config fragments (port → backend address)
+  serverSniEntries = map (e: {
+    sni = e.sni;
+    backend = "127.0.0.1:${toString e.port}";
+  }) serverConfig.nginxSniEntries;
+  relaySniEntries = map (e: {
+    sni = e.sni;
+    backend = "127.0.0.1:${toString e.port}";
+  }) relayConfig.nginxSniEntries;
+  subsSniEntries =
+    if subsCoLocated then
+      [
+        {
+          sni = subsCfg.sni;
+          backend = "127.0.0.1:8444";
+        }
+      ]
+    else
+      [ ];
 
   xrayConfigTemplate = {
     log = {
@@ -59,6 +75,7 @@ in
     ./client.nix
     ./relay.nix
     ./subscriptions.nix
+    ../sni-router.nix
   ];
 
   options.roles.xray = {
@@ -91,30 +108,13 @@ in
       }
     ];
 
-    # Server/relay: systemd service, nginx, firewall
-    # (only when server is enabled; client uses services.xray independently)
-    services.nginx = mkIf (cfg.server.enable || subsCoLocated) {
+    # SNI routing (server/relay mode only)
+    roles.sni-router = mkIf cfg.server.enable {
       enable = true;
-      streamConfig =
-        let
-          defaultPort = if allNginxEntries != [ ] then (builtins.head allNginxEntries).port else 9000;
-        in
-        ''
-          map $ssl_preread_server_name $xray_backend {
-          ${
-            lib.concatMapStrings (t: "    ${t.sni}  127.0.0.1:${toString t.port};\n") allNginxEntries
-          }    default  127.0.0.1:${toString defaultPort};
-          }
-
-          server {
-            listen 443;
-            ssl_preread on;
-            proxy_pass $xray_backend;
-            proxy_protocol on;
-          }
-        '';
+      entries = serverSniEntries ++ relaySniEntries ++ subsSniEntries;
     };
 
+    # Xray systemd service (server/relay mode only)
     systemd.services.xray = mkIf cfg.server.enable {
       description = "Xray Reality Daemon";
       after = [ "network.target" ];
@@ -139,7 +139,5 @@ in
         exec xray -config /tmp/xray.json
       '';
     };
-
-    networking.firewall.allowedTCPPorts = mkIf cfg.server.enable [ 443 ];
   };
 }

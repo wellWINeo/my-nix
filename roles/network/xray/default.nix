@@ -21,44 +21,24 @@ let
       rules = [ ];
       balancers = [ ];
     };
+    nginxSniEntries = [ ];
   };
 
   serverCfg = config.roles.xray.server;
   relayCfg = config.roles.xray.relay;
+  subsCfg = config.roles.xray.subscriptions;
 
   serverConfig = if cfg.server.enable then cfg._serverConfig else emptyConfig;
   relayConfig = if cfg.relay.enable then cfg._relayConfig else emptyConfig;
 
-  # Port constants (must match server.nix / relay.nix)
-  vlessTcpPort = 9000;
-  vlessGrpcPort = 9001;
-  vlessXhttpPort = 9002;
-  relayTcpPort = 9010;
-  relayGrpcPort = 9011;
-  relayXhttpPort = 9012;
+  subsCoLocated = cfg.server.enable && subsCfg.enable;
 
-  # Build sni-router entries from enabled transports
-  serverSniEntries =
-    lib.optionals serverCfg.vlessTcp.enable [
-      { sni = serverCfg.vlessTcp.sni; backend = "127.0.0.1:${toString vlessTcpPort}"; }
-    ]
-    ++ lib.optionals serverCfg.vlessGrpc.enable [
-      { sni = serverCfg.vlessGrpc.sni; backend = "127.0.0.1:${toString vlessGrpcPort}"; }
-    ]
-    ++ lib.optionals serverCfg.vlessXhttp.enable [
-      { sni = serverCfg.vlessXhttp.sni; backend = "127.0.0.1:${toString vlessXhttpPort}"; }
-    ];
-
-  relaySniEntries =
-    lib.optionals (relayCfg.enable && serverCfg.vlessTcp.enable) [
-      { sni = relayCfg.vlessTcp.sni; backend = "127.0.0.1:${toString relayTcpPort}"; }
-    ]
-    ++ lib.optionals (relayCfg.enable && serverCfg.vlessGrpc.enable) [
-      { sni = relayCfg.vlessGrpc.sni; backend = "127.0.0.1:${toString relayGrpcPort}"; }
-    ]
-    ++ lib.optionals (relayCfg.enable && serverCfg.vlessXhttp.enable) [
-      { sni = relayCfg.vlessXhttp.sni; backend = "127.0.0.1:${toString relayXhttpPort}"; }
-    ];
+  # Build sni-router entries from config fragments (port → backend address)
+  serverSniEntries = map (e: { sni = e.sni; backend = "127.0.0.1:${toString e.port}"; }) serverConfig.nginxSniEntries;
+  relaySniEntries = map (e: { sni = e.sni; backend = "127.0.0.1:${toString e.port}"; }) relayConfig.nginxSniEntries;
+  subsSniEntries = lib.optionals subsCoLocated [
+    { sni = subsCfg.sni; backend = "127.0.0.1:8444"; }
+  ];
 
   xrayConfigTemplate = {
     log = {
@@ -81,6 +61,7 @@ in
     ./server.nix
     ./client.nix
     ./relay.nix
+    ./subscriptions.nix
     ../sni-router.nix
   ];
 
@@ -117,7 +98,7 @@ in
     # SNI routing (server/relay mode only)
     roles.sni-router = mkIf cfg.server.enable {
       enable = true;
-      entries = serverSniEntries ++ relaySniEntries;
+      entries = serverSniEntries ++ relaySniEntries ++ subsSniEntries;
     };
 
     # Xray systemd service (server/relay mode only)

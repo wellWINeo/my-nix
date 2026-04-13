@@ -43,6 +43,11 @@ in
               type = types.str;
               description = "Backend address (e.g. 127.0.0.1:9000)";
             };
+            proxyProtocol = mkOption {
+              type = types.bool;
+              default = true;
+              description = "Whether to emit proxy_protocol to this backend";
+            };
           };
         }
       );
@@ -76,7 +81,7 @@ in
           listen ${toString cfg.port};
           ssl_preread on;
           proxy_pass $sni_backend;
-          proxy_protocol on;
+          proxy_protocol on; # all registered backends are expected to accept proxy protocol
         }
       '';
     };

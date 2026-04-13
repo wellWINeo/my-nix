@@ -76,6 +76,7 @@ in
       }
     ];
 
+    # Requires sni-router.nix to be imported (directly or via roles/network/xray).
     roles.sni-router.entries = [
       {
         sni = cfg.tls.domain;
@@ -88,14 +89,16 @@ in
       after = [ "network.target" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = {
+        ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p /var/lib/telemt/tlsfront";
         ExecStart = "${pkgs.telemt}/bin/telemt ${configFile}";
+        Restart = "on-failure";
         DynamicUser = true;
         StateDirectory = "telemt";
         NoNewPrivileges = true;
         PrivateTmp = true;
         ProtectSystem = "strict";
         ProtectHome = true;
-        ReadWritePaths = [ "/var/lib/telemt" ];
+        RestrictAddressFamilies = "AF_INET AF_INET6";
       };
     };
   };

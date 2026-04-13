@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager = {
       url = "github:nix-community/home-manager/release-25.11";
@@ -11,7 +12,7 @@
   };
 
   outputs =
-    { nixpkgs, ... }@inputs:
+    { nixpkgs, nixpkgs-unstable, ... }@inputs:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -56,7 +57,13 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
-          { nixpkgs.overlays = import ./overlays; } # TODO: simplify overlays usage
+          {
+            nixpkgs.overlays = (import ./overlays) ++ [
+              (final: prev: {
+                telemt = nixpkgs-unstable.legacyPackages.${prev.system}.telemt;
+              })
+            ];
+          }
           ./machines/veles
           ./users/o__ni
         ];

@@ -255,25 +255,6 @@ let
       ];
     };
 
-    nginxSniEntries =
-      lib.optionals tcpInEnabled [
-        {
-          sni = cfg.vlessTcp.sni;
-          port = relayTcpPort;
-        }
-      ]
-      ++ lib.optionals grpcInEnabled [
-        {
-          sni = cfg.vlessGrpc.sni;
-          port = relayGrpcPort;
-        }
-      ]
-      ++ lib.optionals xhttpInEnabled [
-        {
-          sni = cfg.vlessXhttp.sni;
-          port = relayXhttpPort;
-        }
-      ];
   };
 in
 {

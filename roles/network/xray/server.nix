@@ -124,25 +124,6 @@ let
       balancers = [ ];
     };
 
-    nginxSniEntries =
-      lib.optionals cfg.vlessTcp.enable [
-        {
-          sni = cfg.vlessTcp.sni;
-          port = vlessTcpPort;
-        }
-      ]
-      ++ lib.optionals cfg.vlessGrpc.enable [
-        {
-          sni = cfg.vlessGrpc.sni;
-          port = vlessGrpcPort;
-        }
-      ]
-      ++ lib.optionals cfg.vlessXhttp.enable [
-        {
-          sni = cfg.vlessXhttp.sni;
-          port = vlessXhttpPort;
-        }
-      ];
   };
 in
 {

@@ -4,7 +4,8 @@
 
 let
   hostname = "veles";
-  mokoshIp = (import ../../secrets).ip.mokosh.address;
+  secrets = import ../../secrets;
+  mokoshIp = secrets.ip.mokosh.address;
 in
 {
   imports = [
@@ -12,6 +13,7 @@ in
     ../../common/server.nix
     ../../hardware/vm.nix
     ../../roles/network/stream-forwarder.nix
+    ../../roles/network/mtproxy.nix
     ../../roles/network/xray
   ];
 
@@ -79,6 +81,13 @@ in
         sni = "onlymir.ru";
       };
     };
+  };
+
+  roles.mtproxy = {
+    enable = true;
+    tls.domain = "google.com";
+    port = 9100;
+    users = secrets.mtproxy.users;
   };
 
   roles.stream-forwarder = {

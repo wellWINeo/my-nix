@@ -85,7 +85,7 @@ in
 
   roles.mtproxy = {
     enable = true;
-    tls.domain = "google.com";
+    tls.domain = "api.ok.ru";
     port = 9100;
     users = secrets.mtproxy.users;
   };

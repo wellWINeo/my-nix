@@ -60,7 +60,7 @@
           {
             nixpkgs.overlays = (import ./overlays) ++ [
               (final: prev: {
-                telemt = nixpkgs-unstable.legacyPackages.${prev.system}.telemt;
+                telemt = nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.telemt;
               })
             ];
           }

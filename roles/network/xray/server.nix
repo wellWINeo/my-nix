@@ -14,22 +14,24 @@ with lib;
 let
   cfg = config.roles.xray.server;
   secrets = import ../../../secrets;
+  filterProxyUsersForHost = import ../../../common/filter-proxy-users.nix { inherit lib; };
   transports = import ./transports { inherit lib; };
   transportList = lib.attrValues transports;
 
   shortIds = secrets.xray.reality.shortIds or [ ];
+  users = filterProxyUsersForHost config.networking.hostName secrets.singBoxUsers;
 
   clients = {
     withFlow = map (u: {
       id = u.uuid;
       flow = "xtls-rprx-vision";
       email = "${u.name}@xray";
-    }) secrets.singBoxUsers;
+    }) users;
 
     noFlow = map (u: {
       id = u.uuid;
       email = "${u.name}@xray";
-    }) secrets.singBoxUsers;
+    }) users;
   };
 
   enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;

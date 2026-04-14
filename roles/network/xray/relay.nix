@@ -40,7 +40,18 @@ let
   enabledOutbound = lib.filter (t: cfg.target.${t.name}.enable) transportList;
 
   relayConfig = {
-    inbounds = map (
+    inbounds = lib.optionals cfg.socks.enable [
+      {
+        listen = "127.0.0.1";
+        port = cfg.socks.port;
+        protocol = "socks";
+        tag = "socks-relay-in";
+        settings = {
+          auth = "noauth";
+          udp = true;
+        };
+      }
+    ] ++ map (
       t:
       t.mkRelayInbound {
         cfg = cfg.${t.name};
@@ -60,7 +71,13 @@ let
     ) enabledOutbound;
 
     routing = {
-      rules = lib.optionals (enabledInbound != [ ]) [
+      rules = lib.optionals cfg.socks.enable [
+        {
+          type = "field";
+          inboundTag = [ "socks-relay-in" ];
+          balancerTag = "relay-balancer";
+        }
+      ] ++ lib.optionals (enabledInbound != [ ]) [
         {
           type = "field";
           inboundTag = map (
@@ -89,6 +106,15 @@ in
 {
   options.roles.xray.relay = {
     enable = mkEnableOption "relay traffic to another xray server";
+
+    socks = {
+      enable = mkEnableOption "local SOCKS5 inbound for relay";
+      port = mkOption {
+        type = types.port;
+        default = 1080;
+        description = "SOCKS5 listen port on 127.0.0.1";
+      };
+    };
 
     user = mkOption {
       type = types.attrs;

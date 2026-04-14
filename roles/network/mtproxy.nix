@@ -14,39 +14,42 @@ with lib;
 let
   cfg = config.roles.mtproxy;
 
-  configFile = pkgs.writeText "telemt.toml" (''
-    [general]
-    use_middle_proxy = true
-    log_level = "normal"
+  configFile = pkgs.writeText "telemt.toml" (
+    ''
+      [general]
+      use_middle_proxy = true
+      log_level = "normal"
 
-    [general.modes]
-    classic = false
-    secure = false
-    tls = true
+      [general.modes]
+      classic = false
+      secure = false
+      tls = true
 
-    [server]
-    port = ${toString cfg.port}
-    proxy_protocol = true
+      [server]
+      port = ${toString cfg.port}
+      proxy_protocol = true
 
-    [[server.listeners]]
-    ip = "127.0.0.1"
+      [[server.listeners]]
+      ip = "127.0.0.1"
 
-    [censorship]
-    tls_domain = "${cfg.tls.domain}"
-    mask = true
-    tls_emulation = true
-    tls_front_dir = "/var/lib/telemt/tlsfront"
+      [censorship]
+      tls_domain = "${cfg.tls.domain}"
+      mask = true
+      tls_emulation = true
+      tls_front_dir = "/var/lib/telemt/tlsfront"
 
-    [access.users]
-    ${lib.concatStringsSep "\n" (
-      lib.mapAttrsToList (name: secret: ''${name} = "${secret}"'') cfg.users
-    )}
-  '' + lib.optionalString (cfg.upstream != null) ''
+      [access.users]
+      ${lib.concatStringsSep "\n" (
+        lib.mapAttrsToList (name: secret: ''${name} = "${secret}"'') cfg.users
+      )}
+    ''
+    + lib.optionalString (cfg.upstream != null) ''
 
-    [[upstreams]]
-    type = "socks5"
-    address = "${cfg.upstream}"
-  '');
+      [[upstreams]]
+      type = "socks5"
+      address = "${cfg.upstream}"
+    ''
+  );
 in
 {
   options.roles.mtproxy = {

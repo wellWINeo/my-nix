@@ -20,10 +20,8 @@ let
   cfg = config.roles.xray.subscriptions;
   serverCfg = config.roles.xray.server;
   secrets = import ../../../secrets;
-  filterProxyUsersForHost = import ../../../common/filter-proxy-users.nix { inherit lib; };
   transports = import ./transports { inherit lib; };
   transportList = lib.attrValues transports;
-  users = filterProxyUsersForHost config.networking.hostName secrets.singBoxUsers;
 
   coLocated = config.roles.xray.enable && serverCfg.enable;
 
@@ -33,6 +31,12 @@ in
 {
   options.roles.xray.subscriptions = {
     enable = mkEnableOption "serve per-user xray subscriptions over HTTPS";
+
+    users = mkOption {
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Proxy users to generate subscriptions for. Each entry must have at least { name, uuid }.";
+    };
 
     sni = mkOption {
       type = types.str;
@@ -105,7 +109,7 @@ in
         ''
         + lib.concatMapStrings (u: ''
           printf '%s' ${lib.escapeShellArg (userUrisText u)} | base64 -w0 > $out/${u.uuid}
-        '') users
+        '') cfg.users
       );
     in
     {

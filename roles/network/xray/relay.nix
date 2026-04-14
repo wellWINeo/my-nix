@@ -16,24 +16,22 @@ let
   cfg = config.roles.xray.relay;
   serverCfg = config.roles.xray.server;
   secrets = import ../../../secrets;
-  filterProxyUsersForHost = import ../../../common/filter-proxy-users.nix { inherit lib; };
   transports = import ./transports { inherit lib; };
   transportList = lib.attrValues transports;
 
   shortIds = secrets.xray.reality.shortIds or [ ];
-  users = filterProxyUsersForHost config.networking.hostName secrets.singBoxUsers;
 
   clients = {
     withFlow = map (u: {
       id = u.uuid;
       flow = "xtls-rprx-vision";
       email = "${u.name}@xray";
-    }) users;
+    }) cfg.users;
 
     noFlow = map (u: {
       id = u.uuid;
       email = "${u.name}@xray";
-    }) users;
+    }) cfg.users;
   };
 
   enabledInbound = lib.filter (t: serverCfg.${t.name}.enable) transportList;
@@ -110,6 +108,12 @@ in
 {
   options.roles.xray.relay = {
     enable = mkEnableOption "relay traffic to another xray server";
+
+    users = mkOption {
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Proxy users to allow for relay inbounds. Each entry must have at least { name, uuid }.";
+    };
 
     socks = {
       enable = mkEnableOption "local SOCKS5 inbound for relay";

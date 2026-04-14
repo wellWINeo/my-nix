@@ -1,4 +1,5 @@
 {
+  lib,
   ...
 }:
 
@@ -6,6 +7,8 @@ let
   hostname = "veles";
   secrets = import ../../secrets;
   mokoshIp = secrets.ip.mokosh.address;
+  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
+  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -67,6 +70,7 @@ in
     enable = true;
     server = {
       enable = true;
+      users = users;
       reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
       vlessTcp = {
         enable = true;
@@ -83,6 +87,7 @@ in
     };
     relay = {
       enable = true;
+      users = users;
       socks.enable = true;
       vlessTcp.sni = "www.apple.com";
       vlessGrpc.sni = "grpc.google.com";

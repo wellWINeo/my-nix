@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 
 let
   hostname = "mokosh";
@@ -9,6 +9,9 @@ let
   };
   ifname = "ens3";
   ip = (import ../../secrets).ip.mokosh;
+  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
+  secrets = import ../../secrets;
+  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -193,6 +196,7 @@ in
 
   roles.sing-box-server = {
     enable = true;
+    users = users;
     baseDomain = domainNames.primary;
     enableFallback = false;
 

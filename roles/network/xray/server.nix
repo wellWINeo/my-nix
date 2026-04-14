@@ -24,12 +24,12 @@ let
       id = u.uuid;
       flow = "xtls-rprx-vision";
       email = "${u.name}@xray";
-    }) secrets.singBoxUsers;
+    }) cfg.users;
 
     noFlow = map (u: {
       id = u.uuid;
       email = "${u.name}@xray";
-    }) secrets.singBoxUsers;
+    }) cfg.users;
   };
 
   enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;
@@ -70,6 +70,12 @@ in
 {
   options.roles.xray.server = {
     enable = mkEnableOption "xray anti-censorship proxy server with Reality";
+
+    users = mkOption {
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Proxy users to allow. Each entry must have at least { name, uuid }.";
+    };
 
     reality = {
       privateKeyFile = mkOption {

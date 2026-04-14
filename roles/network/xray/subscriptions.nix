@@ -32,6 +32,12 @@ in
   options.roles.xray.subscriptions = {
     enable = mkEnableOption "serve per-user xray subscriptions over HTTPS";
 
+    users = mkOption {
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Proxy users to generate subscriptions for. Each entry must have at least { name, uuid }.";
+    };
+
     sni = mkOption {
       type = types.str;
       description = "SNI/hostname of the subscription endpoint (e.g. config.example.com)";
@@ -103,7 +109,7 @@ in
         ''
         + lib.concatMapStrings (u: ''
           printf '%s' ${lib.escapeShellArg (userUrisText u)} | base64 -w0 > $out/${u.uuid}
-        '') secrets.singBoxUsers
+        '') cfg.users
       );
     in
     {

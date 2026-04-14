@@ -26,26 +26,39 @@ let
       id = u.uuid;
       flow = "xtls-rprx-vision";
       email = "${u.name}@xray";
-    }) secrets.singBoxUsers;
+    }) cfg.users;
 
     noFlow = map (u: {
       id = u.uuid;
       email = "${u.name}@xray";
-    }) secrets.singBoxUsers;
+    }) cfg.users;
   };
 
   enabledInbound = lib.filter (t: serverCfg.${t.name}.enable) transportList;
   enabledOutbound = lib.filter (t: cfg.target.${t.name}.enable) transportList;
 
   relayConfig = {
-    inbounds = map (
-      t:
-      t.mkRelayInbound {
-        cfg = cfg.${t.name};
-        serverCfg = serverCfg.${t.name};
-        inherit clients shortIds;
-      }
-    ) enabledInbound;
+    inbounds =
+      lib.optionals cfg.socks.enable [
+        {
+          listen = "127.0.0.1";
+          port = cfg.socks.port;
+          protocol = "socks";
+          tag = "socks-relay-in";
+          settings = {
+            auth = "noauth";
+            udp = true;
+          };
+        }
+      ]
+      ++ map (
+        t:
+        t.mkRelayInbound {
+          cfg = cfg.${t.name};
+          serverCfg = serverCfg.${t.name};
+          inherit clients shortIds;
+        }
+      ) enabledInbound;
 
     outbounds = map (
       t:
@@ -58,15 +71,23 @@ let
     ) enabledOutbound;
 
     routing = {
-      rules = lib.optionals (enabledInbound != [ ]) [
-        {
-          type = "field";
-          inboundTag = map (
-            t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
-          ) enabledInbound;
-          balancerTag = "relay-balancer";
-        }
-      ];
+      rules =
+        lib.optionals cfg.socks.enable [
+          {
+            type = "field";
+            inboundTag = [ "socks-relay-in" ];
+            balancerTag = "relay-balancer";
+          }
+        ]
+        ++ lib.optionals (enabledInbound != [ ]) [
+          {
+            type = "field";
+            inboundTag = map (
+              t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
+            ) enabledInbound;
+            balancerTag = "relay-balancer";
+          }
+        ];
       balancers = lib.optionals (enabledOutbound != [ ]) [
         {
           tag = "relay-balancer";
@@ -87,6 +108,21 @@ in
 {
   options.roles.xray.relay = {
     enable = mkEnableOption "relay traffic to another xray server";
+
+    users = mkOption {
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Proxy users to allow for relay inbounds. Each entry must have at least { name, uuid }.";
+    };
+
+    socks = {
+      enable = mkEnableOption "local SOCKS5 inbound for relay";
+      port = mkOption {
+        type = types.port;
+        default = 1080;
+        description = "SOCKS5 listen port on 127.0.0.1";
+      };
+    };
 
     user = mkOption {
       type = types.attrs;
@@ -137,8 +173,8 @@ in
         message = "At least one relay target transport must be enabled (roles.xray.relay.target.<transport>.enable)";
       }
       {
-        assertion = enabledInbound != [ ];
-        message = "At least one server transport must be enabled for relay inbounds";
+        assertion = cfg.socks.enable || enabledInbound != [ ];
+        message = "At least one relay inbound must be enabled: either socks.enable = true or at least one server transport must be active";
       }
     ];
 

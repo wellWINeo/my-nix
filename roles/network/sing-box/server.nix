@@ -9,7 +9,6 @@ with lib;
 
 let
   cfg = config.roles.sing-box-server;
-  secrets = import ../../../secrets;
 
   vlessWsPort = 9000;
   vlessGrpcPort = 9001;
@@ -32,7 +31,7 @@ let
           users = map (u: {
             name = u.name;
             uuid = u.uuid;
-          }) secrets.singBoxUsers;
+          }) cfg.users;
           transport = {
             type = "ws";
             path = cfg.vlessWs.path;
@@ -48,7 +47,7 @@ let
           users = map (u: {
             name = u.name;
             uuid = u.uuid;
-          }) secrets.singBoxUsers;
+          }) cfg.users;
           transport = {
             type = "grpc";
             service_name = cfg.vlessGrpc.serviceName;
@@ -65,7 +64,7 @@ let
           users = map (u: {
             username = u.name;
             password = u.password;
-          }) secrets.singBoxUsers;
+          }) cfg.users;
           tls = {
             enabled = true;
             server_name = "gw.${cfg.baseDomain}";
@@ -90,6 +89,12 @@ in
 {
   options.roles.sing-box-server = {
     enable = mkEnableOption "sing-box anti-censorship proxy server";
+
+    users = mkOption {
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Proxy users to allow. Each entry must have at least { name, uuid, password }.";
+    };
 
     baseDomain = mkOption {
       type = types.str;

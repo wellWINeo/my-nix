@@ -1,4 +1,5 @@
 {
+  lib,
   ...
 }:
 
@@ -6,6 +7,8 @@ let
   hostname = "veles";
   secrets = import ../../secrets;
   mokoshIp = secrets.ip.mokosh.address;
+  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
+  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -67,6 +70,7 @@ in
     enable = true;
     server = {
       enable = true;
+      users = users;
       reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
       vlessTcp = {
         enable = true;
@@ -81,12 +85,41 @@ in
         sni = "onlymir.ru";
       };
     };
+    relay = {
+      enable = true;
+      users = users;
+      socks.enable = true;
+      vlessTcp.sni = "www.apple.com";
+      vlessGrpc.sni = "grpc.google.com";
+      vlessXhttp.sni = "www.cloudflare.com";
+      user = builtins.head secrets.singBoxUsers;
+      target = {
+        server = secrets.ip.buyan.address;
+        reality = {
+          publicKey = secrets.xray.buyan.reality.publicKey;
+          shortId = builtins.head (secrets.xray.reality.shortIds);
+        };
+        vlessTcp = {
+          enable = true;
+          serverName = "ghcr.io";
+        };
+        vlessGrpc = {
+          enable = true;
+          serverName = "update.googleapis.com";
+        };
+        vlessXhttp = {
+          enable = true;
+          serverName = "dl.google.com";
+        };
+      };
+    };
   };
 
   roles.mtproxy = {
     enable = true;
     tls.domain = "api.ok.ru";
     port = 9100;
+    upstream = "127.0.0.1:1080";
     users = secrets.mtproxy.users;
   };
 

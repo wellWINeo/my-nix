@@ -1,9 +1,12 @@
-{ ... }:
+{ lib, ... }:
 
 let
   hostname = "buyan";
   ifname = "ens3";
   ip = (import ../../secrets).ip.buyan;
+  secrets = import ../../secrets;
+  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
+  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -66,6 +69,7 @@ in
     enable = true;
     server = {
       enable = true;
+      users = users;
       reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
       vlessTcp = {
         enable = true;

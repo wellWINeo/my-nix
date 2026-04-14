@@ -96,7 +96,7 @@ in
       target = {
         server = secrets.ip.buyan.address;
         reality = {
-          publicKey = secrets.xray.buyan.reality.publicKey;
+          publicKey = secrets.xray.reality.publicKey;
           shortId = builtins.head (secrets.xray.reality.shortIds);
         };
         vlessTcp = {

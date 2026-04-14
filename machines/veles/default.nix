@@ -84,6 +84,9 @@ in
     relay = {
       enable = true;
       socks.enable = true;
+      vlessTcp.sni = "www.apple.com";
+      vlessGrpc.sni = "grpc.google.com";
+      vlessXhttp.sni = "www.cloudflare.com";
       user = builtins.head secrets.singBoxUsers;
       target = {
         server = secrets.ip.buyan.address;

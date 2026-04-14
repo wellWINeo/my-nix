@@ -165,8 +165,8 @@ in
         message = "At least one relay target transport must be enabled (roles.xray.relay.target.<transport>.enable)";
       }
       {
-        assertion = enabledInbound != [ ];
-        message = "At least one server transport must be enabled for relay inbounds";
+        assertion = cfg.socks.enable || enabledInbound != [ ];
+        message = "At least one relay inbound must be enabled: either socks.enable = true or at least one server transport must be active";
       }
     ];
 

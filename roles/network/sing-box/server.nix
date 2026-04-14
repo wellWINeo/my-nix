@@ -10,6 +10,8 @@ with lib;
 let
   cfg = config.roles.sing-box-server;
   secrets = import ../../../secrets;
+  filterProxyUsersForHost = import ../../../common/filter-proxy-users.nix { inherit lib; };
+  users = filterProxyUsersForHost config.networking.hostName secrets.singBoxUsers;
 
   vlessWsPort = 9000;
   vlessGrpcPort = 9001;
@@ -32,7 +34,7 @@ let
           users = map (u: {
             name = u.name;
             uuid = u.uuid;
-          }) secrets.singBoxUsers;
+          }) users;
           transport = {
             type = "ws";
             path = cfg.vlessWs.path;
@@ -48,7 +50,7 @@ let
           users = map (u: {
             name = u.name;
             uuid = u.uuid;
-          }) secrets.singBoxUsers;
+          }) users;
           transport = {
             type = "grpc";
             service_name = cfg.vlessGrpc.serviceName;
@@ -65,7 +67,7 @@ let
           users = map (u: {
             username = u.name;
             password = u.password;
-          }) secrets.singBoxUsers;
+          }) users;
           tls = {
             enabled = true;
             server_name = "gw.${cfg.baseDomain}";

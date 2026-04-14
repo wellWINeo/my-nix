@@ -53,7 +53,9 @@ let
     else
       [ ];
 
-  xrayConfigTemplate = {
+  hasBalancers = (serverConfig.routing.balancers ++ relayConfig.routing.balancers) != [ ];
+
+  xrayConfigBase = {
     log = {
       loglevel = "info";
     };
@@ -64,6 +66,16 @@ let
       balancers = serverConfig.routing.balancers ++ relayConfig.routing.balancers;
     };
   };
+
+  xrayConfigTemplate =
+    xrayConfigBase
+    // (optionalAttrs hasBalancers {
+      observatory = {
+        subjectSelector = [ "relay-" ];
+        probeURL = "https://www.google.com/generate_204";
+        probeInterval = "60s";
+      };
+    });
 
   configTemplateFile = pkgs.writeText "xray-config-template.json" (
     builtins.toJSON xrayConfigTemplate

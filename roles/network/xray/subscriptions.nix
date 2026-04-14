@@ -20,8 +20,10 @@ let
   cfg = config.roles.xray.subscriptions;
   serverCfg = config.roles.xray.server;
   secrets = import ../../../secrets;
+  filterProxyUsersForHost = import ../../../common/filter-proxy-users.nix { inherit lib; };
   transports = import ./transports { inherit lib; };
   transportList = lib.attrValues transports;
+  users = filterProxyUsersForHost config.networking.hostName secrets.singBoxUsers;
 
   coLocated = config.roles.xray.enable && serverCfg.enable;
 
@@ -103,7 +105,7 @@ in
         ''
         + lib.concatMapStrings (u: ''
           printf '%s' ${lib.escapeShellArg (userUrisText u)} | base64 -w0 > $out/${u.uuid}
-        '') secrets.singBoxUsers
+        '') users
       );
     in
     {

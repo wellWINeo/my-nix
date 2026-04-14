@@ -81,12 +81,37 @@ in
         sni = "onlymir.ru";
       };
     };
+    relay = {
+      enable = true;
+      socks.enable = true;
+      user = builtins.head secrets.singBoxUsers;
+      target = {
+        server = secrets.ip.buyan.address;
+        reality = {
+          publicKey = secrets.xray.buyan.reality.publicKey;
+          shortId = builtins.head (secrets.xray.reality.shortIds);
+        };
+        vlessTcp = {
+          enable = true;
+          serverName = "ghcr.io";
+        };
+        vlessGrpc = {
+          enable = true;
+          serverName = "update.googleapis.com";
+        };
+        vlessXhttp = {
+          enable = true;
+          serverName = "dl.google.com";
+        };
+      };
+    };
   };
 
   roles.mtproxy = {
     enable = true;
     tls.domain = "api.ok.ru";
     port = 9100;
+    upstream = "127.0.0.1:1080";
     users = secrets.mtproxy.users;
   };
 

@@ -117,6 +117,7 @@ in
 
   roles.mtproxy = {
     enable = true;
+    useMiddleProxy = false;
     tls.domain = "api.ok.ru";
     port = 9100;
     upstream = "127.0.0.1:1080";

@@ -17,7 +17,7 @@ let
   configFile = pkgs.writeText "telemt.toml" (
     ''
       [general]
-      use_middle_proxy = true
+      use_middle_proxy = ${toString cfg.useMiddleProxy}
       log_level = "normal"
 
       [general.modes]
@@ -54,6 +54,12 @@ in
 {
   options.roles.mtproxy = {
     enable = mkEnableOption "Telegram MTProxy via telemt";
+
+    useMiddleProxy = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Use middle proxy for outgoing connections";
+    };
 
     tls.domain = mkOption {
       type = types.str;

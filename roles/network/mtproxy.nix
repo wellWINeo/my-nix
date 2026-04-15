@@ -17,7 +17,7 @@ let
   configFile = pkgs.writeText "telemt.toml" (
     ''
       [general]
-      use_middle_proxy = ${toString cfg.useMiddleProxy}
+      use_middle_proxy = ${boolToString cfg.useMiddleProxy}
       log_level = "normal"
 
       [general.modes]

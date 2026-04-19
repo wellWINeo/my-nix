@@ -9,6 +9,7 @@
       url = "github:nix-community/home-manager/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    miniflux-summarizer.url = "github:wellWINeo/miniflux-summarizer";
   };
 
   outputs =
@@ -47,6 +48,14 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          {
+            nixpkgs.overlays = (import ./overlays) ++ [
+              (final: prev: {
+                miniflux-summarizer =
+                  inputs.miniflux-summarizer.packages.${prev.stdenv.hostPlatform.system}.default;
+              })
+            ];
+          }
           ./machines/mokosh
           ./users/o__ni
         ];

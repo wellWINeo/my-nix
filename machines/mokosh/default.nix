@@ -27,7 +27,7 @@ in
     ../../roles/communication/mail.nix
     ../../roles/communication/dav.nix
     ../../roles/reading/calibre.nix
-    ../../roles/reading/rss.nix
+    ../../roles/reading/rss
     ../../roles/blog.nix
   ];
 
@@ -187,6 +187,16 @@ in
   roles.rss = {
     enable = true;
     baseDomain = domainName;
+    summarizer = {
+      enable = true;
+      llmApiKeyFile = "/etc/nixos/secrets/miniflux-llm-api-key";
+      minifluxApiKey = secrets.miniflux.apiKey;
+      dailyTargetFeedId = 57;
+      weeklySourceFeedId = 57;
+      weeklyTargetFeedId = 58;
+      monthlySourceFeedId = 58;
+      monthlyTargetFeedId = 59;
+    };
   };
 
   roles.blog = {

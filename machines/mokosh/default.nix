@@ -190,7 +190,7 @@ in
     summarizer = {
       enable = true;
       llmApiKeyFile = "/etc/nixos/secrets/miniflux-llm-api-key";
-      minifluxApiKeyFile = "/etc/nixos/secrets/miniflux-api-key";
+      minifluxApiKey = secrets.miniflux.apiKey;
       dailyTargetFeedId = 57;
       weeklySourceFeedId = 57;
       weeklyTargetFeedId = 58;

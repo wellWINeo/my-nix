@@ -19,9 +19,9 @@ in
       description = "Path to file containing the LLM API key";
     };
 
-    minifluxApiKeyFile = mkOption {
+    minifluxApiKey = mkOption {
       type = types.str;
-      description = "Path to file containing the Miniflux API key";
+      description = "Miniflux API key";
     };
 
     dailyTargetFeedId = mkOption {
@@ -61,7 +61,7 @@ in
       configTemplate = {
         miniflux = {
           base_url = "https://rss.${config.roles.rss.baseDomain}";
-          api_key = "PLACEHOLDER";
+          api_key = cfg.minifluxApiKey;
         };
         llm = {
           model = "x-ai/grok-4.1-fast";
@@ -137,11 +137,10 @@ in
 
       templateFile = pkgs.writeText "summarizer-config-template.json" (builtins.toJSON configTemplate);
 
-      injectSecrets = ''
+      injectLlmKey = ''
         cat ${templateFile} \
           | jq --arg llm_key "$(cat "$CREDENTIALS_DIRECTORY/llm-api-key")" \
-               --arg mf_key "$(cat "$CREDENTIALS_DIRECTORY/miniflux-api-key")" \
-               '.llm.api_key = $llm_key | .miniflux.api_key = $mf_key' \
+               '.llm.api_key = $llm_key' \
           > /tmp/summarizer-config.json
       '';
 
@@ -154,10 +153,7 @@ in
         serviceConfig = {
           Type = "oneshot";
           PrivateTmp = true;
-          LoadCredential = [
-            "llm-api-key:${cfg.llmApiKeyFile}"
-            "miniflux-api-key:${cfg.minifluxApiKeyFile}"
-          ];
+          LoadCredential = [ "llm-api-key:${cfg.llmApiKeyFile}" ];
         };
       };
     in
@@ -169,79 +165,83 @@ in
         }
       ];
 
-      systemd.services.miniflux-summarizer-morning = commonServiceConfig // {
-        description = "Miniflux Summarizer — Morning Digest";
-        script = ''
-          ${injectSecrets}
-          exec miniflux-summarizer \
-            --config /tmp/summarizer-config.json \
-            --agent tech-daily \
-            --preset daily-morning
-        '';
-      };
+      systemd.services = {
+        miniflux-summarizer-morning = commonServiceConfig // {
+          description = "Miniflux Summarizer — Morning Digest";
+          script = ''
+            ${injectLlmKey}
+            exec miniflux-summarizer \
+              --config /tmp/summarizer-config.json \
+              --agent tech-daily \
+              --preset daily-morning
+          '';
+        };
 
-      systemd.services.miniflux-summarizer-evening = commonServiceConfig // {
-        description = "Miniflux Summarizer — Evening Digest";
-        script = ''
-          ${injectSecrets}
-          exec miniflux-summarizer \
-            --config /tmp/summarizer-config.json \
-            --agent tech-daily \
-            --preset daily-evening
-        '';
-      };
+        miniflux-summarizer-evening = commonServiceConfig // {
+          description = "Miniflux Summarizer — Evening Digest";
+          script = ''
+            ${injectLlmKey}
+            exec miniflux-summarizer \
+              --config /tmp/summarizer-config.json \
+              --agent tech-daily \
+              --preset daily-evening
+          '';
+        };
 
-      systemd.services.miniflux-summarizer-weekly = commonServiceConfig // {
-        description = "Miniflux Summarizer — Weekly Newsletter";
-        script = ''
-          ${injectSecrets}
-          exec miniflux-summarizer \
-            --config /tmp/summarizer-config.json \
-            --agent tech-weekly \
-            --preset weekly
-        '';
-      };
+        miniflux-summarizer-weekly = commonServiceConfig // {
+          description = "Miniflux Summarizer — Weekly Newsletter";
+          script = ''
+            ${injectLlmKey}
+            exec miniflux-summarizer \
+              --config /tmp/summarizer-config.json \
+              --agent tech-weekly \
+              --preset weekly
+          '';
+        };
 
-      systemd.services.miniflux-summarizer-monthly = commonServiceConfig // {
-        description = "Miniflux Summarizer — Monthly Newsletter";
-        script = ''
-          ${injectSecrets}
-          exec miniflux-summarizer \
-            --config /tmp/summarizer-config.json \
-            --agent tech-monthly \
-            --preset monthly
-        '';
-      };
-
-      systemd.timers.miniflux-summarizer-morning = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "*-*-* 06:00:00 UTC";
-          Persistent = true;
+        miniflux-summarizer-monthly = commonServiceConfig // {
+          description = "Miniflux Summarizer — Monthly Newsletter";
+          script = ''
+            ${injectLlmKey}
+            exec miniflux-summarizer \
+              --config /tmp/summarizer-config.json \
+              --agent tech-monthly \
+              --preset monthly
+          '';
         };
       };
 
-      systemd.timers.miniflux-summarizer-evening = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "*-*-* 18:00:00 UTC";
-          Persistent = true;
+      systemd.timers = {
+        miniflux-summarizer-morning = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "*-*-* 06:00:00 UTC";
+            Persistent = true;
+          };
         };
-      };
 
-      systemd.timers.miniflux-summarizer-weekly = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "Sun *-*-* 06:00:00 UTC";
-          Persistent = true;
+        miniflux-summarizer-evening = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "*-*-* 18:00:00 UTC";
+            Persistent = true;
+          };
         };
-      };
 
-      systemd.timers.miniflux-summarizer-monthly = {
-        wantedBy = [ "timers.target" ];
-        timerConfig = {
-          OnCalendar = "*-*-01 06:00:00 UTC";
-          Persistent = true;
+        miniflux-summarizer-weekly = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "Sun *-*-* 06:00:00 UTC";
+            Persistent = true;
+          };
+        };
+
+        miniflux-summarizer-monthly = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "*-*-01 06:00:00 UTC";
+            Persistent = true;
+          };
         };
       };
     }

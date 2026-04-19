@@ -48,6 +48,13 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          {
+            nixpkgs.overlays = (import ./overlays) ++ [
+              (final: prev: {
+                miniflux-summarizer = inputs.miniflux-summarizer.packages.${prev.stdenv.hostPlatform.system}.default;
+              })
+            ];
+          }
           ./machines/mokosh
           ./users/o__ni
         ];

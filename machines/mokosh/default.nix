@@ -187,6 +187,16 @@ in
   roles.rss = {
     enable = true;
     baseDomain = domainName;
+    summarizer = {
+      enable = true;
+      llmApiKeyFile = "/etc/nixos/secrets/miniflux-llm-api-key";
+      minifluxApiKeyFile = "/etc/nixos/secrets/miniflux-api-key";
+      dailyTargetFeedId = 57;
+      weeklySourceFeedId = 57;
+      weeklyTargetFeedId = 58;
+      monthlySourceFeedId = 58;
+      monthlyTargetFeedId = 59;
+    };
   };
 
   roles.blog = {

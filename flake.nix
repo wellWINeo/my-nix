@@ -51,7 +51,8 @@
           {
             nixpkgs.overlays = (import ./overlays) ++ [
               (final: prev: {
-                miniflux-summarizer = inputs.miniflux-summarizer.packages.${prev.stdenv.hostPlatform.system}.default;
+                miniflux-summarizer =
+                  inputs.miniflux-summarizer.packages.${prev.stdenv.hostPlatform.system}.default;
               })
             ];
           }

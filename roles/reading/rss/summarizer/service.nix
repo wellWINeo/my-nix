@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -25,10 +30,22 @@ let
         target_feed_id = cfg.dailyTargetFeedId;
         prompt = dailyPrompt;
         ignore = [
-          { type = "subject"; value = "Sponsored"; }
-          { type = "feed_id"; value = "6"; }
-          { type = "category_id"; value = "3"; }
-          { type = "category_id"; value = "4"; }
+          {
+            type = "subject";
+            value = "Sponsored";
+          }
+          {
+            type = "feed_id";
+            value = "6";
+          }
+          {
+            type = "category_id";
+            value = "3";
+          }
+          {
+            type = "category_id";
+            value = "4";
+          }
         ];
         presets = {
           daily-morning = {
@@ -74,9 +91,7 @@ let
     };
   };
 
-  templateFile = pkgs.writeText "summarizer-config-template.json" (
-    builtins.toJSON configTemplate
-  );
+  templateFile = pkgs.writeText "summarizer-config-template.json" (builtins.toJSON configTemplate);
 in
 {
   options.roles.rss.summarizer = {

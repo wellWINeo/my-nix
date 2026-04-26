@@ -96,6 +96,7 @@
           {
             software.alacritty.enable = true;
             software.alacritty.theme = "one-dark";
+            software.neovim.enable = true;
           }
         ];
       };
@@ -107,6 +108,7 @@
           {
             software.alacritty.enable = true;
             software.alacritty.theme = "one-half-light";
+            software.neovim.enable = true;
           }
         ];
       };

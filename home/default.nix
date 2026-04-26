@@ -10,6 +10,7 @@ with lib;
 {
   imports = [
     ./software/alacritty
+    ./software/neovim
     ./tmux.nix
   ];
 

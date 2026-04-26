@@ -9,6 +9,7 @@ with lib;
 
 {
   imports = [
+    ./coding-agents
     ./software/alacritty
     ./software/neovim
     ./tmux.nix

@@ -2,19 +2,35 @@
 
 let
   cfg = config.codingAgents;
+
+  toolOpts = parentEnable: {
+    enable = lib.mkEnableOption "asset deployment for this coding-agent tool";
+    instructions = lib.mkOption {
+      type = lib.types.bool;
+      default = parentEnable;
+      description = "Deploy global instructions (CLAUDE.md / AGENTS.md) for this tool.";
+    };
+    skills = lib.mkOption {
+      type = lib.types.bool;
+      default = parentEnable;
+      description = "Deploy the skills bundle for this tool.";
+    };
+    agents = lib.mkOption {
+      type = lib.types.bool;
+      default = parentEnable;
+      description = "Deploy registered agent files for this tool.";
+    };
+  };
 in
 {
-  options.codingAgents = {
-    claude.enable = lib.mkEnableOption "global CLAUDE.md for Claude Code";
-    opencode.enable = lib.mkEnableOption "global AGENTS.md for opencode";
-  };
+  imports = [
+    ./instructions
+    ./agents
+    ./skills
+  ];
 
-  config = {
-    home.file.".claude/CLAUDE.md" = lib.mkIf cfg.claude.enable {
-      source = ./AGENTS.md;
-    };
-    home.file.".config/opencode/AGENTS.md" = lib.mkIf cfg.opencode.enable {
-      source = ./AGENTS.md;
-    };
+  options.codingAgents = {
+    claude = toolOpts cfg.claude.enable;
+    opencode = toolOpts cfg.opencode.enable;
   };
 }

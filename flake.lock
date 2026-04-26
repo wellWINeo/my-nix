@@ -1,5 +1,28 @@
 {
   "nodes": {
+    "agent-skills": {
+      "inputs": {
+        "home-manager": [
+          "home-manager"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1776741567,
+        "narHash": "sha256-TbTToAtfQBhMr85xQOQ1ZJggnt6bt8eU1RW6zxHT1rQ=",
+        "owner": "Kyure-A",
+        "repo": "agent-skills-nix",
+        "rev": "bb2ababb31f83be94eefe76009602c926025cafb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Kyure-A",
+        "repo": "agent-skills-nix",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems"
@@ -124,6 +147,7 @@
     },
     "root": {
       "inputs": {
+        "agent-skills": "agent-skills",
         "home-manager": "home-manager",
         "miniflux-summarizer": "miniflux-summarizer",
         "nixos-hardware": "nixos-hardware",

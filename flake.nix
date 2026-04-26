@@ -10,6 +10,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     miniflux-summarizer.url = "github:wellWINeo/miniflux-summarizer";
+    agent-skills = {
+      url = "github:Kyure-A/agent-skills-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
   };
 
   outputs =
@@ -91,7 +96,9 @@
       # standalone home-manager for macOS
       homeConfigurations."o__ni@Stepans-MacBook-Pro" = inputs.home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgsFor.aarch64-darwin;
+        extraSpecialArgs = { inherit inputs; };
         modules = [
+          inputs.agent-skills.homeManagerModules.default
           ./home
           {
             software.alacritty.enable = true;
@@ -105,7 +112,9 @@
 
       homeConfigurations."o__ni@DodoBook.local" = inputs.home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgsFor.aarch64-darwin;
+        extraSpecialArgs = { inherit inputs; };
         modules = [
+          inputs.agent-skills.homeManagerModules.default
           ./home
           {
             software.alacritty.enable = true;

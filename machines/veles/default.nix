@@ -72,10 +72,6 @@ in
       enable = true;
       users = users;
       reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
-      vlessTcp = {
-        enable = true;
-        sni = "api.oneme.ru";
-      };
       vlessGrpc = {
         enable = true;
         sni = "avatars.mds.yandex.net";
@@ -89,7 +85,7 @@ in
       enable = true;
       users = users;
       socks.enable = true;
-      vlessTcp.sni = "www.apple.com";
+      vlessTcp.sni = "api.oneme.ru";
       vlessGrpc.sni = "grpc.google.com";
       vlessXhttp.sni = "www.cloudflare.com";
       user = builtins.head secrets.singBoxUsers;

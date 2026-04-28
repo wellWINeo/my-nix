@@ -72,7 +72,10 @@ in
       enable = true;
       users = users;
       reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
-      vlessTcp.enable = true;
+      vlessTcp = {
+        enable = true;
+        sni = "mapi.vk.ru";
+      };
       vlessGrpc = {
         enable = true;
         sni = "avatars.mds.yandex.net";

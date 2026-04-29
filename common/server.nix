@@ -26,6 +26,13 @@ with lib;
     recommendedOptimisation = true;
 
     virtualHosts.default = {
+      locations."/nginx_status_page" = {
+        extraConfig = ''
+          stub_status on;
+          allow 127.0.0.1;
+          deny all;
+        '';
+      };
       extraConfig = ''
         access_log syslog:server=unix:/dev/log;
       '';

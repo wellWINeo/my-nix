@@ -102,7 +102,7 @@
           ./home
           {
             software.alacritty.enable = true;
-            software.alacritty.theme = "one-dark";
+            theme.name = "one-dark";
             software.neovim.enable = true;
             codingAgents.claude.enable = true;
             codingAgents.opencode.enable = true;
@@ -118,7 +118,7 @@
           ./home
           {
             software.alacritty.enable = true;
-            software.alacritty.theme = "one-half-light";
+            theme.name = "one-half-light";
             software.neovim.enable = true;
             codingAgents.claude.enable = true;
             codingAgents.opencode.enable = true;

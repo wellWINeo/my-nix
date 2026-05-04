@@ -1,5 +1,8 @@
 { pkgs, config, ... }:
 
+let
+  tmuxTheme = config.theme.colors.tmux;
+in
 {
   programs.tmux = {
     enable = true;
@@ -14,17 +17,17 @@
       setw -g pane-base-index 1
 
       # Status bar styling
-      set -g status-style bg=black,fg=white
+      set -g status-style bg=${tmuxTheme.statusBg},fg=${tmuxTheme.statusFg}
       set -g status-left ""
       set -g status-right ""
       set -g status-justify left
       set -g window-status-format ' #I:#W '
       set -g window-status-current-format ' [#I:#W] '
-      set -g window-status-current-style bg=white,fg=black
+      set -g window-status-current-style bg=${tmuxTheme.currentWindowBg},fg=${tmuxTheme.currentWindowFg}
       set -g status-interval 1
 
       # Pane focus hooks (dim inactive panes)
-      set-hook -g pane-focus-out 'select-pane -P bg=colour233,fg=colour10'
+      set-hook -g pane-focus-out 'select-pane -P bg=${tmuxTheme.dimPaneBg},fg=${tmuxTheme.dimPaneFg}'
       set-hook -g pane-focus-in 'select-pane -P bg=default,fg=default'
 
       # Split pane bindings

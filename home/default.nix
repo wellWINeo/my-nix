@@ -9,6 +9,7 @@ with lib;
 
 {
   imports = [
+    ./themes
     ./coding-agents
     ./software/alacritty
     ./software/neovim

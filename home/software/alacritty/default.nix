@@ -6,19 +6,12 @@
 }:
 
 let
-  themes = import ./themes.nix;
   cfg = config.software.alacritty;
-  selectedTheme = themes.${cfg.theme};
+  alacrittyTheme = config.theme.colors.alacritty;
 in
 {
   options.software.alacritty = {
     enable = lib.mkEnableOption "alacritty terminal emulator";
-
-    theme = lib.mkOption {
-      type = lib.types.enum (builtins.attrNames themes);
-      default = "one-dark";
-      description = "Alacritty color theme to use.";
-    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -39,7 +32,7 @@ in
 
         window = {
           opacity = 1.0;
-          decorations_theme_variant = selectedTheme.decorations_theme_variant;
+          decorations_theme_variant = alacrittyTheme.decorations_theme_variant;
           dynamic_padding = true;
           padding = {
             x = 6;
@@ -59,7 +52,7 @@ in
           bold_italic.family = "Fira Code";
         };
 
-        colors = selectedTheme.colors;
+        colors = alacrittyTheme.colors;
 
         scrolling = {
           history = 10000;

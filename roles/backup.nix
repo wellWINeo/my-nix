@@ -127,7 +127,8 @@ in
           "3"
           "--volsize"
           "100"
-        ] ++ cfg.extraFlags;
+        ]
+        ++ cfg.extraFlags;
         cleanup.maxFull = cfg.maxFull;
       };
 

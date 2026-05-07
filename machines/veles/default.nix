@@ -78,11 +78,11 @@ in
       };
       vlessGrpc = {
         enable = true;
-        sni = "avatars.mds.yandex.net";
+        sni = "api.vk.ru";
       };
       vlessXhttp = {
         enable = true;
-        sni = "onlymir.ru";
+        sni = "vk.ru";
       };
     };
     relay = {
@@ -91,8 +91,8 @@ in
       socks.enable = true;
 
       vlessTcp.sni = "api.oneme.ru";
-      vlessGrpc.sni = "grpc.google.com";
-      vlessXhttp.sni = "www.cloudflare.com";
+      vlessGrpc.sni = "avatars.mds.yandex.net";
+      vlessXhttp.sni = "onlymir.ru";
       user = builtins.head secrets.singBoxUsers;
       target = {
         server = secrets.ip.buyan.address;

@@ -232,8 +232,8 @@ in
   roles.backup = {
     enable = true;
     gpgPublicKey = ../../common/backup-gpg-public.asc;
-    gpgKeyId = "REPLACE_WITH_GPG_KEY_ID";
-    targetUrl = "s3://REPLACE_WITH_S3_ENDPOINT/REPLACE_WITH_BUCKET_NAME/mokosh";
+    gpgKeyId = "AC99246D656181EFE5BF18C9D4C62D97193EF180";
+    targetUrl = "s3://storage.yandexcloud.net/wellwineo-backups/mokosh";
   };
 
   system.stateVersion = "25.11";

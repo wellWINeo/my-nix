@@ -60,6 +60,11 @@ in
       type = types.listOf types.str;
       default = [ ];
     };
+
+    extraFlags = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+    };
   };
 
   config = mkIf cfg.enable {
@@ -122,7 +127,7 @@ in
           "3"
           "--volsize"
           "100"
-        ];
+        ] ++ cfg.extraFlags;
         cleanup.maxFull = cfg.maxFull;
       };
 

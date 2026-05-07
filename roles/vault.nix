@@ -21,6 +21,7 @@ in
   };
 
   config = mkIf cfg.enable {
+    roles.backup.paths = [ "/var/lib/vault" ];
     services.vaultwarden = {
       enable = true;
       # backupDir = "/path/to/directory"; # TODO

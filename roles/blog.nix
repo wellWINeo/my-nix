@@ -27,6 +27,7 @@ in
   };
 
   config = mkIf cfg.enable {
+    roles.backup.paths = [ "/var/lib/writefreely" ];
     services.writefreely = {
       enable = true;
       admin = {

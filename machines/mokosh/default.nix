@@ -29,6 +29,7 @@ in
     ../../roles/reading/calibre.nix
     ../../roles/reading/rss
     ../../roles/blog.nix
+    ../../roles/backup.nix
   ];
 
   boot.loader.grub.device = "/dev/vda";
@@ -226,6 +227,13 @@ in
   roles.dav = {
     enable = true;
     baseDomain = domainName;
+  };
+
+  roles.backup = {
+    enable = true;
+    gpgPublicKey = ../../common/backup-gpg-public.asc;
+    gpgKeyId = "REPLACE_WITH_GPG_KEY_ID";
+    targetUrl = "s3://REPLACE_WITH_S3_ENDPOINT/REPLACE_WITH_BUCKET_NAME/mokosh";
   };
 
   system.stateVersion = "25.11";

@@ -49,6 +49,7 @@ in
   };
 
   config = mkIf cfg.enable {
+    roles.backup.paths = [ "/var/lib/stalwart-mail" ];
     services.stalwart-mail = {
       enable = true;
       openFirewall = false;

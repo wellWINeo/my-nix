@@ -16,6 +16,7 @@ in
   };
 
   config = mkIf cfg.enable {
+    roles.backup.paths = [ "/var/lib/calibre-web/calibre" ];
     users.groups.calibre = { };
 
     services.calibre-web = {

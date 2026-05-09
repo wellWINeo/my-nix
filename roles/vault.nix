@@ -1,14 +1,18 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 with lib;
 
 let
   cfg = config.roles.vault;
+  mkSqliteBackup = import ../common/sqlite-backup.nix;
 
   port = 8180;
+  dataDir = "/var/lib/vault";
+  backupDir = "/var/backup/vaultwarden";
 in
 {
   options.roles.vault = {
@@ -20,65 +24,75 @@ in
     enableWeb = mkEnableOption "Enable web";
   };
 
-  config = mkIf cfg.enable {
-    roles.backup.paths = [ "/var/backup/vaultwarden" ];
-    services.vaultwarden = {
-      enable = true;
-      backupDir = "/var/backup/vaultwarden";
-      config = {
-        # WEB_VAULT_FOLDER = "${pkgs.vaultwarden.webvault}/share/vaultwarden/vault"; TODO: remove if not needed
-        WEB_VAULT_ENABLED = true;
-        DATA_FOLDER = "/var/lib/vault";
-        IP_HEADER = "X-Real-IP";
-        LOG_FILE = "/var/log/vaultwarden";
-        WEBSOCKET_ENABLED = true;
-        WEBSOCKET_ADDRESS = "127.0.0.1";
-        WEBSOCKET_PORT = 3012;
-        SIGNUPS_VERIFY = true;
-        DOMAIN = "https://vault.${cfg.baseDomain}";
-        ROCKET_ADDRESS = "127.0.0.1";
-        ROCKET_PORT = port;
-        SMTP_HOST = "mail.${cfg.baseDomain}";
-        SMTP_FROM = "vault@${cfg.baseDomain}";
-        SMTP_FROM_NAME = "Vaultwarden";
-        SMTP_PORT = 587;
-        SMTP_SECURITY = "starttls";
-        SMTP_USERNAME = "vault@${cfg.baseDomain}";
-        SMTP_AUTH_MECHANISM = "Plain,Login";
-        SMTP_TIMEOUT = 60;
-        INVITATIONS_ALLOWED = true;
-        SIGNUPS_ALLOWED = false;
+  config = mkIf cfg.enable (mkMerge [
+    (mkSqliteBackup {
+      inherit lib pkgs;
+      name = "vaultwarden";
+      databases = [ "${dataDir}/db.sqlite3" ];
+      backupDir = backupDir;
+      user = "vaultwarden";
+      group = "vaultwarden";
+      extraPaths = [ "${dataDir}/" ];
+    })
+    {
+      roles.backup.paths = [ backupDir ];
+
+      services.vaultwarden = {
+        enable = true;
+        config = {
+          WEB_VAULT_ENABLED = true;
+          DATA_FOLDER = dataDir;
+          IP_HEADER = "X-Real-IP";
+          LOG_FILE = "/var/log/vaultwarden";
+          WEBSOCKET_ENABLED = true;
+          WEBSOCKET_ADDRESS = "127.0.0.1";
+          WEBSOCKET_PORT = 3012;
+          SIGNUPS_VERIFY = true;
+          DOMAIN = "https://vault.${cfg.baseDomain}";
+          ROCKET_ADDRESS = "127.0.0.1";
+          ROCKET_PORT = port;
+          SMTP_HOST = "mail.${cfg.baseDomain}";
+          SMTP_FROM = "vault@${cfg.baseDomain}";
+          SMTP_FROM_NAME = "Vaultwarden";
+          SMTP_PORT = 587;
+          SMTP_SECURITY = "starttls";
+          SMTP_USERNAME = "vault@${cfg.baseDomain}";
+          SMTP_AUTH_MECHANISM = "Plain,Login";
+          SMTP_TIMEOUT = 60;
+          INVITATIONS_ALLOWED = true;
+          SIGNUPS_ALLOWED = false;
+        };
+
+        environmentFile = "/etc/nixos/secrets/vaultwarden.env";
       };
 
-      environmentFile = "/etc/nixos/secrets/vaultwarden.env";
-    };
+      services.nginx = mkIf cfg.enableWeb {
+        enable = true;
 
-    services.nginx = mkIf cfg.enableWeb {
-      enable = true;
+        virtualHosts."vault.${cfg.baseDomain}" = {
+          forceSSL = true;
+          enableACME = false;
 
-      virtualHosts."vault.${cfg.baseDomain}" = {
-        forceSSL = true;
-        enableACME = false;
+          sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
+          sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
 
-        sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
-        sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
-
-        locations."/" = {
-          proxyPass = "http://127.0.0.1:${toString port}";
-          proxyWebsockets = true;
-          recommendedProxySettings = true;
+          locations."/" = {
+            proxyPass = "http://127.0.0.1:${toString port}";
+            proxyWebsockets = true;
+            recommendedProxySettings = true;
+          };
         };
       };
-    };
 
-    systemd.services.vaultwarden = {
-      serviceConfig = {
-        ReadWritePaths = [
-          "/var/log/vaultwarden"
-          "/var/lib/vault"
-          "/var/backup/vaultwarden"
-        ];
+      systemd.services.vaultwarden = {
+        serviceConfig = {
+          ReadWritePaths = [
+            "/var/log/vaultwarden"
+            dataDir
+            backupDir
+          ];
+        };
       };
-    };
-  };
+    }
+  ]);
 }

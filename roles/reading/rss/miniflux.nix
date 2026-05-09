@@ -20,7 +20,6 @@ in
   };
 
   config = mkIf cfg.enable {
-    roles.backup.databases = [ "miniflux" ];
     services.miniflux = {
       enable = true;
       createDatabaseLocally = true;

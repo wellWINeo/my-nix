@@ -18,7 +18,10 @@ in
 
     systemd.services.backup-miniflux = {
       description = "Backup Miniflux PostgreSQL database";
-      path = [ pkgs.postgresql_16 ];
+      path = [
+        pkgs.postgresql_16
+        pkgs.gzip
+      ];
 
       serviceConfig = {
         Type = "oneshot";

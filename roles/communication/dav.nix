@@ -14,6 +14,7 @@ in
   };
 
   config = mkIf cfg.enable {
+    roles.backup.paths = [ "/var/lib/radicale/collections" ];
     services.radicale = {
       enable = true;
       settings = {

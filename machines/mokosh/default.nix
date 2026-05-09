@@ -29,6 +29,7 @@ in
     ../../roles/reading/calibre.nix
     ../../roles/reading/rss
     ../../roles/blog.nix
+    ../../roles/backup.nix
   ];
 
   boot.loader.grub.device = "/dev/vda";
@@ -226,6 +227,13 @@ in
   roles.dav = {
     enable = true;
     baseDomain = domainName;
+  };
+
+  roles.backup = {
+    enable = true;
+    gpgPublicKey = ../../common/backup-gpg-public.asc;
+    gpgKeyId = "AC99246D656181EFE5BF18C9D4C62D97193EF180";
+    targetUrl = "s3://storage.yandexcloud.net/wellwineo-backups/mokosh";
   };
 
   system.stateVersion = "25.11";

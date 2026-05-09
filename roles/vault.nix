@@ -21,9 +21,10 @@ in
   };
 
   config = mkIf cfg.enable {
+    roles.backup.paths = [ "/var/backup/vaultwarden" ];
     services.vaultwarden = {
       enable = true;
-      # backupDir = "/path/to/directory"; # TODO
+      backupDir = "/var/backup/vaultwarden";
       config = {
         # WEB_VAULT_FOLDER = "${pkgs.vaultwarden.webvault}/share/vaultwarden/vault"; TODO: remove if not needed
         WEB_VAULT_ENABLED = true;
@@ -75,6 +76,7 @@ in
         ReadWritePaths = [
           "/var/log/vaultwarden"
           "/var/lib/vault"
+          "/var/backup/vaultwarden"
         ];
       };
     };

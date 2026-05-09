@@ -78,6 +78,7 @@ in
       chmod 700 ${gpgHome}
       if [ ! -f ${gpgHome}/pubring.kbx ] || ! ${pkgs.gnupg}/bin/gpg --homedir ${gpgHome} --list-keys "${cfg.gpgKeyId}" >/dev/null 2>&1; then
         ${pkgs.gnupg}/bin/gpg --homedir ${gpgHome} --import ${cfg.gpgPublicKey}
+        echo "${cfg.gpgKeyId}:6:" | ${pkgs.gnupg}/bin/gpg --homedir ${gpgHome} --import-ownertrust
       fi
     '';
 

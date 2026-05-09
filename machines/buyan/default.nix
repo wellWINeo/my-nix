@@ -13,7 +13,7 @@ in
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-    ../../roles/network/xray
+    ../../roles
   ];
 
   boot.loader.grub.device = "/dev/vda";

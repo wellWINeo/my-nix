@@ -18,18 +18,7 @@ in
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-    ../../roles/personal-website.nix
-    ../../roles/letsencrypt.nix
-    ../../roles/network/wireguard/wireguard-router.nix
-    ../../roles/network/sing-box/server.nix
-    ../../roles/vault.nix
-    ../../roles/network/shadowsocks/server.nix
-    ../../roles/communication/mail.nix
-    ../../roles/communication/dav.nix
-    ../../roles/reading/calibre.nix
-    ../../roles/reading/rss
-    ../../roles/blog.nix
-    ../../roles/backup.nix
+    ../../roles
   ];
 
   boot.loader.grub.device = "/dev/vda";
@@ -222,11 +211,6 @@ in
     };
 
     naive.enable = true;
-  };
-
-  roles.dav = {
-    enable = true;
-    baseDomain = domainName;
   };
 
   roles.backup = {

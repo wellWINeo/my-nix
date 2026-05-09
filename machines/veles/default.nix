@@ -15,9 +15,7 @@ in
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix
-    ../../roles/network/stream-forwarder.nix
-    ../../roles/network/mtproxy.nix
-    ../../roles/network/xray
+    ../../roles
   ];
 
   boot = {

@@ -14,17 +14,8 @@ in
     ../../common/server.nix
     ../../common/zeroconf.nix
     ../../common/btrfs-balance.nix
-    ../../roles/share.nix
-    ../../roles/media.nix
-    ../../roles/torrent.nix
-    ../../roles/router/dns.nix
-    ../../roles/router/dhcp.nix
-    ../../roles/router/nginx.nix
-    ../../roles/network/shadowsocks/client.nix
-    ../../roles/network/wireguard/wireguard-client.nix
-    ../../roles/network/sing-box/client.nix
-    ../../roles/photos.nix
     ../../hardware/rpi4.nix
+    ../../roles
   ];
 
   boot.kernel.sysctl = {

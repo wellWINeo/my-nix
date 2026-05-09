@@ -106,9 +106,9 @@ rec {
   mkRelayInbound =
     {
       cfg,
-      serverCfg,
       clients,
       shortIds,
+      ...
     }:
     {
       listen = "127.0.0.1";

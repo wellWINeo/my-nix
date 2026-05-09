@@ -23,6 +23,10 @@ let
   '';
 in
 {
+  systemd.tmpfiles.rules = [
+    "d ${backupDir} 0750 ${user} ${group} -"
+  ];
+
   systemd.services."backup-${name}" = {
     description = "Backup ${name}";
     path = [ pkgs.sqlite ];
@@ -33,7 +37,6 @@ in
       Group = group;
       ExecStart = pkgs.writeShellScript "backup-${name}" ''
         set -euo pipefail
-        mkdir -p ${backupDir}
         ${extraPathsCmd}
         ${backupCmds}
       '';

@@ -11,6 +11,7 @@ let
 in
 {
   imports = [
+    ../../common/cache.nix
     ../../common/server.nix
     ../../common/zeroconf.nix
     ../../common/btrfs-balance.nix

@@ -29,6 +29,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ru-central1
+          AWS_ENDPOINT_URL_S3: https://storage.yandexcloud.net/
         run: |
           echo "${{ secrets.NIX_CACHE_PRIVATE_KEY }}" > /tmp/cache-private-key.pem
           nix copy $(nix path-info "${{ inputs.package }}" --recursive) \

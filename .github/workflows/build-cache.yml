@@ -28,10 +28,10 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.YC_S3_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_S3_SECRET_KEY }}
+          AWS_DEFAULT_REGION: ru-central1
+          AWS_ENDPOINT_URL_S3: https://storage.yandexcloud.net
         run: |
           echo "${{ secrets.NIX_CACHE_PRIVATE_KEY }}" > /tmp/cache-private-key.pem
-          nix copy \
-            --to 's3://nix-cache?region=ru-central1&scheme=https&endpoint=storage.yandexcloud.net' \
-            --option secret-key-files /tmp/cache-private-key.pem \
-            $(nix path-info "${{ inputs.package }}" --closure)
+          nix copy $(nix path-info "${{ inputs.package }}" --recursive) \
+            --to 's3://nix-cache?secret-key=/tmp/cache-private-key.pem'
           rm -f /tmp/cache-private-key.pem

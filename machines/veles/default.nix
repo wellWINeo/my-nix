@@ -12,6 +12,7 @@ let
 in
 {
   imports = [
+    ../../common/cache.nix
     ../../common/hardened.nix
     ../../common/server.nix
     ../../hardware/vm.nix

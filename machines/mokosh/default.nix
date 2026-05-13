@@ -218,7 +218,7 @@ in
     enable = true;
     repository = "s3:storage.yandexcloud.net/wellwineo-backups/mokosh";
     passwordFile = "/etc/nixos/secrets/restic-password";
-    environmentFile = "/etc/nixos/secrets/duplicity-env";
+    environmentFile = "/etc/nixos/secrets/restic-env";
   };
 
   system.stateVersion = "25.11";

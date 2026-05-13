@@ -216,13 +216,9 @@ in
 
   roles.backup = {
     enable = true;
-    gpgPublicKey = ../../common/backup-gpg-public.asc;
-    gpgKeyId = "AC99246D656181EFE5BF18C9D4C62D97193EF180";
-    targetUrl = "s3:///wellwineo-backups/mokosh";
-    extraFlags = [
-      "--s3-endpoint-url=https://storage.yandexcloud.net"
-      "--s3-region-name=ru-central1"
-    ];
+    repository = "s3:storage.yandexcloud.net/wellwineo-backups/mokosh";
+    passwordFile = "/etc/nixos/secrets/restic-password";
+    environmentFile = "/etc/nixos/secrets/restic-env";
   };
 
   system.stateVersion = "25.11";

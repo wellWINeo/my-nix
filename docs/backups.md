@@ -2,60 +2,52 @@
 
 ## Restore commands
 
-All commands require the GPG private key imported into duplicity's keyring:
-
-```bash
-gpg --homedir /var/lib/duplicity/.gnupg --import private-key.asc
-```
-
 Set S3 credentials:
 
 ```bash
 export AWS_ACCESS_KEY_ID=<key>
 export AWS_SECRET_ACCESS_KEY=<secret>
-export AWS_DEFAULT_REGION=ru-central1
 ```
 
 ```bash
-BUCKET="s3://storage.yandexcloud.net/wellwineo-backups/mokosh"
+REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
+export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
 ```
 
-### List available backups
+### List available snapshots
 
 ```bash
-duplicity collection-status $BUCKET
+restic -r $REPO snapshots
 ```
 
-### List files in latest backup
+### List files in latest snapshot
 
 ```bash
-duplicity list-current-files $BUCKET
+restic -r $REPO ls latest
 ```
 
-### Restore a single file
+### Restore a single path
 
 ```bash
-duplicity --path-to-restore var/backup/vaultwarden/db.sqlite3 \
-  $BUCKET /tmp/restore
+restic -r $REPO restore latest --target /tmp/restore --include var/backup/vaultwarden
 ```
 
-### Restore from a specific date
+### Restore from a specific snapshot
 
 ```bash
-duplicity -t 3D $BUCKET /tmp/restore
-duplicity -t 2026-05-01 $BUCKET /tmp/restore
+restic -r $REPO restore <snapshot-id> --target /tmp/restore
 ```
 
 ### Full restore
 
 ```bash
-duplicity $BUCKET /tmp/full-restore
+restic -r $REPO restore latest --target /tmp/full-restore
 ```
 
-### Verify backup against local files
+### Verify backup integrity
 
 ```bash
-duplicity verify $BUCKET /tmp/full-restore
+restic -r $REPO check
 ```
 
 ## Restore by service
@@ -63,7 +55,7 @@ duplicity verify $BUCKET /tmp/full-restore
 ### Vaultwarden
 
 ```bash
-duplicity --path-to-restore var/backup/vaultwarden $BUCKET /tmp/restore
+restic -r $REPO restore latest --target /tmp/restore --include var/backup/vaultwarden
 cp -r /tmp/restore/var/backup/vaultwarden/* /var/lib/vault/
 systemctl restart vaultwarden
 ```
@@ -71,7 +63,7 @@ systemctl restart vaultwarden
 ### Miniflux (PostgreSQL)
 
 ```bash
-duplicity --path-to-restore var/backup/miniflux/miniflux.sql.gz $BUCKET /tmp/restore
+restic -r $REPO restore latest --target /tmp/restore --include var/backup/miniflux/miniflux.sql.gz
 gunzip -c /tmp/restore/var/backup/miniflux/miniflux.sql.gz | sudo -u postgres psql miniflux
 systemctl restart miniflux
 ```
@@ -79,7 +71,7 @@ systemctl restart miniflux
 ### Calibre
 
 ```bash
-duplicity --path-to-restore var/backup/calibre $BUCKET /tmp/restore
+restic -r $REPO restore latest --target /tmp/restore --include var/backup/calibre
 rsync -a /tmp/restore/var/backup/calibre/ /var/lib/calibre/
 systemctl restart calibre-web
 ```
@@ -87,7 +79,7 @@ systemctl restart calibre-web
 ### Writefreely
 
 ```bash
-duplicity --path-to-restore var/backup/writefreely $BUCKET /tmp/restore
+restic -r $REPO restore latest --target /tmp/restore --include var/backup/writefreely
 rsync -a /tmp/restore/var/backup/writefreely/ /var/lib/writefreely/
 systemctl restart writefreely
 ```
@@ -95,33 +87,28 @@ systemctl restart writefreely
 ### Stalwart mail
 
 ```bash
-duplicity --path-to-restore var/lib/stalwart-mail $BUCKET /tmp/restore
+restic -r $REPO restore latest --target /tmp/restore --include var/lib/stalwart-mail
 systemctl stop stalwart-mail
 rsync -a /tmp/restore/var/lib/stalwart-mail/ /var/lib/stalwart-mail/
 systemctl start stalwart-mail
 ```
 
-### Radicale
-
-```bash
-duplicity --path-to-restore var/lib/radicale/collections $BUCKET /tmp/restore
-rsync -a /tmp/restore/var/lib/radicale/collections/ /var/lib/radicale/collections/
-systemctl restart radicale
-```
-
 ## Backup schedule
 
-| Service | Timer | What |
-|---------|-------|------|
-| vaultwarden | 23:00 daily | sqlite .backup + file copy (built-in) |
-| calibre | 23:00 daily | sqlite .backup (3 DBs) + rsync books |
-| writefreely | 23:00 daily | sqlite .backup + rsync files |
-| miniflux | 23:00 daily | pg_dump gzip |
-| duplicity | 00:00 daily | encrypted incremental to S3 |
+| Service | Trigger | What |
+|---------|---------|------|
+| vaultwarden | backup.target | sqlite .backup + file copy |
+| calibre | backup.target | sqlite .backup (3 DBs) + rsync books |
+| writefreely | backup.target | sqlite .backup + rsync files |
+| miniflux | backup.target | pg_dump gzip |
+| restic | 00:00 daily | encrypted deduplicated to S3 |
+
+All pre-backup services run in parallel when the restic timer fires.
+The restic backup starts after all prep services complete.
 
 ## Notes
 
-- Backup files on S3 are GPG-encrypted volumes, not directly browseable
-- Private key is needed for any restore operation
-- Keep the private key offline (USB, paper backup, etc.)
-- `AWS_DEFAULT_REGION=ru-central1` is mandatory for Yandex Cloud
+- Backup data on S3 is restic-encrypted, not directly browseable
+- The restic password is in `/etc/nixos/secrets/restic-password`
+- `AWS_DEFAULT_REGION=ru-central1` is mandatory for Yandex Cloud (set in duplicity-env)
+- Old duplicity backup data remains in the same S3 prefix; clean up manually after verifying restic works

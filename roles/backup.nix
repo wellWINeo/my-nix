@@ -77,12 +77,13 @@ in
       };
     };
 
-    systemd.services.restic-backups-mokosh = {
-      after = [ "backup.target" ];
-      requires = [ "backup.target" ];
-    };
-
-    systemd.services = listToAttrs (
+    systemd.services = {
+      restic-backups-mokosh = {
+        after = [ "backup.target" ];
+        requires = [ "backup.target" ];
+      };
+    }
+    // listToAttrs (
       map (svc: {
         name = svc;
         value = {

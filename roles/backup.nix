@@ -8,44 +8,19 @@ with lib;
 
 let
   cfg = config.roles.backup;
-  gpgHome = "/var/lib/duplicity/.gnupg";
-
 in
 {
   options.roles.backup = {
-    enable = mkEnableOption "duplicity backups";
+    enable = mkEnableOption "restic backups";
 
     paths = mkOption {
       type = types.listOf types.str;
       default = [ ];
     };
 
-    gpgPublicKey = mkOption {
-      type = types.path;
-    };
-
-    gpgKeyId = mkOption {
+    repository = mkOption {
       type = types.str;
-    };
-
-    targetUrl = mkOption {
-      type = types.str;
-      description = "Duplicity target URL (e.g. s3://endpoint/bucket/prefix)";
-    };
-
-    frequency = mkOption {
-      type = types.nullOr types.str;
-      default = "daily";
-    };
-
-    fullIfOlderThan = mkOption {
-      type = types.str;
-      default = "1M";
-    };
-
-    maxFull = mkOption {
-      type = types.int;
-      default = 3;
+      description = "Restic repository URL (e.g. s3:storage.yandexcloud.net/bucket/prefix)";
     };
 
     exclude = mkOption {
@@ -53,9 +28,22 @@ in
       default = [ ];
     };
 
-    extraFlags = mkOption {
+    pruneOpts = mkOption {
+      type = types.listOf types.str;
+      default = [
+        "--keep-daily 7"
+        "--keep-monthly 3"
+      ];
+    };
+
+    extraBackupArgs = mkOption {
       type = types.listOf types.str;
       default = [ ];
+    };
+
+    frequency = mkOption {
+      type = types.nullOr types.str;
+      default = "00:00";
     };
 
     afterServices = mkOption {
@@ -73,50 +61,42 @@ in
       }
     ];
 
-    system.activationScripts.backup-gnupg = ''
-      mkdir -p ${gpgHome}
-      chmod 700 ${gpgHome}
-      if [ ! -f ${gpgHome}/pubring.kbx ] || ! ${pkgs.gnupg}/bin/gpg --homedir ${gpgHome} --list-keys "${cfg.gpgKeyId}" >/dev/null 2>&1; then
-        ${pkgs.gnupg}/bin/gpg --homedir ${gpgHome} --import ${cfg.gpgPublicKey}
-        echo "${cfg.gpgKeyId}:6:" | ${pkgs.gnupg}/bin/gpg --homedir ${gpgHome} --import-ownertrust
-      fi
-    '';
+    systemd.targets.backup = { };
 
-    services.duplicity =
-      let
-        allIncludes = cfg.paths;
-      in
-      {
-        enable = true;
-        root = "/";
-        include = allIncludes;
-        exclude = cfg.exclude ++ [ "**" ];
-        targetUrl = cfg.targetUrl;
-        secretFile = "/etc/nixos/secrets/duplicity-env";
-        frequency = cfg.frequency;
-        fullIfOlderThan = cfg.fullIfOlderThan;
-        extraFlags = [
-          "--encrypt-key"
-          cfg.gpgKeyId
-          "--gpg-options=--homedir ${gpgHome}"
-          "--verbosity"
-          "notice"
-          "--num-retries"
-          "3"
-          "--volsize"
-          "100"
-        ]
-        ++ cfg.extraFlags;
-        cleanup.maxFull = cfg.maxFull;
+    services.restic.backups.mokosh = {
+      repository = cfg.repository;
+      passwordFile = "/etc/nixos/secrets/restic-password";
+      environmentFile = "/etc/nixos/secrets/duplicity-env";
+      initialize = true;
+      inherit (cfg) paths exclude;
+      extraBackupArgs = cfg.extraBackupArgs;
+      pruneOpts = cfg.pruneOpts;
+      timerConfig = mkIf (cfg.frequency != null) {
+        OnCalendar = cfg.frequency;
+        Persistent = true;
       };
-
-    systemd.services.duplicity = mkIf (cfg.afterServices != [ ]) {
-      after = cfg.afterServices;
-      requires = cfg.afterServices;
     };
 
-    systemd.timers.duplicity = mkIf (cfg.frequency != null) {
-      timerConfig.Persistent = true;
+    systemd.services.restic-backups-mokosh = {
+      after = [ "backup.target" ];
+      requires = [ "backup.target" ];
     };
+
+    systemd.services = listToAttrs (
+      map (svc: {
+        name = svc;
+        value = {
+          before = [ "backup.target" ];
+          wantedBy = [ "backup.target" ];
+        };
+      }) cfg.afterServices
+    );
+
+    systemd.timers = listToAttrs (
+      map (svc: {
+        name = svc;
+        value.enable = false;
+      }) cfg.afterServices
+    );
   };
 }

@@ -23,6 +23,16 @@ in
       description = "Restic repository URL (e.g. s3:storage.yandexcloud.net/bucket/prefix)";
     };
 
+    passwordFile = mkOption {
+      type = types.str;
+      description = "Path to restic repository password file";
+    };
+
+    environmentFile = mkOption {
+      type = types.str;
+      description = "Path to environment file (S3 credentials)";
+    };
+
     exclude = mkOption {
       type = types.listOf types.str;
       default = [ ];
@@ -63,10 +73,10 @@ in
 
     systemd.targets.backup = { };
 
-    services.restic.backups.mokosh = {
+    services.restic.backups.local = {
       repository = cfg.repository;
-      passwordFile = "/etc/nixos/secrets/restic-password";
-      environmentFile = "/etc/nixos/secrets/duplicity-env";
+      passwordFile = cfg.passwordFile;
+      environmentFile = cfg.environmentFile;
       initialize = true;
       inherit (cfg) paths exclude;
       extraBackupArgs = cfg.extraBackupArgs;
@@ -78,7 +88,7 @@ in
     };
 
     systemd.services = {
-      restic-backups-mokosh = {
+      restic-backups-local = {
         after = [ "backup.target" ];
         requires = [ "backup.target" ];
       };

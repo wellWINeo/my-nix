@@ -64,7 +64,7 @@ in
           api_key = cfg.minifluxApiKey;
         };
         llm = {
-          model = "x-ai/grok-4.1-fast";
+          model = "deepseek/deepseek-v4-flash";
           base_url = "https://openrouter.ai/api/v1";
           api_key = "PLACEHOLDER";
         };

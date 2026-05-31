@@ -140,5 +140,15 @@
           };
         }
       );
+
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+        in
+        {
+          bulwark-webmail = pkgs.bulwark-webmail;
+        }
+      );
     };
 }

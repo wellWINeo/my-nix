@@ -72,6 +72,13 @@ in
     hostname = domainName;
   };
 
+  roles.webmail = {
+    enable = true;
+    baseDomain = domainName;
+    jmapServerUrl = "http://127.0.0.1:10080";
+    sessionSecretFile = "/etc/nixos/secrets/bulwark-session-secret";
+  };
+
   roles.personelWebsite = {
     enable = true;
     domain = domainName;

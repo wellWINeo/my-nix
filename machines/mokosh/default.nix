@@ -24,12 +24,12 @@ in
   # disk layout
   fileSystems = {
     "/" = {
-      device = "/dev/disk/by-label/nixos";
+      device = "/dev/disk/by-label/NIXOS";
       fsType = "ext4";
     };
   };
 
-  swapDevices = [ { device = "/swapfile"; } ];
+  swapDevices = [ { device = "/.swapfile"; } ];
 
   # network
   networking = {

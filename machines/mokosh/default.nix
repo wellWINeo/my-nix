@@ -8,7 +8,6 @@ let
     secondary = "uspenskiy.tech";
   };
   ifname = "ens3";
-  ip = (import ../../secrets).ip.mokosh;
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   secrets = import ../../secrets;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
@@ -18,11 +17,9 @@ in
     ../../common/cache.nix
     ../../common/hardened.nix
     ../../common/server.nix
-    ../../hardware/vm.nix
+    ../../images/do-generic
     ../../roles
   ];
-
-  boot.loader.grub.device = "/dev/vda";
 
   # disk layout
   fileSystems = {
@@ -37,23 +34,8 @@ in
   # network
   networking = {
     hostName = hostname;
-    useDHCP = false;
     nameservers = [ "1.1.1.1" ];
     firewall.enable = true;
-
-    interfaces."${ifname}" = {
-      ipv4.addresses = [
-        {
-          address = ip.address;
-          prefixLength = 24;
-        }
-      ];
-    };
-
-    defaultGateway = {
-      address = ip.gateway;
-      interface = ifname;
-    };
   };
 
   services.openssh.settings = {

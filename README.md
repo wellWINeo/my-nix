@@ -162,6 +162,35 @@ To add a new role, create a `.nix` file in `roles/` — no import registration n
 3. Import `../../roles` and enable needed roles
 4. Set `system.stateVersion = "25.11"`
 
+## Bootstrapping a DigitalOcean Droplet
+
+A generic DO-bootable qcow2 image is exposed as a flake package. The image
+contains a minimal NixOS with SSH, the operator user, the binary cache, and
+cloud-init for network configuration from DO metadata. It does **not** bake
+in any machine's role set — apply the per-machine config after first boot.
+
+```bash
+# Build (x86_64 Linux host, or via remote builder from macOS)
+nix build .#do-image
+
+# Upload result/nixos.qcow2 to DigitalOcean → Images → Custom Images,
+# then create a droplet from that custom image.
+
+# SSH in as the operator user (cloud-init populates networking from DO metadata):
+ssh o__ni@<droplet-ip>
+
+# On the droplet: clone this flake, install secrets, switch to the machine config.
+git clone <this-repo> ~/my-nix && cd ~/my-nix
+make unlock
+sudo make install-secrets
+sudo hostnamectl set-hostname <machine>   # e.g. mokosh
+sudo make switch
+```
+
+The image is generic — the same artifact can bootstrap any x86_64 NixOS
+machine in this flake. The `make switch` step picks the machine config from
+`$(hostname)`.
+
 ## Adding a New Role
 
 1. Create `roles/<name>.nix` (or `roles/<category>/<name>.nix`)

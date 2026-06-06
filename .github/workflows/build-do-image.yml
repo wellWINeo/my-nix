@@ -1,0 +1,62 @@
+name: Build cloud image
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloud:
+        description: Target cloud provider
+        required: true
+        type: choice
+        default: digitalocean
+        options:
+          - digitalocean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Set up dummy secrets
+        run: make setup-dummy-secrets
+
+      - name: Resolve nix attribute
+        run: |
+          case "${{ inputs.cloud }}" in
+            digitalocean)
+              echo "NIX_ATTR=path:.#nixosConfigurations.do-generic.config.system.build.digitalOceanImage" >> "$GITHUB_ENV"
+              echo "IMAGE_GLOB=*.qcow2*"    >> "$GITHUB_ENV"
+              echo "ARTIFACT=nixos.qcow2"   >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unknown cloud: ${{ inputs.cloud }}" && exit 1
+              ;;
+          esac
+
+      - name: Build image
+        run: |
+          OUT=$(nix build "$NIX_ATTR" --no-link --print-out-paths)
+          echo "IMAGE_OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Collect artifact
+        run: |
+          IMAGE=$(find "$IMAGE_OUT" -name "$IMAGE_GLOB" | head -1)
+          cp -L "$IMAGE" "$ARTIFACT"
+          ls -lh "$ARTIFACT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nixos-${{ inputs.cloud }}-image
+          path: ${{ env.ARTIFACT }}
+          retention-days: 7

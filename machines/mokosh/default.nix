@@ -24,12 +24,12 @@ in
   # disk layout
   fileSystems = {
     "/" = {
-      device = "/dev/disk/by-label/NIXOS";
+      device = "/dev/disk/by-label/nixos";
       fsType = "ext4";
     };
   };
 
-  swapDevices = [ { device = "/dev/disk/by-label/SWAP"; } ];
+  swapDevices = [ { device = "/swapfile"; } ];
 
   # network
   networking = {
@@ -54,12 +54,7 @@ in
     hostname = domainName;
   };
 
-  roles.webmail = {
-    enable = true;
-    baseDomain = domainName;
-    jmapServerUrl = "http://127.0.0.1:10080";
-    sessionSecretFile = "/etc/nixos/secrets/bulwark-session-secret";
-  };
+  roles.webmail.enable = false;
 
   roles.personelWebsite = {
     enable = true;

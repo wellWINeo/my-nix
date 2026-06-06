@@ -24,9 +24,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - uses: cachix/install-nix-action@v25
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
+      - uses: DeterminateSystems/nix-installer-action@main
 
       - name: Set up dummy secrets
         run: make setup-dummy-secrets
@@ -46,7 +44,7 @@ jobs:
 
       - name: Build image
         run: |
-          OUT=$(nix build "$NIX_ATTR" --no-link --print-out-paths)
+          OUT=$(nix build "$NIX_ATTR" --no-link --print-out-paths --option sandbox false)
           echo "IMAGE_OUT=$OUT" >> "$GITHUB_ENV"
 
       - name: Collect artifact

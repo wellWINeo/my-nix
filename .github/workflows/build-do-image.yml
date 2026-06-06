@@ -1,0 +1,43 @@
+name: Build DigitalOcean image
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: cachix/install-nix-action@v25
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Set up dummy secrets
+        run: make setup-dummy-secrets
+
+      - name: Build DO image
+        run: |
+          OUT=$(nix build \
+            'path:.#nixosConfigurations.do-generic.config.system.build.digitalOceanImage' \
+            --no-link --print-out-paths)
+          echo "IMAGE_OUT=$OUT" >> "$GITHUB_ENV"
+
+      - name: Collect artifact
+        run: |
+          IMAGE=$(find "$IMAGE_OUT" -name '*.qcow2*' | head -1)
+          cp -L "$IMAGE" nixos.qcow2
+          ls -lh nixos.qcow2
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nixos-do-image
+          path: nixos.qcow2
+          retention-days: 7

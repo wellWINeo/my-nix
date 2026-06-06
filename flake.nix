@@ -18,7 +18,12 @@
   };
 
   outputs =
-    { nixpkgs, nixpkgs-unstable, ... }@inputs:
+    {
+      self,
+      nixpkgs,
+      nixpkgs-unstable,
+      ...
+    }@inputs:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -93,6 +98,19 @@
         ];
       };
 
+      # generic DigitalOcean image (any x86_64 droplet)
+      nixosConfigurations."do-generic" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          ./common/cache.nix
+          ./common/server.nix
+          ./users/o__ni
+          ./images/do-generic
+          { system.stateVersion = "25.11"; }
+        ];
+      };
+
       # standalone home-manager for macOS
       homeConfigurations."o__ni@Stepans-MacBook-Pro" = inputs.home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgsFor.aarch64-darwin;
@@ -148,6 +166,9 @@
         in
         {
           bulwark-webmail = pkgs.bulwark-webmail;
+        }
+        // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+          do-image = self.nixosConfigurations."do-generic".config.system.build.digitalOceanImage;
         }
       );
     };

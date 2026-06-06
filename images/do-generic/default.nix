@@ -26,8 +26,6 @@
     ];
   };
 
-  fileSystems."/".autoResize = true;
-
   networking = {
     useDHCP = false;
     hostName = lib.mkDefault "";

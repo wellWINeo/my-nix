@@ -1,7 +1,15 @@
-name: Build DigitalOcean image
+name: Build cloud image
 
 on:
   workflow_dispatch:
+    inputs:
+      cloud:
+        description: Target cloud provider
+        required: true
+        type: choice
+        default: digitalocean
+        options:
+          - digitalocean
 
 jobs:
   build:
@@ -23,21 +31,32 @@ jobs:
       - name: Set up dummy secrets
         run: make setup-dummy-secrets
 
-      - name: Build DO image
+      - name: Resolve nix attribute
         run: |
-          OUT=$(nix build \
-            'path:.#nixosConfigurations.do-generic.config.system.build.digitalOceanImage' \
-            --no-link --print-out-paths)
+          case "${{ inputs.cloud }}" in
+            digitalocean)
+              echo "NIX_ATTR=path:.#nixosConfigurations.do-generic.config.system.build.digitalOceanImage" >> "$GITHUB_ENV"
+              echo "IMAGE_GLOB=*.qcow2*"    >> "$GITHUB_ENV"
+              echo "ARTIFACT=nixos.qcow2"   >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unknown cloud: ${{ inputs.cloud }}" && exit 1
+              ;;
+          esac
+
+      - name: Build image
+        run: |
+          OUT=$(nix build "$NIX_ATTR" --no-link --print-out-paths)
           echo "IMAGE_OUT=$OUT" >> "$GITHUB_ENV"
 
       - name: Collect artifact
         run: |
-          IMAGE=$(find "$IMAGE_OUT" -name '*.qcow2*' | head -1)
-          cp -L "$IMAGE" nixos.qcow2
-          ls -lh nixos.qcow2
+          IMAGE=$(find "$IMAGE_OUT" -name "$IMAGE_GLOB" | head -1)
+          cp -L "$IMAGE" "$ARTIFACT"
+          ls -lh "$ARTIFACT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: nixos-do-image
-          path: nixos.qcow2
+          name: nixos-${{ inputs.cloud }}-image
+          path: ${{ env.ARTIFACT }}
           retention-days: 7

@@ -34,7 +34,7 @@ lock: lock-json lock-files
 
 install-secrets:
 	@cat $(SECRETS_SPEC_FILE) \
-	| grep -E "^($(hostname)|\\*)" \
+	| grep -E "^($(shell hostname)|\\*)" \
 	| while IFS=: read host filename perm owner group; do \
 		install -m $$perm -o $$owner -g $$group ./secrets/unlocked/$$filename $(SECRETS_DIRECTORY)/$$filename; \
 	done

@@ -45,7 +45,7 @@ with lib;
     443
   ];
 
-  users.users.nginx.uid = mkIf config.services.nginx.enable 60;
+  users.users = mkIf config.services.nginx.enable { nginx.uid = 60; };
 
   users.groups.web = {
     gid = 995;

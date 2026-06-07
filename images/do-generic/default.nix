@@ -45,6 +45,12 @@
         "None"
       ];
 
+      # Re-apply network config on every boot so the persisted
+      # /etc/systemd/network/10-cloud-init-eth0.network is always current.
+      # Default is boot-new-instance only, which is not enough for a droplet
+      # that can be migrated or rebuilt with a new IP.
+      updates.network.when = [ "boot" ];
+
       # NixOS only creates /etc/cloud/cloud.cfg — it does not install the
       # cloud.cfg.d/ drop-ins that ship inside the Python package, including
       # 05_logging.cfg. Without log_cfgs, cloud-init emits "no logging

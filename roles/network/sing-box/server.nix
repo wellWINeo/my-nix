@@ -126,6 +126,9 @@ in
   };
 
   config = mkIf cfg.enable {
+    users.users.sing-box.uid = 994;
+    users.groups.sing-box.gid = 992;
+
     assertions = [
       {
         assertion = cfg.vlessWs.enable || cfg.vlessGrpc.enable || cfg.naive.enable;

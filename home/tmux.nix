@@ -26,9 +26,11 @@ in
       set -g window-status-current-style bg=${tmuxTheme.currentWindowBg},fg=${tmuxTheme.currentWindowFg}
       set -g status-interval 1
 
-      # Pane focus hooks (dim inactive panes)
-      set-hook -g pane-focus-out 'select-pane -P bg=${tmuxTheme.dimPaneBg},fg=${tmuxTheme.dimPaneFg}'
-      set-hook -g pane-focus-in 'select-pane -P bg=default,fg=default'
+      # Claude Code
+      set -g focus-events on
+
+      # Auto renumber windows
+      set-option -g renumber-windows on
 
       # Split pane bindings
       bind | split-window -h

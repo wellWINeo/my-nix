@@ -7,7 +7,7 @@ let
     primary = domainName;
     secondary = "uspenskiy.tech";
   };
-  ifname = "ens3";
+  ifname = "eth0";
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   secrets = import ../../secrets;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;

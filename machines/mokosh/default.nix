@@ -19,7 +19,6 @@ in
     ../../common/server.nix
     ../../images/do-generic
     ../../roles
-    ./service-ids.nix
   ];
 
   # disk layout

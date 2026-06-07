@@ -45,7 +45,10 @@ with lib;
     443
   ];
 
+  users.users.nginx.uid = mkIf config.services.nginx.enable 60;
+
   users.groups.web = {
+    gid = 995;
     members =
       optional config.services.nginx.enable "nginx"
       ++ optional (config.security.acme.certs != { }) "acme";

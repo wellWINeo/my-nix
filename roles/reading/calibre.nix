@@ -40,7 +40,8 @@ in
       roles.backup.paths = [ "/var/backup/calibre" ];
       roles.backup.afterServices = [ "backup-calibre.service" ];
 
-      users.groups.calibre = { };
+      users.users.calibre-web.uid = 995;
+      users.groups.calibre.gid = 993;
 
       services.calibre-web = {
         enable = true;

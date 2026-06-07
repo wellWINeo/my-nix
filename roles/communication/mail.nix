@@ -198,6 +198,8 @@ in
 
     };
 
+    users.users.stalwart-mail.uid = 993;
+    users.groups.stalwart-mail.gid = 991;
     users.users.stalwart-mail.extraGroups = [ "web" ];
 
     networking.firewall.allowedTCPPorts = [

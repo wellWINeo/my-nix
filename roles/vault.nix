@@ -35,6 +35,9 @@ in
       extraPaths = [ "${dataDir}/" ];
     })
     {
+      users.users.vaultwarden.uid = 992;
+      users.groups.vaultwarden.gid = 990;
+
       roles.backup.paths = [ backupDir ];
 
       services.vaultwarden = {

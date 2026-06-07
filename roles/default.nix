@@ -18,5 +18,5 @@ let
     ) (builtins.attrNames (builtins.readDir dir));
 in
 {
-  imports = collectModules ./.;
+  imports = collectModules ./. ++ [ ../common/service-id-assertions.nix ];
 }

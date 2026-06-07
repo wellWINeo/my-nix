@@ -24,6 +24,9 @@ in
   };
 
   config = mkIf cfg.enable {
+    users.users.acme.uid = 996;
+    users.groups.acme.gid = 994;
+
     security.acme = {
       acceptTerms = true;
       defaults = {

@@ -38,6 +38,9 @@ in
       extraPaths = [ "/var/lib/writefreely/" ];
     })
     {
+      users.users.writefreely.uid = 991;
+      users.groups.writefreely.gid = 989;
+
       roles.backup.paths = [ "/var/backup/writefreely" ];
       roles.backup.afterServices = [ "backup-writefreely.service" ];
 

@@ -20,6 +20,9 @@ in
   };
 
   config = mkIf cfg.enable {
+    users.users.postgres.uid = 71;
+    users.groups.postgres.gid = 71;
+
     services.miniflux = {
       enable = true;
       createDatabaseLocally = true;

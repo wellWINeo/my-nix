@@ -29,6 +29,11 @@
   networking = {
     useDHCP = false;
     hostName = lib.mkDefault "";
+    # cloud-init's DigitalOcean datasource hardcodes "eth0"/"eth1" for
+    # public/private interfaces (NIC_MAP). The networkd renderer emits
+    # [Match] Name=eth0 MACAddress=..., which requires both to match.
+    # Predictable names (ens3, enp0s...) break that match → no IP assigned.
+    usePredictableInterfaceNames = false;
   };
 
   services.cloud-init = {

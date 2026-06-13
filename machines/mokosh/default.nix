@@ -161,7 +161,7 @@ in
 
   roles.rss = {
     enable = true;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
     summarizer = {
       enable = true;
       llmApiKeyFile = "/etc/nixos/secrets/miniflux-llm-api-key";

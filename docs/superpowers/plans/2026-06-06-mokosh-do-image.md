@@ -141,7 +141,7 @@ Inside `outputs = { ... }: let ... in { ... }`, add this attribute next to the o
           ./common/server.nix
           ./users/o__ni
           ./images/do-generic
-          { system.stateVersion = "25.11"; }
+          { system.stateVersion = "26.05"; }
         ];
       };
 ```
@@ -311,7 +311,7 @@ In `README.md`, find the `## Adding a New Machine` section (around line 158).
 
 - [ ] **Step 2: Add a new subsection**
 
-After the closing line of `## Adding a New Machine` (the bullet `4. Set system.stateVersion = "25.11"`), insert this new section. The literal content to paste is between the `````` markers below (do NOT paste the `````` markers themselves):
+After the closing line of `## Adding a New Machine` (the bullet `4. Set system.stateVersion = "26.05"`), insert this new section. The literal content to paste is between the `````` markers below (do NOT paste the `````` markers themselves):
 
 ``````
 ## Bootstrapping a DigitalOcean Droplet

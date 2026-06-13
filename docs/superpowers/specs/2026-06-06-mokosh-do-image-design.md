@@ -90,7 +90,7 @@ nixosConfigurations.do-generic = nixpkgs.lib.nixosSystem {
     ./common/server.nix
     ./users/o__ni
     ./images/do-generic
-    { system.stateVersion = "25.11"; }
+    { system.stateVersion = "26.05"; }
   ];
 };
 ```

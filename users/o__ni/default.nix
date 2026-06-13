@@ -23,7 +23,7 @@
       git
       gnupg
       gnumake
-      neofetch
+      fastfetch
       neovim
       htop
     ];

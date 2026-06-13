@@ -64,7 +64,7 @@ Note: There are no automated tests. Validation is via `nix flake check` and manu
 
 ### Formatting
 
-- Use `nixfmt-rfc-style` for all Nix files
+- Use `nixfmt` for all Nix files
 - Run `nixfmt .` before committing
 
 ### Imports and Module Structure
@@ -163,7 +163,7 @@ in
   roles.hardened.enable = true;
   roles.someRole = { enable = true; /* options */ };
 
-  system.stateVersion = "25.11";
+  system.stateVersion = "26.05";
 }
 ```
 
@@ -335,7 +335,7 @@ secrets = import ../../secrets;
 
 1. Create `machines/<hostname>/default.nix` following the machine config pattern
 2. Add to `flake.nix` `nixosConfigurations` with appropriate system and modules
-3. Set `system.stateVersion = "25.11"`
+3. Set `system.stateVersion = "26.05"`
 4. Configure networking and roles
 5. If machine needs per-machine overlays, add them inline in the `modules` list
 

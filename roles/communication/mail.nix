@@ -50,9 +50,13 @@ in
 
   config = mkIf cfg.enable {
     roles.backup.paths = [ "/var/lib/stalwart-mail" ];
-    services.stalwart-mail = {
+    services.stalwart = {
       enable = true;
       openFirewall = false;
+      # TODO: migrate /var/lib/stalwart-mail → /var/lib/stalwart on the server,
+      # then remove dataDir pin and update store.rocksdb.path + backup path
+      dataDir = "/var/lib/stalwart-mail";
+      stateVersion = "26.05";
       settings = {
 
         lookup.default.hostname = cfg.hostname;
@@ -198,9 +202,9 @@ in
 
     };
 
-    users.users.stalwart-mail.uid = 993;
-    users.groups.stalwart-mail.gid = 991;
-    users.users.stalwart-mail.extraGroups = [ "web" ];
+    users.users.stalwart.uid = 993;
+    users.groups.stalwart.gid = 991;
+    users.users.stalwart.extraGroups = [ "web" ];
 
     networking.firewall.allowedTCPPorts = [
       25

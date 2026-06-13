@@ -88,9 +88,9 @@ systemctl restart writefreely
 
 ```bash
 restic -r $REPO restore latest --target /tmp/restore --include var/lib/stalwart-mail
-systemctl stop stalwart-mail
+systemctl stop stalwart
 rsync -a /tmp/restore/var/lib/stalwart-mail/ /var/lib/stalwart-mail/
-systemctl start stalwart-mail
+systemctl start stalwart
 ```
 
 ## Backup schedule

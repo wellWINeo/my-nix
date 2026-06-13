@@ -160,7 +160,7 @@ To add a new role, create a `.nix` file in `roles/` — no import registration n
 1. Create `machines/<hostname>/default.nix` following the machine config pattern
 2. Add to `flake.nix` under `nixosConfigurations` with appropriate system
 3. Import `../../roles` and enable needed roles
-4. Set `system.stateVersion = "25.11"`
+4. Set `system.stateVersion = "26.05"`
 
 ## Bootstrapping a DigitalOcean Droplet
 

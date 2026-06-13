@@ -25,7 +25,7 @@ with lib;
   config = {
     home.username = "o__ni";
     home.homeDirectory = if pkgs.stdenv.isDarwin then "/Users/o__ni" else "/home/o__ni";
-    home.stateVersion = "25.11";
+    home.stateVersion = "26.05";
 
     programs.home-manager.enable = true;
   };

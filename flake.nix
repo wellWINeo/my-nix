@@ -2,11 +2,11 @@
   description = "o__ni's nix flake";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     nixos-hardware.url = "github:NixOS/nixos-hardware/master";
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.11";
+      url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     miniflux-summarizer.url = "github:wellWINeo/miniflux-summarizer";
@@ -27,7 +27,6 @@
     let
       supportedSystems = [
         "x86_64-linux"
-        "x86_64-darwin"
         "aarch64-linux"
         "aarch64-darwin"
       ];
@@ -107,7 +106,7 @@
           ./common/server.nix
           ./users/o__ni
           ./images/do-generic
-          { system.stateVersion = "25.11"; }
+          { system.stateVersion = "26.05"; }
         ];
       };
 
@@ -152,7 +151,7 @@
         {
           default = pkgs.mkShell {
             nativeBuildInputs = with pkgs; [
-              nixfmt-rfc-style
+              nixfmt
               nixd
             ];
           };

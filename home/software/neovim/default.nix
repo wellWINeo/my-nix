@@ -18,7 +18,7 @@ in
       enable = true;
       defaultEditor = true;
 
-      extraLuaConfig = ''
+      initLua = ''
         vim.opt.termguicolors = true
         vim.opt.number = true
 

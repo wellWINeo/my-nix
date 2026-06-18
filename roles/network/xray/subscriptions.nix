@@ -21,6 +21,7 @@ let
   serverCfg = config.roles.xray.server;
   secrets = import ../../../secrets;
   transports = import ./transports { inherit lib; };
+  hysteria = import ./hysteria.nix { inherit lib; };
   transportList = lib.attrValues transports;
 
   coLocated = config.roles.xray.enable && serverCfg.enable;
@@ -72,12 +73,14 @@ in
         description = "Reality public key of the upstream xray server. Defaults to roles.xray.server.reality.publicKey when co-located.";
       };
     }
-    // lib.mapAttrs (_: t: t.subscriptionUpstreamOptions) transports;
+    // lib.mapAttrs (_: t: t.subscriptionUpstreamOptions) transports
+    // hysteria.subscriptionUpstreamOptions;
   };
 
   config = mkIf (config.roles.xray.enable && cfg.enable) (
     let
       enabledUpstreamTransports = lib.filter (t: cfg.upstream.${t.name}.enable) transportList;
+      hyUpstreamEnabled = cfg.upstream.hysteria.enable;
 
       shortIdHead =
         if (secrets.xray.reality.shortIds or [ ]) != [ ] then
@@ -89,17 +92,25 @@ in
       userUrisText =
         user:
         let
-          uris = map (
-            t:
-            t.mkSubscriptionEntry {
-              serverAddr = cfg.upstream.publicAddress;
-              uuid = user.uuid;
-              fingerprint = cfg.fingerprint;
-              realityPublicKey = cfg.upstream.realityPublicKey;
-              shortId = shortIdHead;
-              cfg = cfg.upstream.${t.name};
-            }
-          ) enabledUpstreamTransports;
+          uris =
+            (map (
+              t:
+              t.mkSubscriptionEntry {
+                serverAddr = cfg.upstream.publicAddress;
+                uuid = user.uuid;
+                fingerprint = cfg.fingerprint;
+                realityPublicKey = cfg.upstream.realityPublicKey;
+                shortId = shortIdHead;
+                cfg = cfg.upstream.${t.name};
+              }
+            ) enabledUpstreamTransports)
+            ++ lib.optional hyUpstreamEnabled (
+              hysteria.mkSubscriptionEntry {
+                cfg = cfg.upstream.hysteria;
+                inherit user;
+                serverAddr = cfg.upstream.publicAddress;
+              }
+            );
         in
         lib.concatStringsSep "\n" uris;
 
@@ -127,8 +138,9 @@ in
           message = "secrets.xray.reality.shortIds must be non-empty for subscription generation";
         }
         {
-          assertion = lib.any (t: cfg.upstream.${t.name}.enable) transportList;
-          message = "At least one roles.xray.subscriptions.upstream.<transport>.enable must be true";
+          assertion =
+            (lib.any (t: cfg.upstream.${t.name}.enable) transportList) || cfg.upstream.hysteria.enable;
+          message = "At least one roles.xray.subscriptions.upstream.<transport>.enable or upstream.hysteria.enable must be true";
         }
       ];
 

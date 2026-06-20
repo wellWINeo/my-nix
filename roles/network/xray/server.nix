@@ -126,12 +126,19 @@ in
         message = "roles.xray.server.vlessGrpc.serviceName must not start with '/'";
       }
       {
+        # certFile/keyFile are types.path with no default, so an unset value
+        # already fails at module-evaluation time before this assertion runs;
+        # the != null check here is a defensive guard, not the primary check.
         assertion = !hyEnabled || (cfg.hysteria.certFile != null && cfg.hysteria.keyFile != null);
         message = "roles.xray.server.hysteria requires certFile and keyFile";
       }
+      {
+        assertion = !hyEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;
+        message = "roles.xray.server.hysteria requires at least one user with a non-empty password";
+      }
     ];
 
-    networking.firewall.allowedUDPPorts = lib.optional hyEnabled cfg.hysteria.port;
+    networking.firewall.allowedUDPPorts = lib.optional hyEnabled cfg.hysteria.port; # server hysteria only; relay.nix opens its own
 
     roles.xray._serverConfig = serverConfig;
   };

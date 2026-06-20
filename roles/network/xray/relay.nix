@@ -200,6 +200,9 @@ in
         message = "At least one relay inbound must be enabled: either socks.enable = true or at least one server transport must be active";
       }
       {
+        # certFile/keyFile are types.path with no default, so an unset value
+        # already fails at module-evaluation time before this assertion runs;
+        # the != null check here is a defensive guard, not the primary check.
         assertion = !hyInboundEnabled || (cfg.hysteria.certFile != null && cfg.hysteria.keyFile != null);
         message = "roles.xray.relay.hysteria requires certFile and keyFile";
       }
@@ -208,7 +211,13 @@ in
           !hyOutboundEnabled || cfg.target.hysteria.insecure || cfg.target.hysteria.pinSHA256 != "";
         message = "roles.xray.relay.target.hysteria requires insecure=true or pinSHA256 set";
       }
+      {
+        assertion = !hyInboundEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;
+        message = "roles.xray.relay.hysteria requires at least one user with a non-empty password";
+      }
     ];
+
+    networking.firewall.allowedUDPPorts = lib.optional hyInboundEnabled cfg.hysteria.port;
 
     roles.xray._relayConfig = relayConfig;
   };

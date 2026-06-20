@@ -5,10 +5,14 @@
 # UDP/QUIC with real TLS (not REALITY) and password auth (not uuid), so it
 # intentionally does NOT reuse transports/lib.nix (VLESS/Reality helpers).
 #
-# Cert/key files are referenced via placeholders (@HYSTERIA_CERT@/@HYSTERIA_KEY@)
-# that the coordinator (default.nix) rewrites at runtime via jq + LoadCredential,
-# mirroring how the Reality private key is injected. This keeps all secret
-# material out of the nix store.
+# Cert/key files are referenced via inert placeholder strings (@HYSTERIA_CERT@/
+# @HYSTERIA_KEY@, @HYSTERIA_RELAY_CERT@/@HYSTERIA_RELAY_KEY@). The coordinator
+# (default.nix) does NOT string-substitute these sentinels; its jq stage
+# overwrites the whole .streamSettings.tlsSettings.certificates[0] object on
+# each hysteria inbound at runtime (via LoadCredential), picking the relay
+# cert/key when .tag == "hy2-relay-in" and the server cert/key otherwise. The
+# placeholders just keep secret material out of the nix store, mirroring how
+# the Reality private key is injected.
 { lib }:
 
 with lib;
@@ -144,6 +148,7 @@ rec {
 
       sni = mkOption {
         type = types.str;
+        default = "";
         description = "SNI clients use for the Hysteria2 connection";
       };
 
@@ -165,8 +170,9 @@ rec {
       email = "${u.name}@hysteria";
     }) users;
 
-  # hysteriaSettings + TLS block for an inbound. cert/key are placeholders
-  # rewritten at runtime by the coordinator.
+  # hysteriaSettings + TLS block for an inbound. cert/key are inert placeholder
+  # strings; the coordinator's jq overwrites certificates[0] wholesale at
+  # runtime based on the inbound's tag (see header comment above).
   mkInboundStreamSettings =
     cfg:
     let
@@ -178,7 +184,8 @@ rec {
         version = 2;
         auth = "";
         udpIdleTimeout = 60;
-      } // optionalAttrs (masq != { }) { masquerade = masq; };
+      }
+      // optionalAttrs (masq != { }) { masquerade = masq; };
       security = "tls";
       tlsSettings = {
         certificates = [
@@ -209,7 +216,8 @@ rec {
     let
       base = mkServerInbound { inherit cfg users; };
     in
-    base // {
+    base
+    // {
       tag = relayInboundTag;
       streamSettings = base.streamSettings // {
         tlsSettings = {
@@ -226,7 +234,11 @@ rec {
   # Relay outbound (veles -> target). Uses the relay's single `user` (matches
   # the VLESS relay pattern, which uses cfg.user for outbound auth).
   mkRelayOutbound =
-    { cfg, user, serverAddr }:
+    {
+      cfg,
+      user,
+      serverAddr,
+    }:
     {
       protocol = "hysteria";
       tag = relayOutboundTag;
@@ -244,7 +256,8 @@ rec {
         security = "tls";
         tlsSettings = {
           serverName = cfg.serverName;
-        } // optionalAttrs cfg.insecure { allowInsecure = true; }
+        }
+        // optionalAttrs cfg.insecure { allowInsecure = true; }
         // optionalAttrs (cfg.pinSHA256 != "") {
           pinnedPeerCertificateChainSha256 = [ cfg.pinSHA256 ];
         };
@@ -252,7 +265,11 @@ rec {
     };
 
   mkSubscriptionEntry =
-    { cfg, user, serverAddr }:
+    {
+      cfg,
+      user,
+      serverAddr,
+    }:
     let
       query =
         if cfg.pinSHA256 != "" then

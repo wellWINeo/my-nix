@@ -54,7 +54,12 @@ in
     hostname = domainName;
   };
 
-  roles.webmail.enable = true;
+  roles.webmail = {
+    enable = true;
+    baseDomain = domainName;
+    jmapServerUrl = "https://mail.${domainName}";
+    sessionSecretFile = "/etc/nixos/secrets/bulwark-session-secret";
+  };
 
   roles.personelWebsite = {
     enable = true;

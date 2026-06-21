@@ -54,7 +54,7 @@ in
     hostname = domainName;
   };
 
-  roles.webmail.enable = false;
+  roles.webmail.enable = true;
 
   roles.personelWebsite = {
     enable = true;

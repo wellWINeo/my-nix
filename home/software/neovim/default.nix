@@ -96,6 +96,20 @@ in
 
         neo-tree.enable = true;
 
+        which-key.enable = true;
+        lualine.enable = true;
+        bufferline.enable = true;
+        gitsigns.enable = true;
+        flash.enable = true;
+        todo-comments.enable = true;
+        trouble.enable = true;
+        nvim-autopairs.enable = true;
+        web-devicons.enable = true;
+        indent-blankline.enable = true;
+        tmux-navigator.enable = true;
+        oil.enable = true;
+        render-markdown.enable = true;
+
         # Load a project's .envrc inside nvim so devShell servers land on PATH
         direnv.enable = true;
 

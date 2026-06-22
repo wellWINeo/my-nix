@@ -89,6 +89,13 @@ in
           ];
         };
 
+        telescope = {
+          enable = true;
+          extensions.fzf-native.enable = true;
+        };
+
+        neo-tree.enable = true;
+
         # Load a project's .envrc inside nvim so devShell servers land on PATH
         direnv.enable = true;
 
@@ -114,6 +121,33 @@ in
           };
         };
       };
+
+      keymaps = [
+        {
+          mode = "n";
+          key = "<leader>ff";
+          action = "<cmd>Telescope find_files<CR>";
+          options.desc = "Find files";
+        }
+        {
+          mode = "n";
+          key = "<leader>fg";
+          action = "<cmd>Telescope live_grep<CR>";
+          options.desc = "Live grep";
+        }
+        {
+          mode = "n";
+          key = "<leader>fb";
+          action = "<cmd>Telescope buffers<CR>";
+          options.desc = "Buffers";
+        }
+        {
+          mode = "n";
+          key = "<leader>e";
+          action = "<cmd>Neotree toggle<CR>";
+          options.desc = "Toggle file tree";
+        }
+      ];
     };
   };
 }

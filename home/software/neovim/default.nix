@@ -1,12 +1,12 @@
 {
   lib,
-  pkgs,
   config,
   ...
 }:
 
 let
   cfg = config.software.neovim;
+  nvimTheme = config.theme.colors.neovim;
 in
 {
   options.software.neovim = {
@@ -14,20 +14,28 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    programs.neovim = {
+    programs.nixvim = {
       enable = true;
       defaultEditor = true;
 
-      initLua = ''
-        vim.opt.termguicolors = true
-        vim.opt.number = true
+      globals.mapleader = " ";
 
-        vim.opt.tabstop = 4
-        vim.opt.expandtab = true
-        vim.opt.shiftwidth = 4
+      opts = {
+        termguicolors = true;
+        number = true;
+        tabstop = 4;
+        expandtab = true;
+        shiftwidth = 4;
+      };
 
+      extraConfigLua = ''
         vim.cmd [[highlight Normal guibg=NONE ctermbg=NONE]]
       '';
+
+      colorschemes.onedark = {
+        enable = true;
+        settings.style = nvimTheme.style;
+      };
     };
   };
 }

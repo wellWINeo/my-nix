@@ -59,6 +59,36 @@ in
           };
         };
 
+        treesitter = {
+          enable = true;
+          settings.ensure_installed = [
+            "nix"
+            "lua"
+            "typescript"
+            "tsx"
+            "javascript"
+            "html"
+            "css"
+            "python"
+            "markdown"
+            "markdown_inline"
+            "bash"
+            "json"
+            "yaml"
+            "toml"
+          ];
+        };
+        treesitter-textobjects.enable = true;
+
+        blink-cmp = {
+          enable = true;
+          settings.sources.default = [
+            "lsp"
+            "path"
+            "buffer"
+          ];
+        };
+
         # Load a project's .envrc inside nvim so devShell servers land on PATH
         direnv.enable = true;
 

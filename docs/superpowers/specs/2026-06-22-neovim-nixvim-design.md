@@ -132,7 +132,6 @@ registered so a server attaches the moment its binary is on `PATH`.
 
 - `nixd` — Nix (matches the repo devShell's choice)
 - `lua_ls` — Lua / Neovim config
-- `bashls` — Bash / shell
 - `html`, `cssls` — standalone, no project dependency graph
 
 **Project-coupled — `package = null` (resolved from devShell `PATH`):** need the
@@ -147,7 +146,6 @@ plugins.lsp = {
   servers = {
     nixd.enable = true;
     lua_ls.enable = true;
-    bashls.enable = true;
     html.enable = true;
     cssls.enable = true;
 
@@ -252,5 +250,5 @@ plugins (already managed via `codingAgents`).
 - `html`/`cssls` are bundled (ambient) rather than devShell-provisioned because
   they do not consume a project dependency graph; only `ts_ls`/`pyright` are
   left to devShells.
-- Exact nixvim option names (e.g. `plugins.direnv`, `bashls`, `ts_ls`) are
+- Exact nixvim option names (e.g. `plugins.direnv`, `ts_ls`, `nixd`) are
   verified against the pinned nixvim branch during implementation.

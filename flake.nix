@@ -15,6 +15,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
+    nixvim = {
+      url = "github:nix-community/nixvim/nixos-26.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -116,6 +120,7 @@
         extraSpecialArgs = { inherit inputs; };
         modules = [
           inputs.agent-skills.homeManagerModules.default
+          inputs.nixvim.homeModules.nixvim
           ./home
           {
             software.alacritty.enable = true;
@@ -132,6 +137,7 @@
         extraSpecialArgs = { inherit inputs; };
         modules = [
           inputs.agent-skills.homeManagerModules.default
+          inputs.nixvim.homeModules.nixvim
           ./home
           {
             software.alacritty.enable = true;

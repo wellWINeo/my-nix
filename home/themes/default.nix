@@ -54,6 +54,10 @@ let
         dimPaneBg = "colour233";
         dimPaneFg = "colour10";
       };
+      neovim = {
+        colorscheme = "onedark";
+        style = "dark";
+      };
     };
 
     "one-half-light" = {
@@ -101,6 +105,10 @@ let
         currentWindowFg = "#fafafa";
         dimPaneBg = "#e5e5e5";
         dimPaneFg = "#a0a1a7";
+      };
+      neovim = {
+        colorscheme = "onedark";
+        style = "light";
       };
     };
   };

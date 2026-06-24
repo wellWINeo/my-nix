@@ -1,5 +1,6 @@
 {
   lib,
+  pkgs,
   config,
   ...
 }:
@@ -17,6 +18,17 @@ in
     programs.nixvim = {
       enable = true;
       defaultEditor = true;
+
+      # Following nixpkgs (below) overrides nixvim's tested nixpkgs pin.
+      # Pinning the source to the same nixpkgs the rest of the flake uses
+      # suppresses the resulting warning while keeping a single shared nixpkgs.
+      nixpkgs.source = pkgs.path;
+
+      # Bundle the generated config into the wrapped neovim instead of writing
+      # ~/.config/nvim/init.lua. A plain init.lua there is loaded by any neovim
+      # on PATH (e.g. a Homebrew nvim), which lacks the nix-built plugins and
+      # fails on require("onedark").
+      wrapRc = true;
 
       globals.mapleader = " ";
 

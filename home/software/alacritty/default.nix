@@ -15,7 +15,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ pkgs.fira-code ];
+    home.packages = [ pkgs.nerd-fonts.fira-code ];
 
     programs.alacritty = {
       enable = true;
@@ -46,10 +46,10 @@ in
 
         font = {
           size = 14.0;
-          normal.family = "Fira Code";
-          bold.family = "Fira Code";
-          italic.family = "Fira Code";
-          bold_italic.family = "Fira Code";
+          normal.family = "FiraCode Nerd Font Mono";
+          bold.family = "FiraCode Nerd Font Mono";
+          italic.family = "FiraCode Nerd Font Mono";
+          bold_italic.family = "FiraCode Nerd Font Mono";
         };
 
         colors = alacrittyTheme.colors;

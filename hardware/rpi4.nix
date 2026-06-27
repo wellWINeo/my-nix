@@ -1,10 +1,11 @@
 # configuration Raspberry Pi 4 Model B Rev 1.1 (2 GB RAM)
 
-{ pkgs, ... }:
+{ ... }:
 
 {
   boot = {
-    kernelPackages = pkgs.linuxKernel.packages.linux_rpi4;
+    # disabled due to deprecation in NixOS 26.05
+    # kernelPackages = pkgs.linuxKernel.packages.linux_rpi4;
     initrd.availableKernelModules = [
       "xhci_pci"
       "usbhid"

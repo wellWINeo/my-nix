@@ -15,6 +15,7 @@ let
   cfg = config.roles.xray.server;
   secrets = import ../../../secrets;
   transports = import ./transports { inherit lib; };
+  hysteria = import ./hysteria.nix { inherit lib; };
   transportList = lib.attrValues transports;
 
   shortIds = secrets.xray.reality.shortIds or [ ];
@@ -33,15 +34,23 @@ let
   };
 
   enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;
+  hyEnabled = cfg.hysteria.enable;
 
   serverConfig = {
-    inbounds = map (
-      t:
-      t.mkServerInbound {
-        cfg = cfg.${t.name};
-        inherit clients shortIds;
-      }
-    ) enabledTransports;
+    inbounds =
+      map (
+        t:
+        t.mkServerInbound {
+          cfg = cfg.${t.name};
+          inherit clients shortIds;
+        }
+      ) enabledTransports
+      ++ lib.optional hyEnabled (
+        hysteria.mkServerInbound {
+          cfg = cfg.hysteria;
+          inherit (cfg) users;
+        }
+      );
 
     outbounds = [
       {
@@ -54,7 +63,9 @@ let
       rules = [
         {
           type = "field";
-          inboundTag = map (t: "${t.tagPrefix}-in") enabledTransports;
+          inboundTag =
+            (map (t: "${t.tagPrefix}-in") enabledTransports)
+            ++ lib.optional hyEnabled hysteria.serverInboundTag;
           outboundTag = "direct-out";
         }
       ];
@@ -97,7 +108,8 @@ in
       description = "Public hostname clients use to reach this xray server. Required when subscriptions are enabled.";
     };
   }
-  // lib.mapAttrs (_: t: t.serverOptions) transports;
+  // lib.mapAttrs (_: t: t.serverOptions) transports
+  // hysteria.serverOptions;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [
@@ -113,7 +125,20 @@ in
         assertion = !cfg.vlessGrpc.enable || !(lib.hasPrefix "/" cfg.vlessGrpc.serviceName);
         message = "roles.xray.server.vlessGrpc.serviceName must not start with '/'";
       }
+      {
+        # certFile/keyFile are types.path with no default, so an unset value
+        # already fails at module-evaluation time before this assertion runs;
+        # the != null check here is a defensive guard, not the primary check.
+        assertion = !hyEnabled || (cfg.hysteria.certFile != null && cfg.hysteria.keyFile != null);
+        message = "roles.xray.server.hysteria requires certFile and keyFile";
+      }
+      {
+        assertion = !hyEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;
+        message = "roles.xray.server.hysteria requires at least one user with a non-empty password";
+      }
     ];
+
+    networking.firewall.allowedUDPPorts = lib.optional hyEnabled cfg.hysteria.port; # server hysteria only; relay.nix opens its own
 
     roles.xray._serverConfig = serverConfig;
   };

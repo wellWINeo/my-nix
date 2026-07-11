@@ -23,6 +23,22 @@
         "type": "github"
       }
     },
+    "dotnet-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783649988,
+        "narHash": "sha256-ytKFV7K9Xombw24GCP/rsX1rnvenmnAcAXpJwYgnj4c=",
+        "owner": "dotnet",
+        "repo": "skills",
+        "rev": "52ba152ed6e3a80cac59bf4f9827a3ed555292e1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "dotnet",
+        "repo": "skills",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
@@ -208,12 +224,30 @@
     "root": {
       "inputs": {
         "agent-skills": "agent-skills",
+        "dotnet-skills": "dotnet-skills",
         "home-manager": "home-manager",
         "miniflux-summarizer": "miniflux-summarizer",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs_3",
         "nixpkgs-unstable": "nixpkgs-unstable",
-        "nixvim": "nixvim"
+        "nixvim": "nixvim",
+        "superpowers": "superpowers"
+      }
+    },
+    "superpowers": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783029415,
+        "narHash": "sha256-kHdQ9e44doBk2yYW88tMSCqVG8ycYcvJSZlrIziXhpA=",
+        "owner": "obra",
+        "repo": "superpowers",
+        "rev": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "type": "github"
+      },
+      "original": {
+        "owner": "obra",
+        "repo": "superpowers",
+        "type": "github"
       }
     },
     "systems": {

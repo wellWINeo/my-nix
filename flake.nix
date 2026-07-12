@@ -15,6 +15,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
+    superpowers = {
+      url = "github:obra/superpowers";
+      flake = false;
+    };
+    dotnet-skills = {
+      url = "github:dotnet/skills";
+      flake = false;
+    };
     nixvim = {
       url = "github:nix-community/nixvim/nixos-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -126,8 +134,11 @@
             software.alacritty.enable = true;
             theme.name = "one-dark";
             software.neovim.enable = true;
-            codingAgents.claude.enable = true;
-            codingAgents.opencode.enable = true;
+            codingAgents = {
+              claude.enable = true;
+              opencode.enable = true;
+              codex.enable = true;
+            };
           }
         ];
       };

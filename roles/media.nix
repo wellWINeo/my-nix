@@ -22,6 +22,7 @@ in
       openFirewall = true;
       settings = {
         inotify = "yes";
+        wide_links = "yes";
         media_dir = [
           "V,/mnt/storage/Public/Media"
         ];

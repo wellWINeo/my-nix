@@ -6,10 +6,7 @@
       "Read(secrets/secrets.json)",
       "Edit(secrets/unlocked/*)",
       "Edit(secrets/secrets.json)",
-      "Write(secrets/unlocked/*)",
-      "Write(secrets/secrets.json)",
-      "Glob(secrets/unlocked/*)",
-      "Glob(secrets/secrets.json)"
+      "Edit(secrets/unlocked/*)"
     ]
   }
 }

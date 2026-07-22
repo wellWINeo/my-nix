@@ -43,65 +43,57 @@ in
   };
 
   config = {
+    # NOTE: no `idPrefix` on any source. Claude Code only discovers personal
+    # skills one level deep (~/.claude/skills/<skill>/SKILL.md); an idPrefix
+    # nests them as ~/.claude/skills/<prefix>/<skill>/ which is never scanned.
+    # Skill names are unique across these sources, so a flat layout is safe.
     codingAgents.skills.sources = {
       own = {
         path = ./own;
-        idPrefix = "own";
       };
       superpowers = {
         input = "superpowers";
         subdir = "skills";
-        idPrefix = "superpowers";
       };
       dotnet = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet/skills";
-        idPrefix = "dotnet";
       };
       dotnet-advanced = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-advanced/skills";
-        idPrefix = "dotnet-advanced";
       };
       dotnet-data = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-data/skills";
-        idPrefix = "dotnet-data";
       };
       dotnet-diag = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-diag/skills";
-        idPrefix = "dotnet-diag";
       };
       dotnet-msbuild = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-msbuild/skills";
-        idPrefix = "dotnet-msbuild";
       };
       dotnet-nuget = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-nuget/skills";
-        idPrefix = "dotnet-nuget";
       };
       dotnet-upgrade = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-upgrade/skills";
-        idPrefix = "dotnet-upgrade";
       };
       dotnet-ai = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-ai/skills";
-        idPrefix = "dotnet-ai";
       };
       dotnet-test = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-test/skills";
-        idPrefix = "dotnet-test";
       };
       dotnet-aspnetcore = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet-aspnetcore/skills";
-        idPrefix = "dotnet-aspnetcore";
       };
     };
 

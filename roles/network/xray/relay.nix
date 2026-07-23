@@ -17,6 +17,7 @@ let
   serverCfg = config.roles.xray.server;
   secrets = import ../../../secrets;
   transports = import ./transports { inherit lib; };
+  hysteria = import ./hysteria.nix { inherit lib; };
   transportList = lib.attrValues transports;
 
   shortIds = secrets.xray.reality.shortIds or [ ];
@@ -36,6 +37,8 @@ let
 
   enabledInbound = lib.filter (t: serverCfg.${t.name}.enable) transportList;
   enabledOutbound = lib.filter (t: cfg.target.${t.name}.enable) transportList;
+  hyInboundEnabled = cfg.hysteria.enable;
+  hyOutboundEnabled = cfg.target.hysteria.enable;
 
   relayConfig = {
     inbounds =
@@ -58,17 +61,31 @@ let
           serverCfg = serverCfg.${t.name};
           inherit clients shortIds;
         }
-      ) enabledInbound;
+      ) enabledInbound
+      ++ lib.optional hyInboundEnabled (
+        hysteria.mkRelayInbound {
+          cfg = cfg.hysteria;
+          inherit (cfg) users;
+        }
+      );
 
-    outbounds = map (
-      t:
-      t.mkRelayOutbound {
-        cfg = cfg.target.${t.name};
-        realityCfg = cfg.target.reality;
-        user = cfg.user;
-        serverAddr = cfg.target.server;
-      }
-    ) enabledOutbound;
+    outbounds =
+      map (
+        t:
+        t.mkRelayOutbound {
+          cfg = cfg.target.${t.name};
+          realityCfg = cfg.target.reality;
+          user = cfg.user;
+          serverAddr = cfg.target.server;
+        }
+      ) enabledOutbound
+      ++ lib.optional hyOutboundEnabled (
+        hysteria.mkRelayOutbound {
+          cfg = cfg.target.hysteria;
+          inherit (cfg) user;
+          serverAddr = cfg.target.server;
+        }
+      );
 
     routing = {
       rules =
@@ -82,16 +99,20 @@ let
         ++ lib.optionals (enabledInbound != [ ]) [
           {
             type = "field";
-            inboundTag = map (
-              t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
-            ) enabledInbound;
+            inboundTag =
+              (map (
+                t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
+              ) enabledInbound)
+              ++ lib.optional hyInboundEnabled hysteria.relayInboundTag;
             balancerTag = "relay-balancer";
           }
         ];
-      balancers = lib.optionals (enabledOutbound != [ ]) [
+      balancers = lib.optionals (enabledOutbound != [ ] || hyOutboundEnabled) [
         {
           tag = "relay-balancer";
-          selector = map (t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-out") enabledOutbound;
+          selector =
+            (map (t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-out") enabledOutbound)
+            ++ lib.optional hyOutboundEnabled hysteria.relayOutboundTag;
           strategy = {
             type = "leastPing";
           };
@@ -158,9 +179,11 @@ in
         };
       };
     }
-    // lib.mapAttrs (_: t: t.relayTargetOptions) transports;
+    // lib.mapAttrs (_: t: t.relayTargetOptions) transports
+    // hysteria.relayTargetOptions;
   }
-  // lib.mapAttrs (_: t: t.relayInboundOptions) transports;
+  // lib.mapAttrs (_: t: t.relayInboundOptions) transports
+  // hysteria.relayInboundOptions;
 
   config = mkIf (config.roles.xray.enable && cfg.enable) {
     assertions = [
@@ -176,7 +199,25 @@ in
         assertion = cfg.socks.enable || enabledInbound != [ ];
         message = "At least one relay inbound must be enabled: either socks.enable = true or at least one server transport must be active";
       }
+      {
+        # certFile/keyFile are types.path with no default, so an unset value
+        # already fails at module-evaluation time before this assertion runs;
+        # the != null check here is a defensive guard, not the primary check.
+        assertion = !hyInboundEnabled || (cfg.hysteria.certFile != null && cfg.hysteria.keyFile != null);
+        message = "roles.xray.relay.hysteria requires certFile and keyFile";
+      }
+      {
+        assertion =
+          !hyOutboundEnabled || cfg.target.hysteria.insecure || cfg.target.hysteria.pinSHA256 != "";
+        message = "roles.xray.relay.target.hysteria requires insecure=true or pinSHA256 set";
+      }
+      {
+        assertion = !hyInboundEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;
+        message = "roles.xray.relay.hysteria requires at least one user with a non-empty password";
+      }
     ];
+
+    networking.firewall.allowedUDPPorts = lib.optional hyInboundEnabled cfg.hysteria.port;
 
     roles.xray._relayConfig = relayConfig;
   };

@@ -4,9 +4,9 @@ let
   cfg = config.codingAgents;
 
   claudeEnabled = cfg.claude.enable && cfg.claude.skills;
-  opencodeEnabled = cfg.opencode.enable && cfg.opencode.skills;
-  codexEnabled = cfg.codex.enable && cfg.codex.skills;
-  anyTargetEnabled = claudeEnabled || opencodeEnabled || codexEnabled;
+  sharedEnabled =
+    (cfg.opencode.enable && cfg.opencode.skills) || (cfg.codex.enable && cfg.codex.skills);
+  anyTargetEnabled = claudeEnabled || sharedEnabled;
   hasSelection = cfg.skills.enableAll != [ ] || cfg.skills.enable != [ ];
 in
 {
@@ -117,12 +117,43 @@ in
       skills.enable = cfg.skills.enable;
       skills.enableAll = cfg.skills.enableAll;
       targets.claude.enable = claudeEnabled;
-      targets.opencode = {
-        enable = opencodeEnabled;
-        dest = "$HOME/.config/opencode/skills";
-        structure = "symlink-tree";
-      };
-      targets.codex.enable = codexEnabled;
+      targets.agents.enable = sharedEnabled;
     };
+
+    home.activation.removeLegacyAgentSkillTrees = lib.mkIf (cfg.opencode.enable || cfg.codex.enable) (
+      lib.hm.dag.entryAfter
+        ([ "writeBoundary" ] ++ lib.optional (config.home.activation ? "agent-skills") "agent-skills")
+        ''
+          is_nix_store_skill_tree() {
+            local tree="$1"
+            local entry target
+
+            [[ -d "$tree" && ! -L "$tree" ]] || return 1
+
+            if ! (
+              set -o pipefail
+              find "$tree" -mindepth 1 -maxdepth 1 -print0 |
+                while IFS= read -r -d "" entry; do
+                  [[ "$(basename "$entry")" == ".system" ]] && return 1
+                  [[ -L "$entry" ]] || return 1
+                  target="$(readlink -f "$entry" || true)"
+                  [[ "$target" == /nix/store/* ]] || return 1
+                done
+            ); then
+              return 1
+            fi
+
+            return 0
+          }
+
+          # TODO: remove this migration action after all supported hosts have
+          # activated a generation using the shared ~/.agents skill target.
+          for legacy in "$HOME/.config/opencode/skills" "''${CODEX_HOME:-$HOME/.codex}/skills"; do
+            if is_nix_store_skill_tree "$legacy"; then
+              run rm -rf "$legacy"
+            fi
+          done
+        ''
+    );
   };
 }

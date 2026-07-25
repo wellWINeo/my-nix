@@ -66,7 +66,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   ├── default.nix          # Base home config
 │   ├── themes/              # Global theme system (one-dark, one-half-light)
 │   ├── software/            # App configs (alacritty, neovim)
-│   ├── coding-agents/       # Coding agent asset deployment (claude, opencode)
+│   ├── coding-agents/       # Coding agent asset deployment (claude, shared .agents for opencode/Codex)
 │   └── tmux.nix             # Tmux config
 ├── users/                   # NixOS user definitions
 │   └── o__ni/
@@ -79,6 +79,17 @@ Personal NixOS configuration repository for managing multiple machines and stand
 ├── assets/                  # Static assets for services
 └── docs/                    # Documentation and plans
 ```
+
+### Coding-agent assets
+
+- Shared opencode/Codex instructions: `~/.agents/AGENTS.md`
+- Shared opencode/Codex skills: `~/.agents/skills/`
+- Claude instructions and skills: `~/.claude/`
+- Harness-specific agent definitions remain under their native directories.
+
+This repository does not currently manage custom command files. OpenCode and
+Codex use different custom-agent formats, so agent definitions are not moved to
+a shared `.agents/agents/` directory.
 
 ## Prerequisites
 

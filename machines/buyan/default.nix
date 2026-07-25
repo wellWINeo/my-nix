@@ -84,6 +84,13 @@ in
         enable = true;
         sni = "dl.google.com";
       };
+      hysteria = {
+        enable = true;
+        port = 36712;
+        sni = "bing.com";
+        certFile = "/etc/nixos/secrets/hysteria-cert";
+        keyFile = "/etc/nixos/secrets/hysteria-key";
+      };
     };
   };
 

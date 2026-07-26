@@ -95,10 +95,23 @@ in
         input = "dotnet-skills";
         subdir = "plugins/dotnet-aspnetcore/skills";
       };
+      mattpocock-engineering = {
+        input = "mattpocock-skills";
+        subdir = "skills/engineering";
+        filter.maxDepth = 1;
+      };
+      mattpocock-productivity = {
+        input = "mattpocock-skills";
+        subdir = "skills/productivity";
+        filter.maxDepth = 1;
+      };
     };
 
     codingAgents.skills.enableAll = [
+      "own"
       "superpowers"
+      "mattpocock-engineering"
+      "mattpocock-productivity"
       "dotnet"
       "dotnet-advanced"
       "dotnet-data"

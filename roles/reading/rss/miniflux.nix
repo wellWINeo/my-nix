@@ -30,6 +30,7 @@ in
       config = {
         LISTEN_ADDR = minifluxUrl;
         CLEANUP_FREQUENCY = 48;
+        FETCHER_ALLOW_PRIVATE_NETWORKS = 1;
         ADMIN_USERNAME = "o__ni";
         CREATE_ADMIN = 1;
       };

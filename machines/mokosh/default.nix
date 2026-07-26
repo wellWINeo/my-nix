@@ -175,7 +175,7 @@ in
       weeklySourceFeedId = 57;
       weeklyTargetFeedId = 58;
       monthlySourceFeedId = 58;
-      monthlyTargetFeedId = 59;
+      monthlyTargetFeedId = 63;
     };
   };
 

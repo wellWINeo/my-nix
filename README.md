@@ -45,7 +45,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   │   └── stream-forwarder.nix
 │   ├── reading/             # Reading apps
 │   │   ├── calibre.nix
-│   │   └── rss/             #   miniflux + summarizer + backup
+│   │   └── rss/             #   miniflux + RSSHub + summarizer + backup
 │   └── router/              # Home router roles
 │       ├── dhcp.nix
 │       ├── dns.nix
@@ -165,6 +165,11 @@ roles.blog = { enable = true; baseDomain = "example.com"; };
 ```
 
 To add a new role, create a `.nix` file in `roles/` — no import registration needed.
+
+RSSHub is enabled on `mokosh` as `roles.rss.hub.enable`. It listens only on
+`127.0.0.1:1200` for Miniflux and is not exposed through Nginx, DNS, or the
+firewall. The initial browser-free route is
+`http://127.0.0.1:1200/anthropic/research`.
 
 ## Adding a New Machine
 

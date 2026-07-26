@@ -166,6 +166,7 @@ in
 
   roles.rss = {
     enable = true;
+    hub.enable = true;
     baseDomain = domainNames.secondary;
     summarizer = {
       enable = true;

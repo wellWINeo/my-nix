@@ -45,6 +45,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   │   └── stream-forwarder.nix
 │   ├── reading/             # Reading apps
 │   │   ├── calibre.nix
+│   │   ├── readeck.nix
 │   │   └── rss/             #   miniflux + RSSHub + summarizer + backup
 │   └── router/              # Home router roles
 │       ├── dhcp.nix
@@ -170,6 +171,11 @@ RSSHub is enabled on `mokosh` as `roles.rss.hub.enable`. It listens only on
 `127.0.0.1:1200` for Miniflux and is not exposed through Nginx, DNS, or the
 firewall. The initial browser-free route is
 `http://127.0.0.1:1200/anthropic/research`.
+
+Readeck is enabled on `mokosh` as `roles.readeck` and is available at
+`https://readlater.uspenskiy.tech`. It listens only on `127.0.0.1:8000` behind
+Nginx, uses SQLite under `/var/lib/readeck`, and is included in the existing
+encrypted backup flow.
 
 ## Adding a New Machine
 

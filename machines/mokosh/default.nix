@@ -164,6 +164,11 @@ in
     baseDomain = domainName;
   };
 
+  roles.readeck = {
+    enable = true;
+    baseDomain = domainNames.secondary;
+  };
+
   roles.rss = {
     enable = true;
     hub.enable = true;

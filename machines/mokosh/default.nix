@@ -148,7 +148,7 @@ in
 
   roles.vault = {
     enable = true;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
     enableWeb = true;
   };
 

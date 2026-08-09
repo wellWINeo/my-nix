@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ ... }:
 
 let
   hostname = "mokosh";
@@ -8,9 +8,7 @@ let
     secondary = "uspenskiy.tech";
   };
   ifname = "eth0";
-  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   secrets = import ../../secrets;
-  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -59,11 +57,6 @@ in
     baseDomain = domainName;
     jmapServerUrl = "https://mail.${domainName}";
     sessionSecretFile = "/etc/nixos/secrets/bulwark-session-secret";
-  };
-
-  roles.personelWebsite = {
-    enable = true;
-    domain = domainName;
   };
 
   roles.letsencrypt = {
@@ -117,13 +110,6 @@ in
       # Limited vpn net goes below
       ###
 
-      # grandma
-      {
-        pubKey = "X1PgQ9CZHS4zW7RCeqD9g8s/7gCQWk5tzTgO1uQ84BI=";
-        ip = "10.30.0.10";
-        isInternal = false;
-      }
-
       {
         pubKey = "9tKr4z0Em7MADdmdCrhBJ/lR73BfrhcPtrdZgihrHS0=";
         ip = "10.30.0.11";
@@ -155,13 +141,13 @@ in
   roles.shadowsocks-server = {
     enable = true;
     openFirewall = false;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
     enableWeb = true;
   };
 
   roles.calibre = {
     enable = true;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
   };
 
   roles.readeck = {
@@ -183,30 +169,6 @@ in
       monthlySourceFeedId = 58;
       monthlyTargetFeedId = 63;
     };
-  };
-
-  roles.blog = {
-    enable = true;
-    baseDomain = domainName;
-  };
-
-  roles.sing-box-server = {
-    enable = true;
-    users = users;
-    baseDomain = domainNames.primary;
-    enableFallback = false;
-
-    vlessWs = {
-      enable = true;
-      path = "/vl-ws";
-    };
-
-    vlessGrpc = {
-      enable = true;
-      serviceName = "VlGrpc";
-    };
-
-    naive.enable = true;
   };
 
   roles.backup = {

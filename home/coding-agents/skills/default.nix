@@ -55,6 +55,10 @@ in
         input = "superpowers";
         subdir = "skills";
       };
+      ponytail-skills = {
+        input = "ponytail-skills";
+        subdir = "skills";
+      };
       dotnet = {
         input = "dotnet-skills";
         subdir = "plugins/dotnet/skills";
@@ -110,6 +114,7 @@ in
     codingAgents.skills.enableAll = [
       "own"
       "superpowers"
+      "ponytail-skills"
       "mattpocock-engineering"
       "mattpocock-productivity"
       "dotnet"

@@ -101,6 +101,22 @@
         "type": "github"
       }
     },
+    "gh-stack-skill": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1785805944,
+        "narHash": "sha256-SBP6z6G35wGY31RMhPpsZ1QDOhmVBlLv7ktLXIA3HwI=",
+        "owner": "github",
+        "repo": "gh-stack",
+        "rev": "14fc42ed9b6c376a53b2f999f138d3bd26dac546",
+        "type": "github"
+      },
+      "original": {
+        "owner": "github",
+        "repo": "gh-stack",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -255,6 +271,7 @@
       "inputs": {
         "agent-skills": "agent-skills",
         "dotnet-skills": "dotnet-skills",
+        "gh-stack-skill": "gh-stack-skill",
         "home-manager": "home-manager",
         "mattpocock-skills": "mattpocock-skills",
         "miniflux-summarizer": "miniflux-summarizer",

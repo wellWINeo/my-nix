@@ -109,6 +109,10 @@ in
         subdir = "skills/productivity";
         filter.maxDepth = 1;
       };
+      gh-stack = {
+        input = "gh-stack-skill";
+        subdir = "skills";
+      };
     };
 
     codingAgents.skills.enableAll = [
@@ -117,6 +121,7 @@ in
       "ponytail-skills"
       "mattpocock-engineering"
       "mattpocock-productivity"
+      "gh-stack"
       "dotnet"
       "dotnet-advanced"
       "dotnet-data"

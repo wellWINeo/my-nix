@@ -94,10 +94,14 @@ in
       vlessXhttp.sni = "onlymir.ru";
       hysteria = {
         enable = true;
-        port = 36712;
+        port = 443;
         sni = "turn.webrtc.yandex.net";
         certFile = "/etc/nixos/secrets/hysteria-cert";
         keyFile = "/etc/nixos/secrets/hysteria-key";
+        masquerade = {
+          type = "proxy";
+          url = "https://turn.webrtc.yandex.net";
+        };
       };
       user = builtins.head secrets.singBoxUsers;
       target = {

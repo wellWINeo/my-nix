@@ -16,13 +16,13 @@ buildNpmPackage (finalAttrs: {
     hash = "sha256-M5EgANzzBAVqQ+XdOQnoXlD3CyYCRcO0PiC6INrnqq8=";
   };
 
-  npmDepsHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  npmDepsHash = "sha256-9yBNDbgq5C//tnWH4itx3AHaDW892G/KmBZ+R9J64Zw=";
 
   nodejs = nodejs_24;
 
   buildPhase = ''
     runHook preBuild
-    npm run build -- --webpack
+    npm run build
     runHook postBuild
   '';
 

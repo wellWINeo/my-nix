@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ ... }:
 
 let
   hostname = "mokosh";
@@ -8,9 +8,7 @@ let
     secondary = "uspenskiy.tech";
   };
   ifname = "eth0";
-  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   secrets = import ../../secrets;
-  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -54,11 +52,11 @@ in
     hostname = domainName;
   };
 
-  roles.webmail.enable = false;
-
-  roles.personelWebsite = {
-    enable = true;
-    domain = domainName;
+  roles.webmail = {
+    enable = false;
+    baseDomain = domainName;
+    jmapServerUrl = "https://mail.${domainName}";
+    sessionSecretFile = "/etc/nixos/secrets/bulwark-session-secret";
   };
 
   roles.letsencrypt = {
@@ -112,13 +110,6 @@ in
       # Limited vpn net goes below
       ###
 
-      # grandma
-      {
-        pubKey = "X1PgQ9CZHS4zW7RCeqD9g8s/7gCQWk5tzTgO1uQ84BI=";
-        ip = "10.30.0.10";
-        isInternal = false;
-      }
-
       {
         pubKey = "9tKr4z0Em7MADdmdCrhBJ/lR73BfrhcPtrdZgihrHS0=";
         ip = "10.30.0.11";
@@ -143,24 +134,30 @@ in
 
   roles.vault = {
     enable = true;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
     enableWeb = true;
   };
 
   roles.shadowsocks-server = {
     enable = true;
     openFirewall = false;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
     enableWeb = true;
   };
 
   roles.calibre = {
     enable = true;
-    baseDomain = domainName;
+    baseDomain = domainNames.secondary;
+  };
+
+  roles.readeck = {
+    enable = true;
+    baseDomain = domainNames.secondary;
   };
 
   roles.rss = {
     enable = true;
+    hub.enable = true;
     baseDomain = domainNames.secondary;
     summarizer = {
       enable = true;
@@ -170,32 +167,8 @@ in
       weeklySourceFeedId = 57;
       weeklyTargetFeedId = 58;
       monthlySourceFeedId = 58;
-      monthlyTargetFeedId = 59;
+      monthlyTargetFeedId = 63;
     };
-  };
-
-  roles.blog = {
-    enable = true;
-    baseDomain = domainName;
-  };
-
-  roles.sing-box-server = {
-    enable = true;
-    users = users;
-    baseDomain = domainNames.primary;
-    enableFallback = false;
-
-    vlessWs = {
-      enable = true;
-      path = "/vl-ws";
-    };
-
-    vlessGrpc = {
-      enable = true;
-      serviceName = "VlGrpc";
-    };
-
-    naive.enable = true;
   };
 
   roles.backup = {

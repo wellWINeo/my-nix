@@ -32,9 +32,13 @@ in
       # Auto renumber windows
       set-option -g renumber-windows on
 
+      # Window nameing
+      set-option -g automatic-rename on
+      set-option -g automatic-rename-format '#{b:pane_current_path}'
+
       # Split pane bindings
-      bind | split-window -h
-      bind - split-window -v
+      bind | split-window -h -c '#{pane_current_path}'
+      bind - split-window -v -c '#{pane_current_path}'
       unbind '"'
       unbind %
 

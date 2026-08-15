@@ -96,7 +96,7 @@ in
 
 ### Naming Conventions
 
-- **Roles**: `roles.<feature-name>` (e.g., `roles.blog`, `roles.vault`)
+- **Roles**: `roles.<feature-name>` (e.g., `roles.media`, `roles.vault`)
 - **Options**: camelCase (e.g., `baseDomain`, `enableWeb`)
 - **Variables**: camelCase for local vars
 - **Hostnames**: lowercase (e.g., `mokosh`, `nixpi`)

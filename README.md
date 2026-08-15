@@ -45,7 +45,8 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   │   └── stream-forwarder.nix
 │   ├── reading/             # Reading apps
 │   │   ├── calibre.nix
-│   │   └── rss/             #   miniflux + summarizer + backup
+│   │   ├── readeck.nix
+│   │   └── rss/             #   miniflux + RSSHub + summarizer + backup
 │   └── router/              # Home router roles
 │       ├── dhcp.nix
 │       ├── dns.nix
@@ -66,7 +67,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   ├── default.nix          # Base home config
 │   ├── themes/              # Global theme system (one-dark, one-half-light)
 │   ├── software/            # App configs (alacritty, neovim)
-│   ├── coding-agents/       # Coding agent asset deployment (claude, opencode)
+│   ├── coding-agents/       # Coding agent asset deployment (claude, shared .agents for opencode/Codex)
 │   └── tmux.nix             # Tmux config
 ├── users/                   # NixOS user definitions
 │   └── o__ni/
@@ -79,6 +80,17 @@ Personal NixOS configuration repository for managing multiple machines and stand
 ├── assets/                  # Static assets for services
 └── docs/                    # Documentation and plans
 ```
+
+### Coding-agent assets
+
+- Shared opencode/Codex instructions: `~/.agents/AGENTS.md`
+- Shared opencode/Codex skills: `~/.agents/skills/`
+- Claude instructions and skills: `~/.claude/`
+- Harness-specific agent definitions remain under their native directories.
+
+This repository does not currently manage custom command files. OpenCode and
+Codex use different custom-agent formats, so agent definitions are not moved to
+a shared `.agents/agents/` directory.
 
 ## Prerequisites
 
@@ -154,6 +166,16 @@ roles.blog = { enable = true; baseDomain = "example.com"; };
 ```
 
 To add a new role, create a `.nix` file in `roles/` — no import registration needed.
+
+RSSHub is enabled on `mokosh` as `roles.rss.hub.enable`. It listens only on
+`127.0.0.1:1200` for Miniflux and is not exposed through Nginx, DNS, or the
+firewall. The initial browser-free route is
+`http://127.0.0.1:1200/anthropic/research`.
+
+Readeck is enabled on `mokosh` as `roles.readeck` and is available at
+`https://readlater.uspenskiy.tech`. It listens only on `127.0.0.1:8000` behind
+Nginx, uses SQLite under `/var/lib/readeck`, and is included in the existing
+encrypted backup flow.
 
 ## Adding a New Machine
 

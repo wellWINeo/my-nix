@@ -64,7 +64,7 @@ in
           api_key = cfg.minifluxApiKey;
         };
         llm = {
-          model = "deepseek/deepseek-v4-flash";
+          model = "~deepseek/deepseek-v4-flash-latest";
           base_url = "https://openrouter.ai/api/v1";
           api_key = "PLACEHOLDER";
         };
@@ -72,6 +72,7 @@ in
           tech-daily = {
             source = "raw_entries";
             target_feed_id = cfg.dailyTargetFeedId;
+            history_lookback = "-7d";
             prompt = dailyPrompt;
             ignore = [
               {
@@ -108,6 +109,7 @@ in
             source = "digests";
             source_feed_id = cfg.weeklySourceFeedId;
             target_feed_id = cfg.weeklyTargetFeedId;
+            history_loockback = "-1m";
             prompt = weeklyPrompt;
             ignore = [ ];
             presets = {
@@ -122,6 +124,7 @@ in
             source = "digests";
             source_feed_id = cfg.monthlySourceFeedId;
             target_feed_id = cfg.monthlyTargetFeedId;
+            history_loockback = "-1m";
             prompt = monthlyPrompt;
             ignore = [ ];
             presets = {

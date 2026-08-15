@@ -32,5 +32,6 @@ in
   options.codingAgents = {
     claude = toolOpts cfg.claude.enable;
     opencode = toolOpts cfg.opencode.enable;
+    codex = toolOpts cfg.codex.enable;
   };
 }

@@ -95,7 +95,7 @@ in
       hysteria = {
         enable = true;
         port = 36712;
-        sni = "bing.com";
+        sni = "turn.webrtc.yandex.net";
         certFile = "/etc/nixos/secrets/hysteria-cert";
         keyFile = "/etc/nixos/secrets/hysteria-key";
       };
@@ -119,7 +119,7 @@ in
           serverName = "dl.google.com";
         };
         hysteria = {
-          enable = true;
+          enable = false;
           serverName = "bing.com";
           insecure = true;
           port = 36712;

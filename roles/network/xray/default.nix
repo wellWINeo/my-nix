@@ -154,32 +154,26 @@ in
         AmbientCapabilities = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
         NoNewPrivileges = true;
       };
-      script =
-        let
-          realityStage = ''
-            jq --arg key "$(cat "$CREDENTIALS_DIRECTORY/private-key")" \
-              '.inbounds[] |= if (.streamSettings.security // "") == "reality"
-                               then .streamSettings.realitySettings.privateKey = $key
-                               else . end'
-          '';
-          hysteriaStage = lib.optionalString hysteriaInboundEnabled ''
-            | jq \
-                --arg cert "$CREDENTIALS_DIRECTORY/hysteria-cert" \
-                --arg key "$CREDENTIALS_DIRECTORY/hysteria-key" \
-                --arg rcert "$CREDENTIALS_DIRECTORY/hysteria-relay-cert" \
-                --arg rkey "$CREDENTIALS_DIRECTORY/hysteria-relay-key" \
-                '.inbounds[] |= if .protocol != "hysteria" then .
-                                 elif .tag == "hy2-relay-in" then .streamSettings.tlsSettings.certificates[0] = {certificateFile: $rcert, keyFile: $rkey}
-                                 else .streamSettings.tlsSettings.certificates[0] = {certificateFile: $cert, keyFile: $key} end'
-          '';
-        in
-        ''
-          cat ${configTemplateFile} \
-            | ${realityStage} \
-            ${hysteriaStage} \
-            > /tmp/xray.json
-          exec xray -config /tmp/xray.json
-        '';
+      script = ''
+        cat ${configTemplateFile} \
+          | jq \
+              --arg privateKey "$(cat "$CREDENTIALS_DIRECTORY/private-key")" \
+              --arg cert "$CREDENTIALS_DIRECTORY/hysteria-cert" \
+              --arg certKey "$CREDENTIALS_DIRECTORY/hysteria-key" \
+              --arg relayCert "$CREDENTIALS_DIRECTORY/hysteria-relay-cert" \
+              --arg relayKey "$CREDENTIALS_DIRECTORY/hysteria-relay-key" \
+              '.inbounds[] |=
+                if (.streamSettings.security // "") == "reality" then
+                  .streamSettings.realitySettings.privateKey = $privateKey
+                elif .protocol != "hysteria" then .
+                elif .tag == "hy2-relay-in" then
+                  .streamSettings.tlsSettings.certificates[0] = {certificateFile: $relayCert, keyFile: $relayKey}
+                else
+                  .streamSettings.tlsSettings.certificates[0] = {certificateFile: $cert, keyFile: $certKey}
+                end' \
+          > /tmp/xray.json
+        exec xray -config /tmp/xray.json
+      '';
     };
   };
 }

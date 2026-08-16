@@ -188,6 +188,7 @@ rec {
       // optionalAttrs (masq != { }) { masquerade = masq; };
       security = "tls";
       tlsSettings = {
+        alpn = [ "h3" ];
         certificates = [
           {
             certificateFile = "@HYSTERIA_CERT@";
@@ -220,7 +221,7 @@ rec {
     // {
       tag = relayInboundTag;
       streamSettings = base.streamSettings // {
-        tlsSettings = {
+        tlsSettings = base.streamSettings.tlsSettings // {
           certificates = [
             {
               certificateFile = "@HYSTERIA_RELAY_CERT@";

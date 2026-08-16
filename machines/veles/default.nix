@@ -92,6 +92,17 @@ in
       vlessTcp.sni = "api.oneme.ru";
       vlessGrpc.sni = "avatars.mds.yandex.net";
       vlessXhttp.sni = "onlymir.ru";
+      hysteria = {
+        enable = true;
+        port = 443;
+        sni = "turn.webrtc.yandex.net";
+        certFile = "/etc/nixos/secrets/hysteria-veles-cert";
+        keyFile = "/etc/nixos/secrets/hysteria-veles-key";
+        masquerade = {
+          type = "proxy";
+          url = "https://turn.webrtc.yandex.net";
+        };
+      };
       user = builtins.head secrets.singBoxUsers;
       target = {
         server = secrets.ip.buyan.address;
@@ -110,6 +121,12 @@ in
         vlessXhttp = {
           enable = true;
           serverName = "dl.google.com";
+        };
+        hysteria = {
+          enable = false;
+          serverName = "bing.com";
+          insecure = true;
+          port = 36712;
         };
       };
     };

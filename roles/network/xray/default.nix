@@ -28,6 +28,11 @@ let
   relayCfg = config.roles.xray.relay;
   subsCfg = config.roles.xray.subscriptions;
 
+  serverHysteriaCfg = serverCfg.hysteria;
+  hysteriaServerEnabled = cfg.server.enable && serverHysteriaCfg.enable;
+  hysteriaRelayInboundEnabled = cfg.relay.enable && relayCfg.hysteria.enable;
+  hysteriaInboundEnabled = hysteriaServerEnabled || hysteriaRelayInboundEnabled;
+
   serverConfig = if cfg.server.enable then cfg._serverConfig else emptyConfig;
   relayConfig = if cfg.relay.enable then cfg._relayConfig else emptyConfig;
 
@@ -137,19 +142,44 @@ in
       ];
       serviceConfig = {
         PrivateTmp = true;
-        LoadCredential = "private-key:${cfg.server.reality.privateKeyFile}";
+        LoadCredential = [
+          "private-key:${cfg.server.reality.privateKeyFile}"
+        ]
+        ++ lib.optional hysteriaServerEnabled "hysteria-cert:${serverHysteriaCfg.certFile}"
+        ++ lib.optional hysteriaServerEnabled "hysteria-key:${serverHysteriaCfg.keyFile}"
+        ++ lib.optional hysteriaRelayInboundEnabled "hysteria-relay-cert:${relayCfg.hysteria.certFile}"
+        ++ lib.optional hysteriaRelayInboundEnabled "hysteria-relay-key:${relayCfg.hysteria.keyFile}";
         DynamicUser = true;
         CapabilityBoundingSet = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
         AmbientCapabilities = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
         NoNewPrivileges = true;
       };
-      script = ''
-        cat ${configTemplateFile} \
-          | jq --arg key "$(cat "$CREDENTIALS_DIRECTORY/private-key")" \
-              '.inbounds[].streamSettings.realitySettings.privateKey = $key' \
-          > /tmp/xray.json
-        exec xray -config /tmp/xray.json
-      '';
+      script =
+        let
+          realityStage = ''
+            jq --arg key "$(cat "$CREDENTIALS_DIRECTORY/private-key")" \
+              '.inbounds[] |= if (.streamSettings.security // "") == "reality"
+                               then .streamSettings.realitySettings.privateKey = $key
+                               else . end'
+          '';
+          hysteriaStage = lib.optionalString hysteriaInboundEnabled ''
+            | jq \
+                --arg cert "$CREDENTIALS_DIRECTORY/hysteria-cert" \
+                --arg key "$CREDENTIALS_DIRECTORY/hysteria-key" \
+                --arg rcert "$CREDENTIALS_DIRECTORY/hysteria-relay-cert" \
+                --arg rkey "$CREDENTIALS_DIRECTORY/hysteria-relay-key" \
+                '.inbounds[] |= if .protocol != "hysteria" then .
+                                 elif .tag == "hy2-relay-in" then .streamSettings.tlsSettings.certificates[0] = {certificateFile: $rcert, keyFile: $rkey}
+                                 else .streamSettings.tlsSettings.certificates[0] = {certificateFile: $cert, keyFile: $key} end'
+          '';
+        in
+        ''
+          cat ${configTemplateFile} \
+            | ${realityStage} \
+            ${hysteriaStage} \
+            > /tmp/xray.json
+          exec xray -config /tmp/xray.json
+        '';
     };
   };
 }

@@ -207,7 +207,7 @@ rec {
       tag = serverInboundTag;
       settings = {
         version = 2;
-        users = mkHysteriaUsers users;
+        clients = mkHysteriaUsers users;
       };
       streamSettings = mkInboundStreamSettings cfg;
     };

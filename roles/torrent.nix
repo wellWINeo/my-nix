@@ -43,6 +43,10 @@ in
         rpc-whitelist = "127.0.0.1,192.168.0.*,10.20.0.*";
         rpc-host-whitelist = "torrent.home";
         umask = "002";
+        speed_limit_down_enabled = true;
+        speed_limit_down = 15 * 1024;
+        speed_limit_up_enabled = true;
+        speed_limit_up = 1024;
       };
     };
 

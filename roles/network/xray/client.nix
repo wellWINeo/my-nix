@@ -36,6 +36,15 @@ let
           udp = true;
         };
       }
+    ]
+    ++ lib.optionals cfg.http.enable [
+      {
+        listen = "0.0.0.0";
+        port = cfg.http.port;
+        protocol = "http";
+        tag = "http-in";
+        settings = { };
+      }
     ];
 
     outbounds =
@@ -57,7 +66,7 @@ let
       rules = [
         {
           type = "field";
-          inboundTag = [ "socks-in" ];
+          inboundTag = [ "socks-in" ] ++ lib.optional cfg.http.enable "http-in";
           balancerTag = "proxy-balancer";
         }
       ];
@@ -66,10 +75,16 @@ let
           tag = "proxy-balancer";
           selector = map (t: "${t.tagPrefix}-out") enabledTransports;
           strategy = {
-            type = "random";
+            type = "leastPing";
           };
         }
       ];
+    };
+
+    observatory = {
+      subjectSelector = [ "vless-" ];
+      probeURL = "https://www.google.com/generate_204";
+      probeInterval = "60s";
     };
   };
 in
@@ -112,6 +127,16 @@ in
         description = "uTLS fingerprint";
       };
     };
+
+    http = {
+      enable = mkEnableOption "HTTP proxy inbound";
+
+      port = mkOption {
+        type = types.port;
+        default = 3128;
+        description = "HTTP proxy listen port";
+      };
+    };
   }
   // lib.mapAttrs (_: t: t.clientOptions) transports;
 
@@ -120,6 +145,10 @@ in
       {
         assertion = lib.any (t: cfg.${t.name}.enable) transportList;
         message = "At least one xray client outbound must be enabled";
+      }
+      {
+        assertion = !cfg.http.enable || cfg.http.port != cfg.port;
+        message = "roles.xray.client.http.port must differ from roles.xray.client.port";
       }
       {
         assertion =
@@ -139,7 +168,9 @@ in
       settings = xrayConfig;
     };
 
-    networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [ cfg.port ];
+    networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall (
+      [ cfg.port ] ++ lib.optional cfg.http.enable cfg.http.port
+    );
     networking.firewall.allowedUDPPorts = mkIf cfg.openFirewall [ cfg.port ];
   };
 }

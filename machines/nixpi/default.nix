@@ -7,8 +7,8 @@ let
   gatewayIP = "192.168.0.1";
   secrets = import ../../secrets;
   mokoshIp = secrets.ip.mokosh.address;
-  filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
-  nixpiXrayUser = builtins.head (filterProxyUsersForHost "veles" secrets.singBoxUsers);
+  selectProxyUser = import ../../common/select-proxy-user.nix;
+  nixpiXrayUser = selectProxyUser hostname secrets.singBoxUsers;
 in
 {
   imports = [

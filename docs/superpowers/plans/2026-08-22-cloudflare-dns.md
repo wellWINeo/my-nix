@@ -4,13 +4,13 @@
 
 **Goal:** Manage authoritative Cloudflare A, CNAME, MX, and TXT records from this NixOS-configuration flake, with separate local and GitHub Actions preview, drift-check, and approved-apply workflows.
 
-**Architecture:** `dns/zones.nix` is the non-secret Nix source of truth. A pure Nix renderer validates it and produces DNSControl JSON IR; shell apps use that IR and construct a temporary credentials file only at runtime. The existing flake check validates the renderer on pull requests; a dedicated workflow checks live drift on a schedule and runs a reviewed apply only after a live manual preview.
+**Architecture:** `dns/zones.nix` is the non-secret Nix source of truth. A pure Nix renderer validates it and produces DNSControl JSON IR; shell apps use that IR and construct a temporary credentials file only at runtime. The existing flake check validates both a representative fixture and the actual rendered source on pull requests; a dedicated workflow checks live drift on a schedule and runs a reviewed apply only after a live manual preview.
 
 **Tech Stack:** Nix flakes, nixpkgs `dnscontrol`, Bash, `jq`, GitHub Actions, Cloudflare API tokens.
 
 ## Global Constraints
 
-- Initially support only `A`, `CNAME`, `MX`, and `TXT` records; reject every other type during Nix evaluation.
+- The confirmed initial scope is `A`, `CNAME`, `MX`, and `TXT`. Before any apply, inventory every live record; if any intended non-provider-managed type falls outside that set, stop and extend the schema, renderer, fixtures, and production validation before proceeding.
 - A zone declaration is authoritative: omitted non-provider-managed records are deleted by DNSControl on the next successful apply.
 - Every live DNSControl invocation must include `--no-populate`.
 - `CLOUDFLARE_DNS_TOKEN` must never appear in Nix source, a derivation, Git, command arguments, logs, or artifacts.
@@ -31,9 +31,9 @@
 - `dns/tests/zones.nix` — representative non-production fixture covering every initially supported record type.
 - `dns/tests/default.nix` — validates renderer rejection cases, IR shape, and DNSControl offline IR validation.
 - `docs/dns.md` — record schema, token setup, local workflow, adoption procedure, CI controls, and rollback procedure.
-- `.github/workflows/check.yml` — extends the existing secret-free PR/main validation with the offline DNS renderer check.
+- `.github/workflows/check.yml` — extends the existing secret-free PR/main validation with fixture and production DNSControl IR checks.
 - `.github/workflows/dns.yml` — scheduled drift check, manual preview, and reviewer-gated apply.
-- `flake.nix` — exposes the IR and apps, and adds the renderer test to flake checks.
+- `flake.nix` — exposes the IR and apps, and adds both fixture and production-IR decoding checks to flake checks.
 - `README.md` — links operators to the DNS guide.
 
 ## Record Source Interface
@@ -136,7 +136,7 @@ Create `dns/tests/zones.nix`:
 }
 ```
 
-Create `dns/tests/default.nix` with a success fixture and three required rejection cases: a CNAME target without a trailing dot, an MX record with `proxied`, and an unsupported `AAAA` record.
+Create `dns/tests/default.nix` with a success fixture and four required rejection cases: a CNAME target without a trailing dot, an MX record with `proxied`, a TXT record with an extraneous `address`, and an unsupported `AAAA` record.
 
 ```nix
 { pkgs }:
@@ -165,6 +165,16 @@ let
       }
     ];
   };
+  invalidTxtAddress = {
+    "example.test".records = [
+      {
+        type = "TXT";
+        name = "@";
+        text = "v=spf1 -all";
+        address = "192.0.2.10";
+      }
+    ];
+  };
   invalidType = {
     "example.test".records = [
       {
@@ -177,6 +187,7 @@ let
   validationCasesPass =
     assert mustFail invalidCname;
     assert mustFail invalidMxProxy;
+    assert mustFail invalidTxtAddress;
     assert mustFail invalidType;
     true;
 in
@@ -270,10 +281,18 @@ let
     else
       fail "ttl must be `auto` or an integer of at least 60";
 
+  allowedFields = {
+    A = [ "type" "name" "address" "proxied" "ttl" ];
+    CNAME = [ "type" "name" "target" "proxied" "ttl" ];
+    MX = [ "type" "name" "priority" "exchange" "ttl" ];
+    TXT = [ "type" "name" "text" "ttl" ];
+  };
+
   renderRecord = record:
     assert require (builtins.isAttrs record) "each record must be an attrset";
     assert require (record ? type && builtins.isString record.type) "each record needs string `type`";
     assert require (lib.elem record.type [ "A" "CNAME" "MX" "TXT" ]) "unsupported record type `${record.type}`";
+    assert require (lib.all (field: lib.elem field allowedFields.${record.type}) (builtins.attrNames record)) "record type `${record.type}` has an unsupported field";
     assert require (record ? name && nonEmptyString record.name && !lib.hasSuffix "." record.name) "record `name` must be a non-empty relative name";
     let
       ttl = renderTtl (record.ttl or "auto");
@@ -371,13 +390,36 @@ in
 }
 ```
 
+Replace the earlier `checks` output with this version after `dns/default.nix` exists, so the real source is decoded with the pinned DNSControl package on every platform:
+
+```nix
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+          dns = import ./dns { inherit pkgs; };
+        in
+        {
+          dns-render = import ./dns/tests { inherit pkgs; };
+          dns-config = pkgs.runCommand "dns-config-check" {
+            nativeBuildInputs = [ pkgs.dnscontrol ];
+          } ''
+            set -euo pipefail
+            dnscontrol check --ir ${dns.ir} | tee "$TMPDIR/dnscontrol-check.out"
+            grep -Fx 'No errors.' "$TMPDIR/dnscontrol-check.out"
+            touch "$out"
+          '';
+        }
+      );
+```
+
 Create `dns/zones.nix` with the deliberately empty initial source:
 
 ```nix
 { }
 ```
 
-- [ ] **Step 4: Re-run the renderer test and format the Nix files**
+- [ ] **Step 4: Re-run fixture and production IR checks, then format the Nix files**
 
 Run:
 
@@ -385,11 +427,13 @@ Run:
 make fmt
 make setup-dummy-secrets
 system="$(nix eval --impure --raw --expr builtins.currentSystem)"
-nix build --print-build-logs ".#checks.${system}.dns-render"
+nix build --print-build-logs \
+  ".#checks.${system}.dns-render" \
+  ".#checks.${system}.dns-config"
 make check
 ```
 
-Expected: `dnscontrol check` prints `No errors.`, Nix builds the `dns-render-test` derivation successfully, and `make check` evaluates the complete flake.
+Expected: both `dnscontrol check` invocations print `No errors.`, Nix builds the fixture and production IR derivations successfully, and `make check` evaluates the complete flake.
 
 - [ ] **Step 5: Commit the tested renderer**
 
@@ -578,7 +622,10 @@ Run:
 make fmt
 make setup-dummy-secrets
 system="$(nix eval --impure --raw --expr builtins.currentSystem)"
-nix build --print-build-logs .#dnscontrol-ir ".#checks.${system}.dns-render"
+nix build --print-build-logs \
+  .#dnscontrol-ir \
+  ".#checks.${system}.dns-render" \
+  ".#checks.${system}.dns-config"
 nix run .#dns-preview -- 2>&1 | grep -Fx 'CLOUDFLARE_DNS_TOKEN must be set'
 nix run .#dns-drift-check -- 2>&1 | grep -Fx 'CLOUDFLARE_DNS_TOKEN must be set'
 nix run .#dns-apply -- --confirm 2>&1 | grep -Fx 'CLOUDFLARE_DNS_TOKEN must be set'
@@ -609,13 +656,13 @@ Expected: one commit containing only app construction and flake-output wiring.
 
 - [ ] **Step 1: Capture an offline inventory before declaring any production zone**
 
-For each Cloudflare zone, record every manually managed A, CNAME, MX, and TXT record from the dashboard or Cloudflare API, including record name, value/target, MX priority, TTL, and proxy status. Keep the pre-adoption backup outside Git if its contents should not be committed.
+For each Cloudflare zone, record every live DNS record from the dashboard or Cloudflare API, including type, name, value/target, MX priority, TTL, and proxy status. Confirm that every intended non-provider-managed record is A, CNAME, MX, or TXT. If any intended record has another type, stop this plan before writing `dns/zones.nix`; add that type to the Nix schema, field allowlist, fixture, renderer, and production-IR check first. Keep the pre-adoption backup outside Git if its contents should not be committed.
 
 Do not delete or edit records in the dashboard during this step. Cloudflare-managed SOA records, apex NS records, and Cloudflare Mail Routing MX/DKIM records are not to be declared because DNSControl's Cloudflare provider ignores them.
 
 - [ ] **Step 2: Replace the empty `dns/zones.nix` attrset with the inventory using the exact source schema**
 
-For every inventory record, add one attrset under its zone. Use `ttl = "auto"` only when Cloudflare currently reports Auto; use the current numeric TTL otherwise. Copy Cloudflare proxy state into `proxied` for every A or CNAME record. Preserve the trailing `.` on CNAME targets and MX exchanges.
+After the inventory gate passes, add one attrset for every intended A, CNAME, MX, or TXT record under its zone. Use `ttl = "auto"` only when Cloudflare currently reports Auto; use the current numeric TTL otherwise. Copy Cloudflare proxy state into `proxied` for every A or CNAME record. Preserve the trailing `.` on CNAME targets and MX exchanges.
 
 A populated MX declaration must follow this exact shape:
 
@@ -675,8 +722,8 @@ Omit the zone argument to operate on every declared zone. `dns-preview` is read-
 
 ## Initial adoption and rollback
 
-1. Take an offline inventory of current Cloudflare records.
-2. Declare every intended A, CNAME, MX, and TXT record in `dns/zones.nix`.
+1. Take an offline inventory of every current Cloudflare record and stop if any intended non-provider-managed record is not A, CNAME, MX, or TXT.
+2. Declare every intended A, CNAME, MX, and TXT record in `dns/zones.nix` only after that gate passes.
 3. Run `dns-preview` until every proposed change is intended; a pure adoption should show no correction.
 4. Run `dns-apply -- --confirm` only after reviewing the output.
 5. If a push fails partway through, rerun preview and apply after correcting the declaration. To roll back, revert `dns/zones.nix` to a known commit and apply that revision.
@@ -702,13 +749,15 @@ Run:
 make fmt
 make setup-dummy-secrets
 system="$(nix eval --impure --raw --expr builtins.currentSystem)"
-nix build --print-build-logs ".#checks.${system}.dns-render"
+nix build --print-build-logs \
+  ".#checks.${system}.dns-render" \
+  ".#checks.${system}.dns-config"
 # Export CLOUDFLARE_DNS_TOKEN from the operator's secret manager without echoing it.
 nix run .#dns-preview --
 unset CLOUDFLARE_DNS_TOKEN
 ```
 
-Expected: the renderer check succeeds. The preview output contains no unintended deletion; for a pure adoption it reports no changes. If it proposes an unexpected change, correct `dns/zones.nix` and repeat this step; do not apply.
+Expected: fixture and production IR checks succeed. The preview output contains no unintended deletion; for a pure adoption it reports no changes. If it proposes an unexpected change, correct `dns/zones.nix` and repeat this step; do not apply.
 
 - [ ] **Step 5: Commit the reviewed declarations and guide**
 
@@ -727,15 +776,18 @@ Expected: the committed Nix source contains all intended records and no token or
 
 **Interfaces:**
 - Consumes: flake apps from Task 2 and `CLOUDFLARE_DNS_TOKEN` as an Environment secret.
-- Produces: existing PR/main validation extended with the offline renderer check, plus scheduled live drift failure, manual preview, and manual `apply: true` gated after preview by `cloudflare-dns-apply` reviewers.
+- Produces: existing PR/main validation extended with fixture and production offline IR checks, plus scheduled live drift failure, manual preview, and manual `apply: true` gated after preview by `cloudflare-dns-apply` reviewers.
 
 - [ ] **Step 1: Extend the existing secret-free flake-check workflow**
 
 In `.github/workflows/check.yml`, add this step after **Check Nix flake** and before **Check formatting**:
 
 ```yaml
-      - name: Run offline DNS renderer check
-        run: nix build --print-build-logs .#checks.x86_64-linux.dns-render
+      - name: Run offline DNSControl IR checks
+        run: |
+          nix build --print-build-logs \
+            .#checks.x86_64-linux.dns-render \
+            .#checks.x86_64-linux.dns-config
 ```
 
 This job already runs on pull requests and pushes to `main`, installs Nix, and invokes `make setup-dummy-secrets`; it must not receive the Cloudflare token.
@@ -869,10 +921,12 @@ git diff --check -- .github/workflows/check.yml .github/workflows/dns.yml flake.
 make setup-dummy-secrets
 make check
 system="$(nix eval --impure --raw --expr builtins.currentSystem)"
-nix build --print-build-logs ".#checks.${system}.dns-render"
+nix build --print-build-logs \
+  ".#checks.${system}.dns-render" \
+  ".#checks.${system}.dns-config"
 ```
 
-Expected: Ruby prints `valid YAML`; whitespace validation produces no output; `make check` and the offline renderer test succeed. This validation intentionally does not receive a Cloudflare token.
+Expected: Ruby prints `valid YAML`; whitespace validation produces no output; `make check`, the fixture IR check, and the production IR check succeed. This validation intentionally does not receive a Cloudflare token.
 
 - [ ] **Step 4: Commit the CI workflows**
 
@@ -955,6 +1009,6 @@ Expected: `make check` succeeds, whitespace validation produces no output, commi
 
 ## Plan Self-Review
 
-- **Spec coverage:** Task 1 supplies the direct Nix source, pure IR renderer, record validation, deterministic fixture, and pinned DNSControl decoding. Task 2 supplies the three secret-safe apps and `--no-populate` enforcement. Task 3 covers manual-record adoption, documentation, live zero-surprise preview, partial-failure recovery, and Git rollback. Task 4 covers PR static validation, scheduled drift, immutable main-commit manual preview, post-preview Environment approval, single-token dual-environment storage, and apply serialization. Task 5 covers Cloudflare/GitHub configuration and the first controlled reconciliation.
+- **Spec coverage:** Task 1 supplies the direct Nix source, pure IR renderer, complete-field validation, deterministic fixture, and pinned DNSControl decoding of both fixture and production IR. Task 2 supplies the three secret-safe apps and `--no-populate` enforcement. Task 3 gates four-type adoption on a complete live inventory, covers documentation, live zero-surprise preview, partial-failure recovery, and Git rollback. Task 4 covers PR static validation, scheduled drift, immutable main-commit manual preview, post-preview Environment approval, single-token dual-environment storage, and apply serialization. Task 5 covers Cloudflare/GitHub configuration and the first controlled reconciliation.
 - **Type consistency:** Tasks use one record schema (`address`, `target`, `priority`/`exchange`, `text`), one renderer interface (`render`), one IR attribute (`ir`), and the three exported app names consistently.
 - **Scope:** The initial implementation deliberately rejects unsupported record types and all non-DNS Cloudflare resources. Extending the model begins with a renderer fixture and a new source-schema branch, not unchecked raw JSON.

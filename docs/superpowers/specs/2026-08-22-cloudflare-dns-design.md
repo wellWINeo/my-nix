@@ -34,10 +34,10 @@ Excluded:
 Add a dedicated `dns/` area with three clear responsibilities:
 
 1. `dns/zones.nix` declares zones as an attribute set keyed by zone name. Each zone contains its full desired list of records. Records use a tagged Nix schema: common fields identify the record type and owner name, while type-specific fields express its value and optional Cloudflare/DNS metadata such as TTL, proxy status, or priority.
-2. `dns/render.nix` is a pure renderer and validator. It turns the declarations into DNSControl JSON IR, validates zone and record invariants, and produces deterministic output.
+2. `dns/lib.nix` is a pure renderer and validator. It turns the declarations into DNSControl JSON IR, validates zone and record invariants, and produces deterministic output.
 3. The flake exposes the generated IR and DNSControl-based applications. The generated IR is safe to place in the Nix store because it contains only public DNS configuration and no credentials.
 
-Implementation begins by inventorying the zones, then fixes the initial schema to every record type and metadata field actually present. The source model must reject invalid type/field combinations, records outside their declared zone, and identical duplicate records. Support for a new record type is added deliberately through the tagged schema and renderer rather than as unvalidated free-form JSON.
+The confirmed initial inventory scope is A, CNAME, MX, and TXT. Before creating any zone declaration or running any apply, inventory every live record and stop if any intended non-provider-managed record falls outside that set; extend the tagged schema, renderer, fixture, and production validation before proceeding. The source model must reject invalid type/field combinations, including fields that are valid only for another record type, records outside their declared zone, and identical duplicate records. Support for a new record type is added deliberately through the tagged schema and renderer rather than as unvalidated free-form JSON.
 
 DNSControl's normal purge behavior is retained. A record omitted from a managed zone is deleted at the next successful apply. DNSControl/Cloudflare-owned exceptions, such as provider-managed SOA, apex NS, and Mail Routing records, remain provider-managed. Any non-provider exception must be explicit in the Nix source and documented with why it is not under this repository's authority.
 
@@ -85,7 +85,7 @@ The implementation must provide:
 
 - Nix evaluation and fixture tests for valid representative records and invalid schema cases.
 - Deterministic expected DNSControl IR fixtures for supported record types and metadata.
-- A fixture test that decodes the rendered IR using the pinned DNSControl version, so an IR-schema incompatibility fails before a live deployment.
+- A fixture test that decodes representative rendered IR using the pinned DNSControl version, plus a secret-free check that decodes the actual `dns/zones.nix` IR, so an IR-schema incompatibility fails before a live deployment.
 - A documented manual smoke test against an existing zone: initial zero-surprise preview, one reviewed test change, confirmation that preview becomes clean after apply, and a revert/apply rollback.
 - CI verification that static checks need no Cloudflare token; live drift and apply checks use runtime credentials only.
 

@@ -8,7 +8,9 @@ let
   secrets = import ../../secrets;
   mokoshIp = secrets.ip.mokosh.address;
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
+  selectProxyUser = import ../../common/select-proxy-user.nix;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
+  relayUser = selectProxyUser hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -103,7 +105,7 @@ in
           url = "https://turn.webrtc.yandex.net";
         };
       };
-      user = builtins.head secrets.singBoxUsers;
+      user = relayUser;
       target = {
         server = secrets.ip.buyan.address;
         reality = {

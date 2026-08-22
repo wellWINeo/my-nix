@@ -1,4 +1,4 @@
-{ ... }:
+{ lib, ... }:
 
 let
   hostname = "nixpi";
@@ -7,7 +7,8 @@ let
   gatewayIP = "192.168.0.1";
   secrets = import ../../secrets;
   mokoshIp = secrets.ip.mokosh.address;
-  nixpiSingBoxUser = builtins.head secrets.singBoxUsers;
+  selectProxyUser = import ../../common/select-proxy-user.nix;
+  nixpiXrayUser = selectProxyUser hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -120,26 +121,52 @@ in
     serverPubKey = secrets.wireguard.mokosh-pubkey;
   };
 
-  roles.sing-box-client = {
+  roles.xray = {
     enable = true;
-    port = 1081;
-    openFirewall = true;
-
-    vlessWs = {
+    client = {
       enable = true;
-      server = "gw.uspenskiy.su";
-      auth = {
-        name = nixpiSingBoxUser.name;
-        uuid = nixpiSingBoxUser.uuid;
+      port = 1081;
+      openFirewall = true;
+      http.enable = true;
+
+      reality = {
+        enable = true;
+        publicKey = secrets.xray.reality.publicKey;
+        shortId = builtins.head secrets.xray.reality.shortIds;
+        serverName = "api.oneme.ru";
+        fingerprint = "chrome";
       };
-    };
 
-    vlessGrpc = {
-      enable = true;
-      server = "gw.uspenskiy.su";
-      auth = {
-        name = nixpiSingBoxUser.name;
-        uuid = nixpiSingBoxUser.uuid;
+      vlessTcp = {
+        enable = true;
+        server = secrets.ip.veles.address;
+        serverName = "api.oneme.ru";
+        auth = {
+          name = nixpiXrayUser.name;
+          uuid = nixpiXrayUser.uuid;
+        };
+      };
+
+      vlessGrpc = {
+        enable = true;
+        server = secrets.ip.veles.address;
+        serverName = "avatars.mds.yandex.net";
+        serviceName = "VlGrpc";
+        auth = {
+          name = nixpiXrayUser.name;
+          uuid = nixpiXrayUser.uuid;
+        };
+      };
+
+      vlessXhttp = {
+        enable = true;
+        server = secrets.ip.veles.address;
+        serverName = "onlymir.ru";
+        path = "/vl-xhttp";
+        auth = {
+          name = nixpiXrayUser.name;
+          uuid = nixpiXrayUser.uuid;
+        };
       };
     };
   };

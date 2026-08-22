@@ -69,6 +69,19 @@
           config.allowUnfree = true;
         }
       );
+      dnsFor =
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+          dns = import ./dns { inherit pkgs; };
+          apps = import ./dns/apps.nix {
+            inherit pkgs;
+            ir = dns.ir;
+          };
+        in
+        {
+          inherit apps dns;
+        };
     in
     {
 
@@ -178,6 +191,49 @@
         ];
       };
 
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgsFor.${system};
+          dns = import ./dns { inherit pkgs; };
+        in
+        {
+          dns-render = import ./dns/tests { inherit pkgs; };
+          dns-config =
+            pkgs.runCommand "dns-config-check"
+              {
+                nativeBuildInputs = [ pkgs.dnscontrol ];
+              }
+              ''
+                set -euo pipefail
+                dnscontrol check --ir ${dns.ir} | tee "$TMPDIR/dnscontrol-check.out"
+                grep -Fx 'No errors.' "$TMPDIR/dnscontrol-check.out"
+                touch "$out"
+              '';
+        }
+      );
+
+      apps = forAllSystems (
+        system:
+        let
+          dnsApps = (dnsFor system).apps;
+        in
+        {
+          dns-preview = {
+            type = "app";
+            program = "${dnsApps.preview}/bin/dns-preview";
+          };
+          dns-drift-check = {
+            type = "app";
+            program = "${dnsApps.driftCheck}/bin/dns-drift-check";
+          };
+          dns-apply = {
+            type = "app";
+            program = "${dnsApps.apply}/bin/dns-apply";
+          };
+        }
+      );
+
       devShells = forAllSystems (
         system:
         let
@@ -200,6 +256,10 @@
         in
         {
           bulwark-webmail = pkgs.bulwark-webmail;
+          dnscontrol-ir = (dnsFor system).dns.ir;
+          dns-preview = (dnsFor system).apps.preview;
+          dns-drift-check = (dnsFor system).apps.driftCheck;
+          dns-apply = (dnsFor system).apps.apply;
         }
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
           do-image = self.nixosConfigurations."do-generic".config.system.build.digitalOceanImage;

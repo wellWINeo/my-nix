@@ -20,6 +20,10 @@
 - Pull-request CI is secret-free. Scheduled drift and manually dispatched previews use `cloudflare-dns-drift`; manually approved applies use `cloudflare-dns-apply`.
 - Preserve the flake's `x86_64-linux`, `aarch64-linux`, and `aarch64-darwin` evaluation set. Run `make setup-dummy-secrets` before `make check`, and format all changed Nix files with `make fmt`.
 
+## Applied refactoring
+
+The DNS flake outputs are implemented in `dns/flake-outputs.nix`. It owns the DNS package, app, and check construction and is imported once by `flake.nix`. The top-level flake retains only the composition needed to merge DNS packages with the repository's existing packages; public output names and commands are unchanged.
+
 ---
 
 ## File Structure
@@ -28,12 +32,13 @@
 - `dns/lib.nix` — pure record-schema validation and transformation from the source model to DNSControl IR.
 - `dns/default.nix` — builds the store-safe JSON IR from `zones.nix`.
 - `dns/apps.nix` — produces the three runtime-only DNSControl applications.
+- `dns/flake-outputs.nix` — assembles DNS packages, apps, and checks for the flake without embedding their implementation in `flake.nix`.
 - `dns/tests/zones.nix` — representative non-production fixture covering every initially supported record type.
 - `dns/tests/default.nix` — validates renderer rejection cases, IR shape, and DNSControl offline IR validation.
 - `docs/dns.md` — record schema, token setup, local workflow, adoption procedure, CI controls, and rollback procedure.
 - `.github/workflows/check.yml` — extends the existing secret-free PR/main validation with fixture and production DNSControl IR checks.
 - `.github/workflows/dns.yml` — scheduled drift check, manual preview, and reviewer-gated apply.
-- `flake.nix` — exposes the IR and apps, and adds both fixture and production-IR decoding checks to flake checks.
+- `flake.nix` — composes the repository's top-level flake outputs and merges the DNS outputs from `dns/flake-outputs.nix`.
 - `README.md` — links operators to the DNS guide.
 
 ## Record Source Interface
@@ -88,13 +93,14 @@
 - Create: `dns/default.nix`
 - Create: `dns/tests/zones.nix`
 - Create: `dns/tests/default.nix`
-- Modify: `flake.nix:33-153`
+- Create: `dns/flake-outputs.nix`
+- Modify: `flake.nix`
 
 **Interfaces:**
 - Consumes: a zone attrset in the `Record Source Interface` format.
 - Produces: `render :: AttrSet -> DNSControlIR`, where `DNSControlIR` has `registrars`, `dns_providers`, and `domains` compatible with `dnscontrol check --ir`.
 - Produces: `dns.ir`, a JSON file containing no Cloudflare credential.
-- Later tasks consume: `{ config, ir }` returned by `import ./dns { pkgs = ...; }`.
+- Later tasks consume: `{ config, ir }` returned by `import ./dns { pkgs = ...; }`; flake-facing DNS packages, apps, and checks are assembled by `import ./dns/flake-outputs.nix`.
 
 - [ ] **Step 1: Write the fixture source and renderer assertions before implementation**
 
@@ -448,7 +454,8 @@ Expected: one commit containing only the source-model, renderer, and renderer-te
 
 **Files:**
 - Create: `dns/apps.nix`
-- Modify: `flake.nix:14-100`
+- Create: `dns/flake-outputs.nix`
+- Modify: `flake.nix`
 
 **Interfaces:**
 - Consumes: `ir`, the secret-free JSON file from `dns/default.nix`.
@@ -555,64 +562,42 @@ in
 }
 ```
 
-- [ ] **Step 3: Wire the IR and apps into `flake.nix`**
+- [x] **Step 3: Assemble DNS outputs outside `flake.nix`**
 
-Inside the main `let` in `flake.nix`, immediately after `nixpkgsFor`, add:
-
-```nix
-      dnsFor = system:
-        let
-          pkgs = nixpkgsFor.${system};
-          dns = import ./dns { inherit pkgs; };
-          apps = import ./dns/apps.nix {
-            inherit pkgs;
-            ir = dns.ir;
-          };
-        in
-        {
-          inherit apps dns;
-        };
-```
-
-Extend the existing base attrset in the `packages` output, before its current `optionalAttrs` merge, to this exact shape:
+Create `dns/flake-outputs.nix` with the interface:
 
 ```nix
-        {
-          bulwark-webmail = pkgs.bulwark-webmail;
-          dnscontrol-ir = (dnsFor system).dns.ir;
-          dns-preview = (dnsFor system).apps.preview;
-          dns-drift-check = (dnsFor system).apps.driftCheck;
-          dns-apply = (dnsFor system).apps.apply;
-        }
-        // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
-          do-image = self.nixosConfigurations."do-generic".config.system.build.digitalOceanImage;
-        }
+{ forAllSystems, nixpkgsFor }:
+{
+  packages = forAllSystems (system: {
+    dnscontrol-ir = ...;
+    dns-preview = ...;
+    dns-drift-check = ...;
+    dns-apply = ...;
+  });
+
+  apps = forAllSystems (system: {
+    dns-preview = ...;
+    dns-drift-check = ...;
+    dns-apply = ...;
+  });
+
+  checks = forAllSystems (system: {
+    dns-render = ...;
+    dns-config = ...;
+  });
+}
 ```
 
-Add this top-level output beside `packages`, `checks`, and `devShells`:
+The module owns the `dnsFor` helper and imports `./default.nix` and `./apps.nix`. Keep the public output names unchanged. In `flake.nix`, import the module once in the main `let`:
 
 ```nix
-      apps = forAllSystems (
-        system:
-        let
-          dnsApps = (dnsFor system).apps;
-        in
-        {
-          dns-preview = {
-            type = "app";
-            program = "${dnsApps.preview}/bin/dns-preview";
-          };
-          dns-drift-check = {
-            type = "app";
-            program = "${dnsApps.driftCheck}/bin/dns-drift-check";
-          };
-          dns-apply = {
-            type = "app";
-            program = "${dnsApps.apply}/bin/dns-apply";
-          };
-        }
-      );
+      dnsOutputs = import ./dns/flake-outputs.nix {
+        inherit forAllSystems nixpkgsFor;
+      };
 ```
+
+Expose the DNS checks and apps by assigning `checks = dnsOutputs.checks;` and `apps = dnsOutputs.apps;`. Merge `dnsOutputs.packages.${system}` into the existing per-system `packages` attrset so non-DNS packages such as `bulwark-webmail` and `do-image` remain there. `flake.nix` should retain only this composition logic; DNS implementation details belong under `dns/`.
 
 - [ ] **Step 4: Verify the public interface and the secret boundary**
 

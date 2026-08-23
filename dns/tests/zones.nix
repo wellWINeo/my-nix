@@ -16,6 +16,13 @@
         ttl = 300;
       }
       {
+        type = "ALIAS";
+        name = "@";
+        target = "pages.example.net.";
+        proxied = true;
+        ttl = "auto";
+      }
+      {
         type = "MX";
         name = "@";
         priority = 10;

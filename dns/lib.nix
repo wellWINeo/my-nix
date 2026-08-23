@@ -47,6 +47,13 @@ let
       "proxied"
       "ttl"
     ];
+    ALIAS = [
+      "type"
+      "name"
+      "target"
+      "proxied"
+      "ttl"
+    ];
     MX = [
       "type"
       "name"
@@ -69,6 +76,7 @@ let
     assert require (lib.elem record.type [
       "A"
       "CNAME"
+      "ALIAS"
       "MX"
       "TXT"
     ]) "unsupported record type `${record.type}`";
@@ -86,6 +94,7 @@ let
             lib.elem record.type [
               "A"
               "CNAME"
+              "ALIAS"
             ]
             && builtins.isBool record.proxied
           then
@@ -93,7 +102,7 @@ let
               cloudflare_proxy = if record.proxied then "on" else "off";
             }
           else
-            fail "`proxied` is a boolean allowed only on A and CNAME records"
+            fail "`proxied` is a boolean allowed only on A, ALIAS, and CNAME records"
         else
           { };
       common = {
@@ -110,7 +119,12 @@ let
       // {
         target = requiredString record "address";
       }
-    else if record.type == "CNAME" then
+    else if
+      lib.elem record.type [
+        "ALIAS"
+        "CNAME"
+      ]
+    then
       common
       // {
         target = absoluteTarget record "target";

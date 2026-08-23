@@ -2,7 +2,7 @@
 
 ## Source model
 
-All managed records live in `dns/zones.nix`. Zones are authoritative: an ordinary managed A, ALIAS, CNAME, MX, or TXT record missing from a declared zone is deleted by `dns-apply`. DNSControl ignores Cloudflare-maintained SOA, apex-NS, and Mail Routing MX/DKIM records.
+All managed records live under `dns/zones/`: `default.nix` combines the per-zone files. Zones are authoritative: an ordinary managed A, ALIAS, CNAME, MX, or TXT record missing from a declared zone is deleted by `dns-apply`. DNSControl ignores Cloudflare-maintained SOA, apex-NS, and Mail Routing MX/DKIM records.
 
 Use `ALIAS`, not `CNAME`, for a proxied apex target. DNSControl rejects apex CNAME source records by design; its Cloudflare provider rewrites ALIAS to Cloudflare's apex CNAME representation. ALIAS has the same absolute `target` and `proxied` semantics as CNAME. Do not enable per-record CNAME flattening.
 
@@ -40,4 +40,4 @@ nix run .#dns-apply -- --confirm example.com
 
 ## GitHub Actions
 
-The workflow uses the same `CLOUDFLARE_DNS_TOKEN` in the `cloudflare-dns-drift` and `cloudflare-dns-apply` environments. Restrict both environments to `main`; require reviewers only for `cloudflare-dns-apply`. Scheduled jobs fail on drift. Manual dispatch first publishes a live preview, then an `apply: true` run waits for Environment approval before applying the requested main-branch commit. Do not run a local `dns-apply` while a CI apply may be pending or running; use the CI workflow for normal production reconciliation.
+A push to `main` that changes `dns/**` runs a live preview with the `cloudflare-dns-drift` Environment. If it succeeds, the apply job waits for `cloudflare-dns-apply` Environment approval before applying the same pushed revision. Store the same `CLOUDFLARE_DNS_TOKEN` in both environments, restrict both to `main`, and require reviewers only for `cloudflare-dns-apply`. Do not run a local `dns-apply` while a CI apply may be pending or running; use the CI workflow for normal production reconciliation.

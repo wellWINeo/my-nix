@@ -1,7 +1,7 @@
 { pkgs }:
 let
   renderer = import ./lib.nix { inherit (pkgs) lib; };
-  config = renderer.render (import ./zones.nix);
+  config = renderer.render (import ./zones);
 in
 {
   inherit config;

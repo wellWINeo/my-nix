@@ -7,7 +7,7 @@ description: Use when editing, validating, previewing, checking drift, or applyi
 
 ## Scope
 
-The authoritative non-secret source is `dns/zones.nix`. Use this skill before changing a managed DNS record or invoking a DNSControl app.
+The authoritative non-secret source is `dns/zones/`: edit the appropriate per-zone file and register a new zone in `dns/zones/default.nix`. Use this skill before changing a managed DNS record or invoking a DNSControl app.
 
 ## Safety rules
 
@@ -18,7 +18,7 @@ The authoritative non-secret source is `dns/zones.nix`. Use this skill before ch
 
 ## Edit records
 
-1. Edit `dns/zones.nix` using relative names (`@` for the apex).
+1. Edit the appropriate `dns/zones/<zone>.nix` file using relative names (`@` for the apex). Register a new zone in `dns/zones/default.nix`.
 2. Use `address` for A; absolute `target` for ALIAS and CNAME; `priority` and absolute `exchange` for MX; and `text` for TXT.
 3. Use ALIAS for a proxied apex target: DNSControl rejects apex CNAME source records, while its Cloudflare provider rewrites ALIAS to Cloudflare's CNAME representation. Do not enable per-record CNAME flattening.
 4. Preserve ALIAS/CNAME/MX trailing dots, A/ALIAS/CNAME `proxied` state, and `ttl = "auto"` when Cloudflare reports Auto.
@@ -57,4 +57,4 @@ unset CLOUDFLARE_DNS_TOKEN
 
 ## CI
 
-Pull-request checks are secret-free. Scheduled drift and manual preview use `cloudflare-dns-drift`; approved apply uses `cloudflare-dns-apply`. Dispatch manual CI from `main` with a full reachable commit SHA, inspect preview output, and approve the Environment deployment only when every change is intended.
+Pull-request checks are secret-free. A `main` push that changes `dns/**` runs preview with `cloudflare-dns-drift`; its dependent apply job uses `cloudflare-dns-apply` and waits for Environment approval. Inspect the preview output and approve only when every change is intended.

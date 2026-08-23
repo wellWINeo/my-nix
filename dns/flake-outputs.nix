@@ -19,10 +19,12 @@ in
     system:
     let
       pkgs = nixpkgsFor.${system};
+      apps = (dnsFor system).apps;
       dns = (dnsFor system).dns;
     in
     {
       dns-render = import ./tests { inherit pkgs; };
+      dns-app-safety = import ./tests/apps.nix { inherit pkgs apps; };
       dns-config =
         pkgs.runCommand "dns-config-check"
           {

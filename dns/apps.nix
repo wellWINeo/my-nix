@@ -42,9 +42,9 @@ let
         esac
 
         [ "$#" -le 1 ] || usage
-        domain_args=()
+        domainArgs=()
         if [ "$#" -eq 1 ]; then
-          domain_args=(--domains "$1")
+          domainArgs=(--domains "$1")
         fi
 
         umask 077
@@ -54,21 +54,20 @@ let
         }
         trap cleanup EXIT HUP INT TERM
 
-        printf '%s' '{"cloudflare":{"TYPE":"CLOUDFLAREAPI","apitoken":' > "$creds"
-        printf '%s' "$CLOUDFLARE_DNS_TOKEN" | jq -Rs . >> "$creds"
-        printf '%s\n' '}}' >> "$creds"
+        jq -n --arg apitoken "$CLOUDFLARE_DNS_TOKEN" \
+          '{ cloudflare: { TYPE: "CLOUDFLAREAPI", apitoken: $apitoken } }' > "$creds"
         chmod 600 "$creds"
 
         case "$mode" in
           preview)
-            dnscontrol preview --no-colors --full --no-populate --ir ${ir} --creds "$creds" "''${domain_args[@]}"
+            dnscontrol preview --no-colors --full --no-populate --ir ${ir} --creds "$creds" "''${domainArgs[@]}"
             ;;
           drift-check)
-            dnscontrol preview --no-colors --full --expect-no-changes --no-populate --ir ${ir} --creds "$creds" "''${domain_args[@]}"
+            dnscontrol preview --no-colors --full --expect-no-changes --no-populate --ir ${ir} --creds "$creds" "''${domainArgs[@]}"
             ;;
           apply)
-            dnscontrol preview --no-colors --full --no-populate --ir ${ir} --creds "$creds" "''${domain_args[@]}"
-            dnscontrol push --no-colors --full --no-populate --ir ${ir} --creds "$creds" "''${domain_args[@]}"
+            dnscontrol preview --no-colors --full --no-populate --ir ${ir} --creds "$creds" "''${domainArgs[@]}"
+            dnscontrol push --no-colors --full --no-populate --ir ${ir} --creds "$creds" "''${domainArgs[@]}"
             ;;
         esac
       '';

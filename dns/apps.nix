@@ -54,8 +54,8 @@ let
         }
         trap cleanup EXIT HUP INT TERM
 
-        jq -n --arg apitoken "$CLOUDFLARE_DNS_TOKEN" \
-          '{ cloudflare: { TYPE: "CLOUDFLAREAPI", apitoken: $apitoken } }' > "$creds"
+        jq -n \
+          '{ cloudflare: { TYPE: "CLOUDFLAREAPI", apitoken: env.CLOUDFLARE_DNS_TOKEN } }' > "$creds"
         chmod 600 "$creds"
 
         case "$mode" in

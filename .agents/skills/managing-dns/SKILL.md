@@ -22,7 +22,7 @@ The authoritative non-secret source is `dns/zones.nix`. Use this skill before ch
 2. Use `address` for A; absolute `target` for ALIAS and CNAME; `priority` and absolute `exchange` for MX; and `text` for TXT.
 3. Use ALIAS for a proxied apex target: DNSControl rejects apex CNAME source records, while its Cloudflare provider rewrites ALIAS to Cloudflare's CNAME representation. Do not enable per-record CNAME flattening.
 4. Preserve ALIAS/CNAME/MX trailing dots, A/ALIAS/CNAME `proxied` state, and `ttl = "auto"` when Cloudflare reports Auto.
-4. For first adoption, inventory every existing ordinary record. Do not declare Cloudflare SOA or apex NS records.
+5. For first adoption, inventory every existing ordinary record. Do not declare Cloudflare SOA or apex NS records.
 
 ## Validate offline
 

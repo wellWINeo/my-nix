@@ -29,6 +29,7 @@ pkgs.runCommand "dns-app-safety-test"
       ${apps.apply}/bin/dns-apply; do
       test "$(grep -Fc -- '--no-populate --ir ' "$executable")" -eq 4
       test "$(grep -Fc -- '--creds "$creds"' "$executable")" -eq 4
+      ! grep -Fq -- '--arg ' "$executable"
     done
 
     touch "$out"

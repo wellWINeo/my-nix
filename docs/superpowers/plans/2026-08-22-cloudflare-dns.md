@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Manage authoritative Cloudflare A, CNAME, MX, and TXT records from this NixOS-configuration flake, with separate local and GitHub Actions preview, drift-check, and approved-apply workflows.
+**Goal:** Manage authoritative Cloudflare A, ALIAS, CNAME, MX, and TXT records from this NixOS-configuration flake, with separate local and GitHub Actions preview, drift-check, and approved-apply workflows.
+
+**Approved amendment:** Use source type `ALIAS` for a proxied apex target. DNSControl rejects apex CNAME source records by design; its Cloudflare provider rewrites ALIAS to Cloudflare's CNAME representation. ALIAS uses an absolute `target` and `proxied` semantics matching CNAME. Do not enable per-record CNAME flattening.
 
 **Architecture:** `dns/zones.nix` is the non-secret Nix source of truth. A pure Nix renderer validates it and produces DNSControl JSON IR; shell apps use that IR and construct a temporary credentials file only at runtime. The existing flake check validates both a representative fixture and the actual rendered source on pull requests; a dedicated workflow checks live drift on a schedule and runs a reviewed apply only after a live manual preview.
 
@@ -10,7 +12,7 @@
 
 ## Global Constraints
 
-- The confirmed initial scope is `A`, `CNAME`, `MX`, and `TXT`. Before any apply, inventory every live record; if any intended non-provider-managed type falls outside that set, stop and extend the schema, renderer, fixtures, and production validation before proceeding.
+- The supported scope is `A`, `ALIAS`, `CNAME`, `MX`, and `TXT`. Before any apply, inventory every live record; if any intended non-provider-managed type falls outside that set, stop and extend the schema, renderer, fixtures, and production validation before proceeding.
 - A zone declaration is authoritative: omitted non-provider-managed records are deleted by DNSControl on the next successful apply.
 - Every live DNSControl invocation must include `--no-populate`.
 - `CLOUDFLARE_DNS_TOKEN` must never appear in Nix source, a derivation, Git, command arguments, logs, or artifacts.
@@ -81,7 +83,7 @@ The DNS flake outputs are implemented in `dns/flake-outputs.nix`. It owns the DN
 }
 ```
 
-`name` is relative to its enclosing zone and `@` is the apex. `CNAME.target` and `MX.exchange` are required to be absolute DNS names ending in `.`. `ttl = "auto"` renders to Cloudflare's auto-TTL value `1`; an integer TTL must be at least `60`. `proxied` is accepted only on A and CNAME records and renders to DNSControl `cloudflare_proxy` metadata.
+`name` is relative to its enclosing zone and `@` is the apex. `ALIAS.target`, `CNAME.target`, and `MX.exchange` are required to be absolute DNS names ending in `.`. `ttl = "auto"` renders to Cloudflare's auto-TTL value `1`; an integer TTL must be at least `60`. `proxied` is accepted only on A, ALIAS, and CNAME records and renders to DNSControl `cloudflare_proxy` metadata.
 
 ---
 

@@ -308,6 +308,10 @@ secrets = import ../../secrets;
 - `secrets.hashedPassword` — user login password hash
 - `secrets.sshKey` — SSH authorized key
 
+## Declarative DNS
+
+Before editing, validating, previewing, checking drift, or applying Cloudflare DNS declarations, read `.agents/skills/managing-dns/SKILL.md`.
+
 ## Common Tasks
 
 ### Add New Role

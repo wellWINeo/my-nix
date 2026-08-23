@@ -10,8 +10,8 @@
 
 ## Global Constraints
 
-- Declare only A, CNAME, MX, and TXT records from the reviewed exports; omit Cloudflare SOA and apex NS records.
-- Map exported TTL `1` to `ttl = "auto"`; preserve numeric TTLs, proxy state, and trailing dots on CNAME/MX targets.
+- Declare only A, ALIAS, CNAME, MX, and TXT records from the reviewed exports; omit Cloudflare SOA and apex NS records. Use ALIAS for the proxied `uspenskiy.tech` apex target because DNSControl rejects apex CNAME source records and its Cloudflare provider rewrites ALIAS to the Cloudflare CNAME representation; do not enable per-record CNAME flattening.
+- Map exported TTL `1` to `ttl = "auto"`; preserve numeric TTLs, proxy state, and trailing dots on ALIAS/CNAME/MX targets.
 - `CLOUDFLARE_DNS_TOKEN` must not be committed, passed as a command argument, emitted in logs, or written to a derivation.
 - Every live DNSControl invocation retains `--no-populate`; no live push is part of this change.
 - Keep the flake evaluation set unchanged: `x86_64-linux`, `aarch64-linux`, and `aarch64-darwin`.
@@ -263,7 +263,7 @@ git commit -m "fix: harden DNS application checks"
 
 **Interfaces:**
 - Produces the authoritative `zones` attrset consumed by `dns/default.nix`.
-- Declares both `uspenskiy.tech` and `uspenskiy.su` with only reviewed A, CNAME, MX, and TXT records.
+- Declares both `uspenskiy.tech` and `uspenskiy.su` with only reviewed A, ALIAS, CNAME, MX, and TXT records.
 
 - [ ] **Step 1: Replace the empty zone source with the reviewed inventory**
 
@@ -309,7 +309,7 @@ Replace `dns/zones.nix` with:
         ttl = "auto";
       }
       {
-        type = "CNAME";
+        type = "ALIAS";
         name = "@";
         target = "website-63n.pages.dev.";
         proxied = true;
@@ -507,17 +507,18 @@ The authoritative non-secret source is `dns/zones.nix`. Use this skill before ch
 
 ## Safety rules
 
-- A declared zone is authoritative: an ordinary A, CNAME, MX, or TXT record omitted from it is deleted by `dns-apply`.
-- Before adding a record type other than A, CNAME, MX, or TXT, extend `dns/lib.nix`, `dns/tests/zones.nix`, and `dns/tests/default.nix` first.
+- A declared zone is authoritative: an ordinary A, ALIAS, CNAME, MX, or TXT record omitted from it is deleted by `dns-apply`.
+- Before adding a record type other than A, ALIAS, CNAME, MX, or TXT, extend `dns/lib.nix`, `dns/tests/zones.nix`, and `dns/tests/default.nix` first.
 - Keep `CLOUDFLARE_DNS_TOKEN` in an operator secret manager or GitHub Environment only. Never add it to Nix, Git, `.env`, arguments, logs, or artifacts.
 - Never apply from an unreviewed preview. Do not run a local apply while a CI apply is pending or running.
 
 ## Edit records
 
 1. Edit `dns/zones.nix` using relative names (`@` for the apex).
-2. Use `address` for A, absolute `target` for CNAME, `priority` and absolute `exchange` for MX, and `text` for TXT.
-3. Preserve CNAME/MX trailing dots, A/CNAME `proxied` state, and `ttl = "auto"` when Cloudflare reports Auto.
-4. For first adoption, inventory every existing ordinary record. Do not declare Cloudflare SOA or apex NS records.
+2. Use `address` for A; absolute `target` for ALIAS and CNAME; `priority` and absolute `exchange` for MX; and `text` for TXT.
+3. Use ALIAS for a proxied apex target: DNSControl rejects apex CNAME source records, while its Cloudflare provider rewrites ALIAS to Cloudflare's CNAME representation. Do not enable per-record CNAME flattening.
+4. Preserve ALIAS/CNAME/MX trailing dots, A/ALIAS/CNAME `proxied` state, and `ttl = "auto"` when Cloudflare reports Auto.
+5. For first adoption, inventory every existing ordinary record. Do not declare Cloudflare SOA or apex NS records.
 
 ## Validate offline
 

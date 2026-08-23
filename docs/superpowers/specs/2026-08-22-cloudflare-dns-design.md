@@ -1,5 +1,9 @@
 # Declarative Cloudflare DNS Design
 
+## Amendment
+
+The follow-up implementation extends the source model with `ALIAS`. Use it for a proxied apex target with an absolute `target` and `proxied` semantics matching CNAME: DNSControl rejects apex CNAME source records by design, while its Cloudflare provider rewrites ALIAS to Cloudflare's CNAME representation. Per-record CNAME flattening remains disabled.
+
 ## Goal
 
 Manage the intended DNS records of existing Cloudflare zones as Nix data in this flake. Reconciliation must be authoritative per managed zone, run separately from NixOS deployment, support both a local operator workflow and a protected GitHub Actions workflow, and never place Cloudflare credentials in the Nix store.
@@ -37,7 +41,7 @@ Add a dedicated `dns/` area with three clear responsibilities:
 2. `dns/lib.nix` is a pure renderer and validator. It turns the declarations into DNSControl JSON IR, validates zone and record invariants, and produces deterministic output.
 3. The flake exposes the generated IR and DNSControl-based applications. The generated IR is safe to place in the Nix store because it contains only public DNS configuration and no credentials.
 
-The confirmed initial inventory scope is A, CNAME, MX, and TXT. Before creating any zone declaration or running any apply, inventory every live record and stop if any intended non-provider-managed record falls outside that set; extend the tagged schema, renderer, fixture, and production validation before proceeding. The source model must reject invalid type/field combinations, including fields that are valid only for another record type, records outside their declared zone, and identical duplicate records. Support for a new record type is added deliberately through the tagged schema and renderer rather than as unvalidated free-form JSON.
+The supported inventory scope is A, ALIAS, CNAME, MX, and TXT. Before creating any zone declaration or running any apply, inventory every live record and stop if any intended non-provider-managed record falls outside that set; extend the tagged schema, renderer, fixture, and production validation before proceeding. The source model must reject invalid type/field combinations, including fields that are valid only for another record type, records outside their declared zone, and identical duplicate records. Support for a new record type is added deliberately through the tagged schema and renderer rather than as unvalidated free-form JSON.
 
 DNSControl's normal purge behavior is retained. A record omitted from a managed zone is deleted at the next successful apply. DNSControl/Cloudflare-owned exceptions, such as provider-managed SOA, apex NS, and Mail Routing records, remain provider-managed. Any non-provider exception must be explicit in the Nix source and documented with why it is not under this repository's authority.
 

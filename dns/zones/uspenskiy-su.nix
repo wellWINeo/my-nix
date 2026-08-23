@@ -30,13 +30,6 @@
     }
     {
       type = "CNAME";
-      name = "ebooks";
-      target = "uspenskiy.su.";
-      proxied = true;
-      ttl = "auto";
-    }
-    {
-      type = "CNAME";
       name = "gw";
       target = "mokosh.uspenskiy.su.";
       proxied = false;
@@ -47,13 +40,6 @@
       name = "mail";
       target = "mokosh.uspenskiy.su.";
       proxied = false;
-      ttl = "auto";
-    }
-    {
-      type = "CNAME";
-      name = "vault";
-      target = "mokosh.uspenskiy.su.";
-      proxied = true;
       ttl = "auto";
     }
     {

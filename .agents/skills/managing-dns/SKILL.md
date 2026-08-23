@@ -42,12 +42,14 @@ make check
 Export the token without printing it, then use exactly one of:
 
 ```bash
+make dns:plan
+make dns:apply
 nix run .#dns-preview -- [ZONE]
 nix run .#dns-drift-check -- [ZONE]
 nix run .#dns-apply -- --confirm [ZONE]
 ```
 
-Omit `[ZONE]` for all declared zones. Preview must contain only intended changes. Drift check returns non-zero when reconciliation is needed. Apply previews again before push; run it only after a human has reviewed that preview. Unset the token immediately afterwards:
+`make dns:plan` previews every declared zone, and `make dns:apply` previews then applies every declared zone. Omit `[ZONE]` for all declared zones. Preview must contain only intended changes. Drift check returns non-zero when reconciliation is needed. Apply previews again before push; run it only after a human has reviewed that preview. Unset the token immediately afterwards:
 
 ```bash
 unset CLOUDFLARE_DNS_TOKEN

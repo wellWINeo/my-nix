@@ -21,12 +21,14 @@ The wrapper creates a mode-`0600` temporary `creds.json` file and removes it on 
 ## Commands
 
 ```bash
+make dns:plan
+make dns:apply
 nix run .#dns-preview -- example.com
 nix run .#dns-drift-check -- example.com
 nix run .#dns-apply -- --confirm example.com
 ```
 
-Omit the zone argument to operate on every declared zone. `dns-preview` is read-only. `dns-drift-check` returns non-zero when changes would be needed. `dns-apply` previews again before pushing and always uses `--no-populate`.
+`make dns:plan` previews every declared zone; `make dns:apply` previews and then applies every declared zone. Omit the zone argument to operate on every declared zone. `dns-preview` is read-only. `dns-drift-check` returns non-zero when changes would be needed. `dns-apply` previews again before pushing and always uses `--no-populate`.
 
 ## Initial adoption and rollback
 

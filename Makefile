@@ -45,6 +45,12 @@ fmt:
 check:
 	nix flake check 'path:.' --all-systems
 
+dns\:plan:
+	nix run .#dns-preview --
+
+dns\:apply:
+	nix run .#dns-apply -- --confirm
+
 switch:
 	@sudo nixos-rebuild switch --flake "path:.#$(shell hostname)"
 

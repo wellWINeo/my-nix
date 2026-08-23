@@ -1,5 +1,7 @@
 # DNS Management Follow-up Design
 
+> **Historical design record:** For the implemented source layout and CI workflow, use [`docs/dns.md`](../../dns.md) and `.agents/skills/managing-dns/SKILL.md`.
+
 ## Scope
 
 Complete the declarative adoption of `uspenskiy.tech` and `uspenskiy.su`, resolve the DNS review findings, and add a repository-local `managing-dns` operational skill.

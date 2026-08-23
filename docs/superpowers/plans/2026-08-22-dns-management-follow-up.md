@@ -1,5 +1,7 @@
 # DNS Management Follow-up Implementation Plan
 
+> **Historical planning record:** For the implemented source layout and CI workflow, use [`docs/dns.md`](../../dns.md) and `.agents/skills/managing-dns/SKILL.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Adopt the two reviewed Cloudflare zones, close DNS review gaps, and deploy a reusable `managing-dns` operator skill.

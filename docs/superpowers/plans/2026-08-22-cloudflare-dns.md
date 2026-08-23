@@ -1,5 +1,7 @@
 # Declarative Cloudflare DNS Implementation Plan
 
+> **Historical planning record:** For the implemented source layout and CI workflow, use [`docs/dns.md`](../../dns.md) and `.agents/skills/managing-dns/SKILL.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Manage authoritative Cloudflare A, ALIAS, CNAME, MX, and TXT records from this NixOS-configuration flake, with separate local and GitHub Actions preview, drift-check, and approved-apply workflows.

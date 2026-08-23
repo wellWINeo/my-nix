@@ -1,5 +1,7 @@
 # Declarative Cloudflare DNS Design
 
+> **Historical design record:** For the implemented source layout and CI workflow, use [`docs/dns.md`](../../dns.md) and `.agents/skills/managing-dns/SKILL.md`.
+
 ## Amendment
 
 The follow-up implementation extends the source model with `ALIAS`. Use it for a proxied apex target with an absolute `target` and `proxied` semantics matching CNAME: DNSControl rejects apex CNAME source records by design, while its Cloudflare provider rewrites ALIAS to Cloudflare's CNAME representation. Per-record CNAME flattening remains disabled.

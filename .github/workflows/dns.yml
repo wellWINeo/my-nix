@@ -3,14 +3,40 @@ name: Manage Cloudflare DNS
 on:
   push:
     branches: [main]
-    paths:
-      - "dns/**"
 
 permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      dns: ${{ steps.filter.outputs.dns }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE" = '0000000000000000000000000000000000000000' ]; then
+            changed="$(git diff-tree --no-commit-id --name-only -r "$AFTER" -- dns/)"
+          else
+            changed="$(git diff --name-only "$BEFORE" "$AFTER" -- dns/)"
+          fi
+          if [ -n "$changed" ]; then
+            echo 'dns=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'dns=false' >> "$GITHUB_OUTPUT"
+          fi
+
   preview:
+    needs: changes
+    if: needs.changes.outputs.dns == 'true'
     runs-on: ubuntu-latest
     environment: cloudflare-dns-drift
     steps:
@@ -29,7 +55,8 @@ jobs:
         run: make dns:plan
 
   apply:
-    needs: preview
+    needs: [changes, preview]
+    if: needs.changes.outputs.dns == 'true' && needs.preview.result == 'success'
     runs-on: ubuntu-latest
     environment: cloudflare-dns-apply
     concurrency:

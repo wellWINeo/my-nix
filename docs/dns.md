@@ -33,11 +33,11 @@ nix run .#dns-apply -- --confirm example.com
 ## Initial adoption and rollback
 
 1. Take an offline inventory of every current Cloudflare record and stop if any intended non-provider-managed record is not A, ALIAS, CNAME, MX, or TXT.
-2. Declare every intended A, ALIAS, CNAME, MX, and TXT record in `dns/zones.nix` only after that gate passes.
+2. Declare every intended A, ALIAS, CNAME, MX, and TXT record in the appropriate `dns/zones/<zone>.nix` file only after that gate passes.
 3. Run `dns-preview` until every proposed change is intended; a pure adoption should show no correction.
 4. Run `dns-apply -- --confirm` only after reviewing the output.
-5. If a push fails partway through, rerun preview and apply after correcting the declaration. To roll back, revert `dns/zones.nix` to a known commit and apply that revision.
+5. If a push fails partway through, rerun preview and apply after correcting the declaration. To roll back, revert the affected file under `dns/zones/` to a known commit and apply that revision.
 
 ## GitHub Actions
 
-A push to `main` that changes `dns/**` runs a live preview with the `cloudflare-dns-drift` Environment. If it succeeds, the apply job waits for `cloudflare-dns-apply` Environment approval before applying the same pushed revision. Store the same `CLOUDFLARE_DNS_TOKEN` in both environments, restrict both to `main`, and require reviewers only for `cloudflare-dns-apply`. Do not run a local `dns-apply` while a CI apply may be pending or running; use the CI workflow for normal production reconciliation.
+Every push to `main` first runs a secret-free diff gate. When it detects `dns/**` changes, it runs a live preview with the `cloudflare-dns-drift` Environment. If that succeeds, the apply job waits for `cloudflare-dns-apply` Environment approval before applying the same pushed revision. Store the same `CLOUDFLARE_DNS_TOKEN` in both environments, restrict both to `main`, and require reviewers only for `cloudflare-dns-apply`. Do not run a local `dns-apply` while a CI apply may be pending or running; use the CI workflow for normal production reconciliation.

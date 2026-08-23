@@ -40,4 +40,4 @@ nix run .#dns-apply -- --confirm example.com
 
 ## GitHub Actions
 
-Every push to `main` first runs a secret-free diff gate. When it detects `dns/**` changes, it runs a live preview with the `cloudflare-dns-drift` Environment. If that succeeds, the apply job waits for `cloudflare-dns-apply` Environment approval before applying the same pushed revision. Store the same `CLOUDFLARE_DNS_TOKEN` in both environments, restrict both to `main`, and require reviewers only for `cloudflare-dns-apply`. Do not run a local `dns-apply` while a CI apply may be pending or running; use the CI workflow for normal production reconciliation.
+A push to `main` that changes `dns/**` runs a live preview using the repository-level `CLOUDFLARE_DNS_TOKEN`. If that succeeds, the apply job waits for `cloudflare-dns-apply` Environment approval before applying the same pushed revision. Restrict that Environment to `main` and require reviewers. Do not run a local `dns-apply` while a CI apply may be pending or running; use the CI workflow for normal production reconciliation.

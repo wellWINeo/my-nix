@@ -13,7 +13,7 @@ The authoritative non-secret source is `dns/zones/`: edit the appropriate per-zo
 
 - A declared zone is authoritative: an ordinary A, ALIAS, CNAME, MX, or TXT record omitted from it is deleted by `dns-apply`.
 - Before adding a record type other than A, ALIAS, CNAME, MX, or TXT, extend `dns/lib.nix`, `dns/tests/zones.nix`, and `dns/tests/default.nix` first.
-- Keep `CLOUDFLARE_DNS_TOKEN` in an operator secret manager or GitHub Environment only. Never add it to Nix, Git, `.env`, arguments, logs, or artifacts.
+- Keep `CLOUDFLARE_DNS_TOKEN` in an operator secret manager or, for CI, as a repository-level GitHub Actions secret. Never add it to Nix, Git, `.env`, arguments, logs, or artifacts.
 - Never apply from an unreviewed preview. Do not run a local apply while a CI apply is pending or running.
 
 ## Edit records
@@ -57,4 +57,4 @@ unset CLOUDFLARE_DNS_TOKEN
 
 ## CI
 
-Pull-request checks are secret-free. A `main` push that changes `dns/**` runs preview with `cloudflare-dns-drift`; its dependent apply job uses `cloudflare-dns-apply` and waits for Environment approval. Inspect the preview output and approve only when every change is intended.
+Pull-request checks are secret-free. A `main` push that changes `dns/**` runs preview with the repository-level `CLOUDFLARE_DNS_TOKEN`; its dependent apply job uses `cloudflare-dns-apply` and waits for Environment approval. Restrict that Environment to `main`, require reviewers, and approve only when every previewed change is intended.

@@ -119,6 +119,10 @@ make switch
 make apply:home
 ```
 
+## Operations
+
+- [Manage Cloudflare DNS declaratively](docs/dns.md)
+
 ## Secrets Management
 
 Secrets are stored in two encrypted locations:

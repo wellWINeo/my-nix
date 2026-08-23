@@ -18,5 +18,11 @@ jobs:
         run: make setup-dummy-secrets
       - name: Check Nix flake
         run: make check
+      - name: Run offline DNSControl IR checks
+        run: |
+          nix build --print-build-logs \
+            .#checks.x86_64-linux.dns-render \
+            .#checks.x86_64-linux.dns-config \
+            .#checks.x86_64-linux.dns-app-safety
       - name: Check formatting
         run: nix develop --command nixfmt --check $(find . -name '*.nix' | tr '\n' ' ')

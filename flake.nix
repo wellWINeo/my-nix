@@ -69,6 +69,9 @@
           config.allowUnfree = true;
         }
       );
+      dnsOutputs = import ./dns/flake-outputs.nix {
+        inherit forAllSystems nixpkgsFor;
+      };
     in
     {
 
@@ -178,6 +181,10 @@
         ];
       };
 
+      checks = dnsOutputs.checks;
+
+      apps = dnsOutputs.apps;
+
       devShells = forAllSystems (
         system:
         let
@@ -201,6 +208,7 @@
         {
           bulwark-webmail = pkgs.bulwark-webmail;
         }
+        // dnsOutputs.packages.${system}
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
           do-image = self.nixosConfigurations."do-generic".config.system.build.digitalOceanImage;
         }

@@ -35,7 +35,7 @@ tunnels = [
 
 `listen` is the local address and TCP port on which Xray accepts connections. It may be a loopback address or another local address, such as `192.168.0.20:1234`. `target` is the fixed remote TCP destination that Xray carries over VLESS.
 
-The module parses and validates endpoint syntax and port ranges, rejects duplicate listeners, and generates one Xray `dokodemo-door` TCP inbound per entry. Each inbound has a unique tag and a routing rule selecting the existing `proxy-balancer`. Tunnels do not change SOCKS, HTTP proxy, VLESS transport, or firewall configuration.
+The module parses and validates endpoint syntax and port ranges, rejects duplicate listeners, and generates one Xray `tunnel` TCP inbound per entry. `tunnel` is Xray’s current name for the former `dokodemo-door` inbound. Each inbound has a unique tag and a routing rule selecting the existing `proxy-balancer`. Tunnels do not change SOCKS, HTTP proxy, VLESS transport, or firewall configuration.
 
 Xray is a TCP carrier only. It does not terminate, inspect, or authenticate DoT TLS.
 

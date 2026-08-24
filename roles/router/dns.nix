@@ -56,8 +56,7 @@ in
             health_check 5s
             max_fails 2
 
-            # added in v1.12.1
-            # failfast_all_unhealthy_upstreams
+            failfast_all_unhealthy_upstreams
           }
         }
 

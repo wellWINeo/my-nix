@@ -134,7 +134,7 @@ in
         publicKey = secrets.xray.reality.publicKey;
         shortId = builtins.head secrets.xray.reality.shortIds;
         serverName = "api.oneme.ru";
-        fingerprint = "chrome";
+        fingerprint = "randomized";
       };
 
       vlessTcp = {

@@ -20,6 +20,53 @@ let
 
   realityCfg = cfg.reality;
 
+  parseEndpoint =
+    optionName: endpoint:
+    let
+      matches = builtins.match "^(.+):([0-9]+)$" endpoint;
+    in
+    if matches == null then
+      throw "roles.xray.client.${optionName} must be ADDRESS:PORT"
+    else
+      let
+        rawAddress = elemAt matches 0;
+        port = toInt (elemAt matches 1);
+        hasOpeningBracket = hasPrefix "[" rawAddress;
+        hasClosingBracket = hasSuffix "]" rawAddress;
+        address = if hasOpeningBracket then removePrefix "[" (removeSuffix "]" rawAddress) else rawAddress;
+      in
+      if hasOpeningBracket != hasClosingBracket || address == "" then
+        throw "roles.xray.client.${optionName} must have a non-empty address with paired IPv6 brackets"
+      else if port < 1 || port > 65535 then
+        throw "roles.xray.client.${optionName} port must be in the range 1..65535"
+      else
+        { inherit address port; };
+
+  parsedTunnels = imap0 (index: tunnel: {
+    inherit index;
+    listen = parseEndpoint "tunnels[${toString index}].listen" tunnel.listen;
+    target = parseEndpoint "tunnels[${toString index}].target" tunnel.target;
+  }) cfg.tunnels;
+
+  tunnelInbounds = map (tunnel: {
+    listen = tunnel.listen.address;
+    port = tunnel.listen.port;
+    protocol = "tunnel";
+    tag = "tunnel-${toString tunnel.index}-in";
+    settings = {
+      allowedNetwork = "tcp";
+      rewriteAddress = tunnel.target.address;
+      rewritePort = tunnel.target.port;
+      followRedirect = false;
+    };
+  }) parsedTunnels;
+
+  proxyInboundTags = [
+    "socks-in"
+  ]
+  ++ optional cfg.http.enable "http-in"
+  ++ map (tunnel: "tunnel-${toString tunnel.index}-in") parsedTunnels;
+
   xrayConfig = {
     log = {
       loglevel = "info";
@@ -45,7 +92,8 @@ let
         tag = "http-in";
         settings = { };
       }
-    ];
+    ]
+    ++ tunnelInbounds;
 
     outbounds =
       (map (
@@ -66,7 +114,7 @@ let
       rules = [
         {
           type = "field";
-          inboundTag = [ "socks-in" ] ++ lib.optional cfg.http.enable "http-in";
+          inboundTag = proxyInboundTags;
           balancerTag = "proxy-balancer";
         }
       ];
@@ -128,6 +176,27 @@ in
       };
     };
 
+    tunnels = mkOption {
+      type = types.listOf (
+        types.submodule {
+          options = {
+            listen = mkOption {
+              type = types.str;
+              example = "127.0.0.1:5053";
+              description = "Local address and TCP port for the Xray tunnel listener";
+            };
+            target = mkOption {
+              type = types.str;
+              example = "1.1.1.1:853";
+              description = "Fixed remote address and TCP port carried through Xray";
+            };
+          };
+        }
+      );
+      default = [ ];
+      description = "Fixed-destination TCP tunnels routed through the Xray proxy balancer";
+    };
+
     http = {
       enable = mkEnableOption "HTTP proxy inbound";
 
@@ -149,6 +218,16 @@ in
       {
         assertion = !cfg.http.enable || cfg.http.port != cfg.port;
         message = "roles.xray.client.http.port must differ from roles.xray.client.port";
+      }
+      {
+        assertion = length (unique (map (tunnel: tunnel.listen) parsedTunnels)) == length parsedTunnels;
+        message = "roles.xray.client.tunnels must not contain duplicate listen endpoints";
+      }
+      {
+        assertion = all (
+          tunnel: tunnel.listen.port != cfg.port && (!cfg.http.enable || tunnel.listen.port != cfg.http.port)
+        ) parsedTunnels;
+        message = "roles.xray.client.tunnels must not reuse the SOCKS or HTTP proxy listen port";
       }
       {
         assertion =

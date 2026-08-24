@@ -57,6 +57,7 @@ in
             max_fails 2
 
             failfast_all_unhealthy_upstreams
+            failover SERVFAIL REFUSED
           }
         }
 
@@ -82,10 +83,11 @@ in
         #} 
 
         .:9055 {
-          forward . tls://1.1.1.1 tls://1.0.0.1 {
+          forward . tls://1.1.1.1 tls://1.0.0.1 tls://127.0.0.1:5053 {
             tls_servername cloudflare-dns.com
             health_check 5s
             max_fails 2
+            policy sequential
           }
         }
 

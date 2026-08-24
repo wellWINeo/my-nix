@@ -128,6 +128,12 @@ in
       port = 1081;
       openFirewall = true;
       http.enable = true;
+      tunnels = [
+        {
+          listen = "127.0.0.1:5053";
+          target = "1.1.1.1:853";
+        }
+      ];
 
       reality = {
         enable = true;

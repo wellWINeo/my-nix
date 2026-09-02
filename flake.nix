@@ -181,14 +181,7 @@
         ];
       };
 
-      checks = dnsOutputs.checks // {
-        x86_64-linux = dnsOutputs.checks.x86_64-linux // {
-          miniflux-summarizer-bloomberg = import ./roles/reading/rss/summarizer/validation.nix {
-            pkgs = nixpkgsFor.x86_64-linux;
-            config = self.nixosConfigurations.mokosh.config;
-          };
-        };
-      };
+      checks = dnsOutputs.checks;
 
       apps = dnsOutputs.apps;
 

@@ -126,6 +126,7 @@ in
             ];
             target_feed_id = cfg.dailyTargetFeedId;
             history_lookback = "-7d";
+            autoread = true;
             prompt = bloombergPrompt;
             ignore = [
               {

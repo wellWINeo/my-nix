@@ -45,32 +45,36 @@ let
     expectedGeneratedDigests
   ];
   validation =
-    assert bloomberg.sources == [
-      {
-        kind = "category";
-        id = 4;
-      }
-    ];
+    assert
+      bloomberg.sources == [
+        {
+          kind = "category";
+          id = 4;
+        }
+      ];
     assert bloomberg.target_feed_id == 57;
     assert bloomberg.ignore == expectedBloombergIgnore;
-    assert technical.sources == [
-      {
-        kind = "all";
-      }
-    ];
+    assert
+      technical.sources == [
+        {
+          kind = "all";
+        }
+      ];
     assert technical.ignore == expectedTechnicalIgnore;
-    assert weekly.sources == [
-      {
-        kind = "feed";
-        id = 57;
-      }
-    ];
-    assert monthly.sources == [
-      {
-        kind = "feed";
-        id = 58;
-      }
-    ];
+    assert
+      weekly.sources == [
+        {
+          kind = "feed";
+          id = 57;
+        }
+      ];
+    assert
+      monthly.sources == [
+        {
+          kind = "feed";
+          id = 58;
+        }
+      ];
     assert builtins.elem expectedGeneratedDigests bloomberg.ignore;
     assert builtins.elem expectedGeneratedDigests technical.ignore;
     assert hasInfix "Bloomberg" bloomberg.prompt;

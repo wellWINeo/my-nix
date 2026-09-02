@@ -50,13 +50,22 @@ in
       type = types.int;
       description = "Miniflux feed ID for monthly digest output";
     };
+
+    _configTemplate = mkOption {
+      type = types.attrs;
+      default = { };
+      internal = true;
+      description = "Generated Miniflux Summarizer configuration for validation";
+    };
   };
 
   config = mkIf cfg.enable (
     let
       dailyPrompt = builtins.readFile ./prompts/daily.md;
+      bloombergPrompt = builtins.readFile ./prompts/bloomberg-daily.md;
       weeklyPrompt = builtins.readFile ./prompts/weekly.md;
       monthlyPrompt = builtins.readFile ./prompts/monthly.md;
+      bloombergCategoryId = 4;
 
       configTemplate = {
         miniflux = {
@@ -70,7 +79,7 @@ in
         };
         agents = {
           tech-daily = {
-            source = "raw_entries";
+            sources = [ { kind = "all"; } ];
             target_feed_id = cfg.dailyTargetFeedId;
             history_lookback = "-7d";
             prompt = dailyPrompt;
@@ -91,6 +100,9 @@ in
                 type = "category_id";
                 value = "4";
               }
+              {
+                type = "generated_digests";
+              }
             ];
             presets = {
               daily-morning = {
@@ -105,11 +117,51 @@ in
               };
             };
           };
+          bloomberg-daily = {
+            sources = [
+              {
+                kind = "category";
+                id = bloombergCategoryId;
+              }
+            ];
+            target_feed_id = cfg.dailyTargetFeedId;
+            history_lookback = "-7d";
+            prompt = bloombergPrompt;
+            ignore = [
+              {
+                type = "subject";
+                value = "Sponsored";
+              }
+              {
+                type = "feed_id";
+                value = "6";
+              }
+              {
+                type = "generated_digests";
+              }
+            ];
+            presets = {
+              daily-morning = {
+                title = "Bloomberg morning digest for {{date}}";
+                from = "-12h";
+                to = null;
+              };
+              daily-evening = {
+                title = "Bloomberg evening digest for {{date}}";
+                from = "-12h";
+                to = null;
+              };
+            };
+          };
           tech-weekly = {
-            source = "digests";
-            source_feed_id = cfg.weeklySourceFeedId;
+            sources = [
+              {
+                kind = "feed";
+                id = cfg.weeklySourceFeedId;
+              }
+            ];
             target_feed_id = cfg.weeklyTargetFeedId;
-            history_loockback = "-1m";
+            history_lookback = "-1m";
             prompt = weeklyPrompt;
             ignore = [ ];
             presets = {
@@ -121,10 +173,14 @@ in
             };
           };
           tech-monthly = {
-            source = "digests";
-            source_feed_id = cfg.monthlySourceFeedId;
+            sources = [
+              {
+                kind = "feed";
+                id = cfg.monthlySourceFeedId;
+              }
+            ];
             target_feed_id = cfg.monthlyTargetFeedId;
-            history_loockback = "-1m";
+            history_lookback = "-1m";
             prompt = monthlyPrompt;
             ignore = [ ];
             presets = {
@@ -191,6 +247,28 @@ in
           '';
         };
 
+        miniflux-summarizer-bloomberg-morning = commonServiceConfig // {
+          description = "Miniflux Summarizer — Bloomberg Morning Digest";
+          script = ''
+            ${injectLlmKey}
+            exec miniflux-summarizer \
+              --config /tmp/summarizer-config.json \
+              --agent bloomberg-daily \
+              --preset daily-morning
+          '';
+        };
+
+        miniflux-summarizer-bloomberg-evening = commonServiceConfig // {
+          description = "Miniflux Summarizer — Bloomberg Evening Digest";
+          script = ''
+            ${injectLlmKey}
+            exec miniflux-summarizer \
+              --config /tmp/summarizer-config.json \
+              --agent bloomberg-daily \
+              --preset daily-evening
+          '';
+        };
+
         miniflux-summarizer-weekly = commonServiceConfig // {
           description = "Miniflux Summarizer — Weekly Newsletter";
           script = ''
@@ -231,6 +309,22 @@ in
           };
         };
 
+        miniflux-summarizer-bloomberg-morning = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "*-*-* 06:00:00 UTC";
+            Persistent = true;
+          };
+        };
+
+        miniflux-summarizer-bloomberg-evening = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = {
+            OnCalendar = "*-*-* 18:00:00 UTC";
+            Persistent = true;
+          };
+        };
+
         miniflux-summarizer-weekly = {
           wantedBy = [ "timers.target" ];
           timerConfig = {
@@ -247,6 +341,8 @@ in
           };
         };
       };
+
+      roles.rss.summarizer._configTemplate = configTemplate;
     }
   );
 }

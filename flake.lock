@@ -162,11 +162,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1786276854,
-        "narHash": "sha256-NPv+LIlPwSkw+N+Y4XIXEqEVOFZPh7czMBS2Pyw/ipU=",
+        "lastModified": 1788342508,
+        "narHash": "sha256-5Qb6YB4CIIws80jwKqQ5a+ISddY7oSZd6WsrziAAVTA=",
         "owner": "wellWINeo",
         "repo": "miniflux-summarizer",
-        "rev": "d1c12995935fb8908823a9f8568df8d1a9c69a69",
+        "rev": "4d9bf3d5bb2315e65d68cfa3bc87aa08e27aca04",
         "type": "github"
       },
       "original": {

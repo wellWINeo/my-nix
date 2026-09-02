@@ -23,13 +23,6 @@
     }
     {
       type = "CNAME";
-      name = "blog";
-      target = "uspenskiy.tech.";
-      proxied = true;
-      ttl = "auto";
-    }
-    {
-      type = "CNAME";
       name = "gw";
       target = "mokosh.uspenskiy.su.";
       proxied = false;

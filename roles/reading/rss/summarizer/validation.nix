@@ -53,7 +53,11 @@ let
     ];
     assert bloomberg.target_feed_id == 57;
     assert bloomberg.ignore == expectedBloombergIgnore;
-    assert technical.sources == [ { kind = "all"; } ];
+    assert technical.sources == [
+      {
+        kind = "all";
+      }
+    ];
     assert technical.ignore == expectedTechnicalIgnore;
     assert weekly.sources == [
       {

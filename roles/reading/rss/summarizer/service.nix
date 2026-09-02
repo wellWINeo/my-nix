@@ -50,13 +50,6 @@ in
       type = types.int;
       description = "Miniflux feed ID for monthly digest output";
     };
-
-    _configTemplate = mkOption {
-      type = types.attrs;
-      default = { };
-      internal = true;
-      description = "Generated Miniflux Summarizer configuration for validation";
-    };
   };
 
   config = mkIf cfg.enable (
@@ -342,8 +335,6 @@ in
           };
         };
       };
-
-      roles.rss.summarizer._configTemplate = configTemplate;
     }
   );
 }

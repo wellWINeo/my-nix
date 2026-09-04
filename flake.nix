@@ -208,6 +208,15 @@
         {
           bulwark-webmail = pkgs.bulwark-webmail;
         }
+        //
+          nixpkgs.lib.optionalAttrs
+            (builtins.elem system [
+              "x86_64-linux"
+              "aarch64-linux"
+            ])
+            {
+              kaiten-mcp = pkgs.kaiten-mcp;
+            }
         // dnsOutputs.packages.${system}
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
           do-image = self.nixosConfigurations."do-generic".config.system.build.digitalOceanImage;

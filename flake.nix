@@ -195,6 +195,7 @@
             nativeBuildInputs = with pkgs; [
               nixfmt
               nixd
+              actionlint
             ];
           };
         }

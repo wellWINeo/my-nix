@@ -25,4 +25,4 @@ jobs:
             .#checks.x86_64-linux.dns-config \
             .#checks.x86_64-linux.dns-app-safety
       - name: Check formatting
-        run: nix develop --command nixfmt --check $(find . -name '*.nix' | tr '\n' ' ')
+        run: find . -name '*.nix' -exec nix develop --command nixfmt --check {} +

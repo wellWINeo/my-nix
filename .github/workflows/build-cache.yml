@@ -32,6 +32,7 @@ jobs:
           AWS_ENDPOINT_URL_S3: https://storage.yandexcloud.net/
         run: |
           echo "${{ secrets.NIX_CACHE_PRIVATE_KEY }}" > /tmp/cache-private-key.pem
-          nix copy $(nix path-info "${{ inputs.package }}" --recursive) \
+          mapfile -t paths < <(nix path-info "${{ inputs.package }}" --recursive)
+          nix copy "${paths[@]}" \
             --to "s3://nix-cache?endpoint=${AWS_ENDPOINT_URL_S3}&secret-key=/tmp/cache-private-key.pem"
           rm -f /tmp/cache-private-key.pem

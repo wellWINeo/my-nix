@@ -21,7 +21,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.condition_check == 'true' }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
       - name: Set up Nix
         if: ${{ env.condition_check == 'true' }}

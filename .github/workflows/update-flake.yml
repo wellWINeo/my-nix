@@ -25,7 +25,7 @@ jobs:
 
       - name: Set up Nix
         if: ${{ env.condition_check == 'true' }}
-        uses: cachix/install-nix-action@v22
+        uses: cachix/install-nix-action@v31
 
       - name: Update Nix flake
         if: ${{ env.condition_check == 'true' }}

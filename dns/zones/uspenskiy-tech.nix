@@ -8,9 +8,9 @@
       ttl = "auto";
     }
     {
-      type = "A";
+      type = "CNAME";
       name = "headscale";
-      address = "104.248.201.56";
+      target = "mokosh.uspenskiy.tech.";
       proxied = false;
       ttl = "auto";
     }

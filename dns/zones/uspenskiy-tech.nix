@@ -8,6 +8,13 @@
       ttl = "auto";
     }
     {
+      type = "A";
+      name = "headscale";
+      address = "104.248.201.56";
+      proxied = false;
+      ttl = "auto";
+    }
+    {
       type = "CNAME";
       name = "ebooks";
       target = "mokosh.uspenskiy.tech.";

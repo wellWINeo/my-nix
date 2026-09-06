@@ -181,6 +181,13 @@ Readeck is enabled on `mokosh` as `roles.readeck` and is available at
 Nginx, uses SQLite under `/var/lib/readeck`, and is included in the existing
 encrypted backup flow.
 
+`roles.vpn` runs Headscale and Headplane on `mokosh` at
+`https://headscale.uspenskiy.tech`; the Headplane UI is at `/admin/` and is
+protected by HTTP Basic Auth plus a Headscale API key. The embedded DERP/STUN
+relay is self-hosted on mokosh. `nixpi` runs Tailscale in parallel with its
+existing WireGuard client; WireGuard remains the active fallback until a
+separately approved retirement change.
+
 ## Adding a New Machine
 
 1. Create `machines/<hostname>/default.nix` following the machine config pattern

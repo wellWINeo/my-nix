@@ -9,6 +9,13 @@
     }
     {
       type = "CNAME";
+      name = "headscale";
+      target = "mokosh.uspenskiy.tech.";
+      proxied = false;
+      ttl = "auto";
+    }
+    {
+      type = "CNAME";
       name = "ebooks";
       target = "mokosh.uspenskiy.tech.";
       proxied = true;

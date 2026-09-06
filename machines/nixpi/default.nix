@@ -121,6 +121,12 @@ in
     serverPubKey = secrets.wireguard.mokosh-pubkey;
   };
 
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+    disableUpstreamLogging = true;
+  };
+
   roles.xray = {
     enable = true;
     client = {

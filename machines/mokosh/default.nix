@@ -46,6 +46,13 @@ in
   ###
   roles.hardened.enable = true;
 
+  roles.vpn = {
+    enable = true;
+    hostname = "headscale.${domainNames.secondary}";
+    certificateDirectory = "/var/lib/acme/${domainNames.secondary}";
+    publicIPv4 = secrets.ip.mokosh.address;
+  };
+
   roles.mail = {
     enable = true;
     sslCertificatesDirectory = "/var/lib/acme/${domainName}";

@@ -59,6 +59,7 @@ in
             auto_update_enabled = false;
             server = {
               enabled = true;
+              stun_listen_addr = "0.0.0.0:3478";
               ipv4 = cfg.publicIPv4;
             };
           };

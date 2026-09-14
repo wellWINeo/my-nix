@@ -216,11 +216,13 @@ REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
 export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
 . /etc/nixos/secrets/restic-env
 restic -r "$REPO" snapshots
-sudo install -d -o anytype -g anytype -m 0700 /tmp/anytype-restore
-restic -r "$REPO" restore latest --target /tmp/anytype-restore --include var/lib/anytype
+RESTORE_DIR="$(mktemp -d /tmp/anytype-restore.XXXXXX)"
+chmod 0700 "$RESTORE_DIR"
+restic -r "$REPO" restore latest --target "$RESTORE_DIR" --include var/lib/anytype
 ```
 
-The restore target must contain `/tmp/anytype-restore/var/lib/anytype`.
+The restore target must contain `"$RESTORE_DIR/var/lib/anytype"` and remains
+operator-owned until it is copied into place below.
 Before replacing live state, stop both Anytype services and make a recoverable
 copy of the current state. Then copy the restored directory into place and
 verify ownership and mode:
@@ -230,10 +232,11 @@ sudo systemctl stop anytype-mcp-proxy.service anytype-cli.service
 sudo mv /var/lib/anytype /var/lib/anytype.pre-restore
 sudo install -d -o anytype -g anytype -m 0700 /var/lib/anytype
 sudo rsync -a --chown=anytype:anytype \
-  /tmp/anytype-restore/var/lib/anytype/ /var/lib/anytype/
+  "$RESTORE_DIR/var/lib/anytype/" /var/lib/anytype/
 sudo chown -R anytype:anytype /var/lib/anytype
 sudo chmod 0700 /var/lib/anytype
 stat -c '%U:%G %a %n' /var/lib/anytype
+rm -rf "$RESTORE_DIR"
 sudo systemctl start anytype-cli.service anytype-mcp-proxy.service
 sudo -u anytype env HOME=/var/lib/anytype DATA_PATH=/var/lib/anytype \
   anytype space list
@@ -266,7 +269,11 @@ umask 077
 MCP_HEADER_FILE="$(mktemp)"
 UNAUTH_STATUS_FILE="$(mktemp)"
 AUTH_STATUS_FILE="$(mktemp)"
-trap 'rm -f "$MCP_HEADER_FILE" "$UNAUTH_STATUS_FILE" "$AUTH_STATUS_FILE"' EXIT
+UNAUTH_HEADERS_FILE="/tmp/anytype-mcp.headers"
+UNAUTH_BODY_FILE="/tmp/anytype-mcp.body"
+AUTH_HEADERS_FILE="/tmp/anytype-mcp-auth.headers"
+AUTH_BODY_FILE="/tmp/anytype-mcp-auth.body"
+trap 'rm -f "$MCP_HEADER_FILE" "$UNAUTH_STATUS_FILE" "$AUTH_STATUS_FILE" "$UNAUTH_HEADERS_FILE" "$UNAUTH_BODY_FILE" "$AUTH_HEADERS_FILE" "$AUTH_BODY_FILE" /tmp/anytype-mcp-tools.headers /tmp/anytype-mcp-tools.body' EXIT
 read -rs MCP_TOKEN
 printf '\n'
 printf 'Authorization: Bearer %s\n' "$MCP_TOKEN" >"$MCP_HEADER_FILE"

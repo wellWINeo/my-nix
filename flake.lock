@@ -175,6 +175,26 @@
         "type": "github"
       }
     },
+    "nix-anysync": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1788632700,
+        "narHash": "sha256-ltu6tKjF+Rp/Ev6CUgzJy5i4qM8Ldk2hE53rFiRN6cQ=",
+        "owner": "wellWINeo",
+        "repo": "nix-anysync",
+        "rev": "dfb8728c1b6c2b8bf059fe54fc6c80b16a139b75",
+        "type": "github"
+      },
+      "original": {
+        "owner": "wellWINeo",
+        "repo": "nix-anysync",
+        "type": "github"
+      }
+    },
     "nixos-hardware": {
       "inputs": {
         "nixpkgs": [
@@ -275,6 +295,7 @@
         "home-manager": "home-manager",
         "mattpocock-skills": "mattpocock-skills",
         "miniflux-summarizer": "miniflux-summarizer",
+        "nix-anysync": "nix-anysync",
         "nixos-hardware": "nixos-hardware",
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",

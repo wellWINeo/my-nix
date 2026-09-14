@@ -162,6 +162,11 @@ in
     baseDomain = domainNames.secondary;
   };
 
+  roles.anytype-mcp = {
+    enable = true;
+    baseDomain = domainNames.secondary;
+  };
+
   roles.rss = {
     enable = true;
     hub.enable = true;

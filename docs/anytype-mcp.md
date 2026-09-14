@@ -29,17 +29,19 @@ curl --fail http://127.0.0.1:31012/docs/openapi.json
 ```
 
 The expected result is a connection failure. Before the first switch, create
-the Nginx source file with its real bearer condition. Create the private
-environment source as an empty mode-0400 root-owned file for this staged
-switch; it is a valid empty systemd environment file, allowing the CLI to
-start before the bot key exists. Do not use a dummy API key or an
+the Nginx source file with its real bearer condition. Because the bot API key
+does not exist until the CLI has started, create the private environment source
+as an empty mode-0400 root-owned file for this staged switch. It is a valid
+empty systemd environment file, allowing the CLI to start; the bridge may be
+unhealthy until the bot key is installed. Do not use a dummy API key or an
 unauthenticated Nginx include.
 
-The files are untracked encrypted-source inputs, not credentials embedded in
-Nix. Their exact non-secret formats are:
+The files are untracked plaintext source files whose contents are included in
+the encrypted archive; they are not credentials embedded in Nix. Their exact
+non-secret formats are:
 
 ```text
-# secrets/unlocked/anytype-mcp.env, mode 0400, one line plus a final newline
+# secrets/unlocked/anytype-mcp.env when populated, mode 0400, final newline
 OPENAPI_MCP_HEADERS='{"Authorization":"Bearer ACTUAL_ANYTYPE_API_KEY","Anytype-Version":"2025-11-08"}'
 ```
 
@@ -79,7 +81,7 @@ sudo -u anytype env HOME=/var/lib/anytype DATA_PATH=/var/lib/anytype \
 ```
 
 Keep the bot recovery material outside the repository. After creating the bot,
-replace the private API-key value in the untracked encrypted-source file
+replace the private API-key value in the untracked plaintext source file
 `secrets/unlocked/anytype-mcp.env`; do not print it or add it to Nix source.
 Generate the public bearer in the operator's secret manager and put it only in
 `secrets/unlocked/anytype-mcp-nginx-auth.conf`. Re-encrypt, install, and reload
@@ -212,6 +214,7 @@ restore command is:
 ```bash
 REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
 export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
+. /etc/nixos/secrets/restic-env
 restic -r "$REPO" snapshots
 sudo install -d -o anytype -g anytype -m 0700 /tmp/anytype-restore
 restic -r "$REPO" restore latest --target /tmp/anytype-restore --include var/lib/anytype

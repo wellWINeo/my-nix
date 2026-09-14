@@ -28,18 +28,47 @@ pre-deployment local API is unavailable:
 curl --fail http://127.0.0.1:31012/docs/openapi.json
 ```
 
-The expected result is a connection failure. Install the decrypted files and
-switch the mokosh configuration:
+The expected result is a connection failure. Before the first switch, create
+the Nginx source file with its real bearer condition. Create the private
+environment source as an empty mode-0400 root-owned file for this staged
+switch; it is a valid empty systemd environment file, allowing the CLI to
+start before the bot key exists. Do not use a dummy API key or an
+unauthenticated Nginx include.
+
+The files are untracked encrypted-source inputs, not credentials embedded in
+Nix. Their exact non-secret formats are:
+
+```text
+# secrets/unlocked/anytype-mcp.env, mode 0400, one line plus a final newline
+OPENAPI_MCP_HEADERS='{"Authorization":"Bearer ACTUAL_ANYTYPE_API_KEY","Anytype-Version":"2025-11-08"}'
+```
+
+```nginx
+# secrets/unlocked/anytype-mcp-nginx-auth.conf, mode 0400
+if ($http_authorization != "Bearer ACTUAL_BASE64URL_TOKEN") { return 401; }
+```
+
+For the staged switch, leave the environment file empty and replace only the
+marked bearer value in the Nginx include. After the bot key is created below,
+replace the empty environment file with the one-line assignment shown above.
+Use a secret manager or editor that does not record values in shell history.
+`secrets/unlocked/spec.txt` declares only installation metadata
+(`host:filename:mode:owner:group`); it does not contain either secret's
+contents. Keep both source files out of Git and run:
 
 ```bash
+install -m 0400 /dev/null secrets/unlocked/anytype-mcp.env
+# Create secrets/unlocked/anytype-mcp-nginx-auth.conf with the real condition.
+chmod 0400 secrets/unlocked/anytype-mcp-nginx-auth.conf
+make lock-files
 make install-secrets
 sudo nixos-rebuild switch --flake 'path:.#mokosh'
 sudo systemctl status anytype-cli.service anytype-mcp-proxy.service nginx.service
 sudo ss -ltnp | rg ':(31012|8118)\b'
 ```
 
-Both services must be active and both listeners must show `127.0.0.1`, never a
-public address. Create the dedicated bot and a distinct private API key as the
+The CLI must be active and its listener must show `127.0.0.1`; the bridge may
+be unhealthy until its private key is installed. Create the dedicated bot and a distinct private API key as the
 service user, using its persistent service environment:
 
 ```bash
@@ -49,11 +78,10 @@ sudo -u anytype env HOME=/var/lib/anytype DATA_PATH=/var/lib/anytype \
   anytype auth apikey create anytype-mcp
 ```
 
-Keep the bot recovery material outside the repository. Put the generated API
-key only in the untracked encrypted-source file `secrets/unlocked/anytype-mcp.env`
-using the secret-file format declared in `secrets/unlocked/spec.txt`; do not
-print it or add it to Nix source. Generate the public bearer in the operator's
-secret manager and put it only in
+Keep the bot recovery material outside the repository. After creating the bot,
+replace the private API-key value in the untracked encrypted-source file
+`secrets/unlocked/anytype-mcp.env`; do not print it or add it to Nix source.
+Generate the public bearer in the operator's secret manager and put it only in
 `secrets/unlocked/anytype-mcp-nginx-auth.conf`. Re-encrypt, install, and reload
 only the consumers:
 
@@ -177,22 +205,44 @@ sudo systemctl start restic-backups-local.service
 sudo systemctl status restic-backups-local.service
 ```
 
-For restore credentials, repository selection, snapshot inspection, and restic
-integrity checks, use `docs/backups.md`. Before restoring, stop both Anytype
-services and preserve the current state outside the target directory. Restore
-the saved `var/lib/anytype` path into a temporary target, then copy its contents
-back to `/var/lib/anytype` with ownership `anytype:anytype` and mode `0700`.
-Start the services and confirm persistence and public access:
+Use the repository's documented restic workflow and supply its S3 credentials
+from the operator's secret manager without printing them. The Anytype-specific
+restore command is:
+
+```bash
+REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
+export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
+restic -r "$REPO" snapshots
+sudo install -d -o anytype -g anytype -m 0700 /tmp/anytype-restore
+restic -r "$REPO" restore latest --target /tmp/anytype-restore --include var/lib/anytype
+```
+
+The restore target must contain `/tmp/anytype-restore/var/lib/anytype`.
+Before replacing live state, stop both Anytype services and make a recoverable
+copy of the current state. Then copy the restored directory into place and
+verify ownership and mode:
 
 ```bash
 sudo systemctl stop anytype-mcp-proxy.service anytype-cli.service
-# Restore with the restic procedure in docs/backups.md, then restore ownership.
+sudo mv /var/lib/anytype /var/lib/anytype.pre-restore
+sudo install -d -o anytype -g anytype -m 0700 /var/lib/anytype
+sudo rsync -a --chown=anytype:anytype \
+  /tmp/anytype-restore/var/lib/anytype/ /var/lib/anytype/
 sudo chown -R anytype:anytype /var/lib/anytype
 sudo chmod 0700 /var/lib/anytype
+stat -c '%U:%G %a %n' /var/lib/anytype
 sudo systemctl start anytype-cli.service anytype-mcp-proxy.service
 sudo -u anytype env HOME=/var/lib/anytype DATA_PATH=/var/lib/anytype \
   anytype space list
 ```
+
+The `stat` result must show `anytype:anytype` and mode `700`. Retain
+`/var/lib/anytype.pre-restore` until the authenticated smoke test succeeds;
+remove it only through the normal operator cleanup process. Run the complete
+authenticated smoke test below, including the expected successful
+initialization, session handling, and test-object operations, before resuming
+client access. Run `restic -r "$REPO" check` after recovery when the repository
+integrity check is required.
 
 If the recovered state cannot authenticate or list its expected spaces, rebuild
 the bot identity using the recovery material stored outside the repository,
@@ -202,32 +252,68 @@ key, and rotate the public bearer before resuming client access.
 ## Smoke Test Workflow
 
 On a trusted client, retrieve the public bearer from the secret manager without
-printing it, then run the unauthenticated and authenticated Streamable-HTTP
-initialization requests:
+printing it. The temporary header file is mode `0600`; curl receives its path,
+not the bearer value, so the token is not expanded into curl's process
+arguments. The assertions fail closed if the expected HTTP or MCP result is not
+returned:
 
 ```bash
+set -eu
+umask 077
+MCP_HEADER_FILE="$(mktemp)"
+UNAUTH_STATUS_FILE="$(mktemp)"
+AUTH_STATUS_FILE="$(mktemp)"
+trap 'rm -f "$MCP_HEADER_FILE" "$UNAUTH_STATUS_FILE" "$AUTH_STATUS_FILE"' EXIT
 read -rs MCP_TOKEN
 printf '\n'
+printf 'Authorization: Bearer %s\n' "$MCP_TOKEN" >"$MCP_HEADER_FILE"
 curl -sS -D /tmp/anytype-mcp.headers -o /tmp/anytype-mcp.body \
+  -w '%{http_code}' >"$UNAUTH_STATUS_FILE" \
   -H 'Accept: application/json, text/event-stream' \
   -H 'Content-Type: application/json' \
   -H 'MCP-Protocol-Version: 2025-11-25' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"mokosh-smoke","version":"1"}}}' \
   https://anytype.uspenskiy.tech/mcp
+test "$(<"$UNAUTH_STATUS_FILE")" = 401
+
 curl -sS -D /tmp/anytype-mcp-auth.headers -o /tmp/anytype-mcp-auth.body \
-  -H "Authorization: Bearer $MCP_TOKEN" \
+  -w '%{http_code}' >"$AUTH_STATUS_FILE" \
+  -H @"$MCP_HEADER_FILE" \
   -H 'Accept: application/json, text/event-stream' \
   -H 'Content-Type: application/json' \
   -H 'MCP-Protocol-Version: 2025-11-25' \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"mokosh-smoke","version":"1"}}}' \
   https://anytype.uspenskiy.tech/mcp
+test "$(<"$AUTH_STATUS_FILE")" -ge 200
+test "$(<"$AUTH_STATUS_FILE")" -lt 300
+rg -q '"result"[[:space:]]*:' /tmp/anytype-mcp-auth.body
+
+if rg -qi '^Mcp-Session-Id:' /tmp/anytype-mcp-auth.headers; then
+  SESSION_ID="$(awk 'BEGIN { IGNORECASE=1 } /^Mcp-Session-Id:/ { sub(/^[^:]*:[[:space:]]*/, ""); gsub(/\r/, ""); print; exit }' /tmp/anytype-mcp-auth.headers)"
+  test -n "$SESSION_ID"
+  curl -sS -D /tmp/anytype-mcp-tools.headers -o /tmp/anytype-mcp-tools.body \
+    -w '%{http_code}' >"$AUTH_STATUS_FILE" \
+    -H @"$MCP_HEADER_FILE" \
+    -H "Mcp-Session-Id: $SESSION_ID" \
+    -H 'Accept: application/json, text/event-stream' \
+    -H 'Content-Type: application/json' \
+    -H 'MCP-Protocol-Version: 2025-11-25' \
+    -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+    https://anytype.uspenskiy.tech/mcp
+  test "$(<"$AUTH_STATUS_FILE")" -ge 200
+  test "$(<"$AUTH_STATUS_FILE")" -lt 300
+  rg -q '"result"[[:space:]]*:' /tmp/anytype-mcp-tools.body
+else
+  echo 'No Mcp-Session-Id returned; bridge selected a stateless transport.'
+fi
 unset MCP_TOKEN
 ```
 
-The unauthenticated response must be `401`. The authenticated initialization
-must succeed and, when the bridge selects a sessionful transport, include an
-`Mcp-Session-Id` response header. Reuse that session ID with the same bearer to
-call `tools/list`; create, update, read, and delete a disposable test object in
-the bot's invited test space. Do not copy object content or tokens into the
-repository or journal. Complete the upload-boundary and restart/persistence
-checks described above before treating the deployment as operational.
+The first assertion proves `401`; the second proves a successful authenticated
+MCP initialization and a JSON-RPC result. When a sessionful transport is
+selected, the branch asserts a non-empty `Mcp-Session-Id` and a successful
+`tools/list` call using that session. Create, update, read, and delete a
+disposable test object in the bot's invited test space through the authenticated
+client. Do not copy object content or tokens into the repository or journal.
+Complete the upload-boundary and restart/persistence checks described above
+before treating the deployment as operational.

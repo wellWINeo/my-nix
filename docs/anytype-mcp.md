@@ -212,22 +212,16 @@ from the operator's secret manager without printing them. The Anytype-specific
 restore command is:
 
 ```bash
+sudo -i
 REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
 export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
 . /etc/nixos/secrets/restic-env
 restic -r "$REPO" snapshots
 RESTORE_DIR="$(mktemp -d /tmp/anytype-restore.XXXXXX)"
 chmod 0700 "$RESTORE_DIR"
+trap 'rm -rf "$RESTORE_DIR"' EXIT
 restic -r "$REPO" restore latest --target "$RESTORE_DIR" --include var/lib/anytype
-```
-
-The restore target must contain `"$RESTORE_DIR/var/lib/anytype"` and remains
-operator-owned until it is copied into place below.
-Before replacing live state, stop both Anytype services and make a recoverable
-copy of the current state. Then copy the restored directory into place and
-verify ownership and mode:
-
-```bash
+test -d "$RESTORE_DIR/var/lib/anytype"
 sudo systemctl stop anytype-mcp-proxy.service anytype-cli.service
 sudo mv /var/lib/anytype /var/lib/anytype.pre-restore
 sudo install -d -o anytype -g anytype -m 0700 /var/lib/anytype
@@ -236,12 +230,15 @@ sudo rsync -a --chown=anytype:anytype \
 sudo chown -R anytype:anytype /var/lib/anytype
 sudo chmod 0700 /var/lib/anytype
 stat -c '%U:%G %a %n' /var/lib/anytype
-rm -rf "$RESTORE_DIR"
 sudo systemctl start anytype-cli.service anytype-mcp-proxy.service
 sudo -u anytype env HOME=/var/lib/anytype DATA_PATH=/var/lib/anytype \
   anytype space list
+exit
 ```
 
+The restore target must contain `"$RESTORE_DIR/var/lib/anytype"`. The trap
+removes that temporary target if restore or copying fails, while the live
+directory is preserved as `/var/lib/anytype.pre-restore` before replacement.
 The `stat` result must show `anytype:anytype` and mode `700`. Retain
 `/var/lib/anytype.pre-restore` until the authenticated smoke test succeeds;
 remove it only through the normal operator cleanup process. Run the complete
@@ -269,15 +266,17 @@ umask 077
 MCP_HEADER_FILE="$(mktemp)"
 UNAUTH_STATUS_FILE="$(mktemp)"
 AUTH_STATUS_FILE="$(mktemp)"
-UNAUTH_HEADERS_FILE="/tmp/anytype-mcp.headers"
-UNAUTH_BODY_FILE="/tmp/anytype-mcp.body"
-AUTH_HEADERS_FILE="/tmp/anytype-mcp-auth.headers"
-AUTH_BODY_FILE="/tmp/anytype-mcp-auth.body"
-trap 'rm -f "$MCP_HEADER_FILE" "$UNAUTH_STATUS_FILE" "$AUTH_STATUS_FILE" "$UNAUTH_HEADERS_FILE" "$UNAUTH_BODY_FILE" "$AUTH_HEADERS_FILE" "$AUTH_BODY_FILE" /tmp/anytype-mcp-tools.headers /tmp/anytype-mcp-tools.body' EXIT
+UNAUTH_HEADERS_FILE="$(mktemp)"
+UNAUTH_BODY_FILE="$(mktemp)"
+AUTH_HEADERS_FILE="$(mktemp)"
+AUTH_BODY_FILE="$(mktemp)"
+TOOLS_HEADERS_FILE="$(mktemp)"
+TOOLS_BODY_FILE="$(mktemp)"
+trap 'rm -f "$MCP_HEADER_FILE" "$UNAUTH_STATUS_FILE" "$AUTH_STATUS_FILE" "$UNAUTH_HEADERS_FILE" "$UNAUTH_BODY_FILE" "$AUTH_HEADERS_FILE" "$AUTH_BODY_FILE" "$TOOLS_HEADERS_FILE" "$TOOLS_BODY_FILE"' EXIT
 read -rs MCP_TOKEN
 printf '\n'
 printf 'Authorization: Bearer %s\n' "$MCP_TOKEN" >"$MCP_HEADER_FILE"
-curl -sS -D /tmp/anytype-mcp.headers -o /tmp/anytype-mcp.body \
+curl -sS -D "$UNAUTH_HEADERS_FILE" -o "$UNAUTH_BODY_FILE" \
   -w '%{http_code}' >"$UNAUTH_STATUS_FILE" \
   -H 'Accept: application/json, text/event-stream' \
   -H 'Content-Type: application/json' \
@@ -286,7 +285,7 @@ curl -sS -D /tmp/anytype-mcp.headers -o /tmp/anytype-mcp.body \
   https://anytype.uspenskiy.tech/mcp
 test "$(<"$UNAUTH_STATUS_FILE")" = 401
 
-curl -sS -D /tmp/anytype-mcp-auth.headers -o /tmp/anytype-mcp-auth.body \
+curl -sS -D "$AUTH_HEADERS_FILE" -o "$AUTH_BODY_FILE" \
   -w '%{http_code}' >"$AUTH_STATUS_FILE" \
   -H @"$MCP_HEADER_FILE" \
   -H 'Accept: application/json, text/event-stream' \
@@ -296,12 +295,12 @@ curl -sS -D /tmp/anytype-mcp-auth.headers -o /tmp/anytype-mcp-auth.body \
   https://anytype.uspenskiy.tech/mcp
 test "$(<"$AUTH_STATUS_FILE")" -ge 200
 test "$(<"$AUTH_STATUS_FILE")" -lt 300
-rg -q '"result"[[:space:]]*:' /tmp/anytype-mcp-auth.body
+rg -q '"result"[[:space:]]*:' "$AUTH_BODY_FILE"
 
-if rg -qi '^Mcp-Session-Id:' /tmp/anytype-mcp-auth.headers; then
-  SESSION_ID="$(awk 'BEGIN { IGNORECASE=1 } /^Mcp-Session-Id:/ { sub(/^[^:]*:[[:space:]]*/, ""); gsub(/\r/, ""); print; exit }' /tmp/anytype-mcp-auth.headers)"
+if rg -qi '^Mcp-Session-Id:' "$AUTH_HEADERS_FILE"; then
+  SESSION_ID="$(awk 'BEGIN { IGNORECASE=1 } /^Mcp-Session-Id:/ { sub(/^[^:]*:[[:space:]]*/, ""); gsub(/\r/, ""); print; exit }' "$AUTH_HEADERS_FILE")"
   test -n "$SESSION_ID"
-  curl -sS -D /tmp/anytype-mcp-tools.headers -o /tmp/anytype-mcp-tools.body \
+  curl -sS -D "$TOOLS_HEADERS_FILE" -o "$TOOLS_BODY_FILE" \
     -w '%{http_code}' >"$AUTH_STATUS_FILE" \
     -H @"$MCP_HEADER_FILE" \
     -H "Mcp-Session-Id: $SESSION_ID" \
@@ -312,7 +311,7 @@ if rg -qi '^Mcp-Session-Id:' /tmp/anytype-mcp-auth.headers; then
     https://anytype.uspenskiy.tech/mcp
   test "$(<"$AUTH_STATUS_FILE")" -ge 200
   test "$(<"$AUTH_STATUS_FILE")" -lt 300
-  rg -q '"result"[[:space:]]*:' /tmp/anytype-mcp-tools.body
+  rg -q '"result"[[:space:]]*:' "$TOOLS_BODY_FILE"
 else
   echo 'No Mcp-Session-Id returned; bridge selected a stateless transport.'
 fi

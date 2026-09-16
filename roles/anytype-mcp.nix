@@ -47,7 +47,7 @@ in
         Group = "anytype";
         StateDirectory = "anytype";
         WorkingDirectory = cliDataDir;
-        ExecStart = "${pkgs.anytype-cli}/bin/anytype serve";
+        ExecStart = "${pkgs.anytype-cli}/bin/anytype-cli serve";
         Restart = "on-failure";
         RestartSec = "5s";
         NoNewPrivileges = true;

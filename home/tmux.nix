@@ -26,6 +26,10 @@ in
       set -g window-status-current-style bg=${tmuxTheme.currentWindowBg},fg=${tmuxTheme.currentWindowFg}
       set -g status-interval 1
 
+      # Terminal
+      set -g default-terminal "tmux-256color"
+      set -as terminal-features ",xterm-256color:RGB"
+
       # Claude Code
       set -g focus-events on
 

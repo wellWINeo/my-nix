@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a declarative, single-host observability stack to mokosh. Grafana is publicly reachable at `grafana.uspenskiy.tech`; VictoriaMetrics and all scrape endpoints remain local. The stack retains metrics for 30 days and scrapes every 60 seconds. Alerting is explicitly out of scope.
+Add a declarative, single-host observability stack to mokosh. Grafana is publicly reachable at `grafana.uspenskiy.tech`; VictoriaMetrics and all scrape endpoints remain local. VictoriaMetrics is configured with a 30-day retention period (and may retain data slightly longer at storage-partition boundaries) and scrapes every 60 seconds. Alerting is explicitly out of scope.
 
 ## Scope
 
@@ -29,7 +29,7 @@ Create `roles/observability/`, which is discovered as one role through its `defa
   - Enables the NixOS Prometheus node exporter bound to loopback.
   - Enables its `systemd` collector and registers the `node` job.
 - `roles/observability/victoria-metrics.nix`
-  - Runs single-node VictoriaMetrics bound to `127.0.0.1:8428` with `retentionPeriod = "30d"`.
+  - Runs single-node VictoriaMetrics bound to `127.0.0.1:8428` with `retentionPeriod = "30d"`; its storage partitions may retain samples briefly beyond that boundary.
   - Converts the aggregated scrape jobs to `services.victoriametrics.prometheusConfig.scrape_configs` and sets the global 60-second scrape interval.
   - Registers VictoriaMetrics' own `/metrics` endpoint.
 - `roles/observability/grafana.nix`
@@ -56,11 +56,12 @@ This interface is deliberately local to NixOS modules: to instrument a future ap
 
 ## Networking and security
 
-- Node exporter, Headscale metrics, Miniflux metrics, Stalwart metrics, VictoriaMetrics, and Grafana bind only to loopback. They do not open firewall ports or receive nginx locations.
+- Node exporter, Headscale metrics, Miniflux metrics, Stalwart metrics, VictoriaMetrics, and Grafana bind only to loopback. They do not open firewall ports.
+- Existing public nginx virtual hosts must explicitly return `404` for Miniflux `/metrics` and Stalwart `/metrics/prometheus`; Grafana's public virtual host must return `404` for `/metrics`. This prevents public catch-all reverse proxies from forwarding the otherwise loopback-only native endpoints.
 - Grafana is the only public component. `grafana.uspenskiy.tech` is reverse-proxied by nginx to `127.0.0.1:3000`, uses `forceSSL`, the existing `uspenskiy.tech` wildcard certificate, and NixOS' recommended proxy settings.
 - Grafana sets its public domain/root URL, enforces the domain, disables anonymous access and self-signup, and uses secure cookies. Its datasource is the loopback VictoriaMetrics URL and is not user-editable.
 - Grafana's initial administrator username is `o__ni`.
-- Add `mokosh:grafana.env:0400:grafana:grafana` to `secrets/unlocked/spec.txt`. The locked file contains `GF_SECURITY_ADMIN_USER=o__ni`, a generated `GF_SECURITY_ADMIN_PASSWORD`, and a generated persistent `GF_SECURITY_SECRET_KEY`. The Grafana systemd service reads this environment file, keeping both values out of the Nix store.
+- Add `mokosh:grafana.env:0400:root:root` to `secrets/unlocked/spec.txt`. The locked file contains `GF_SECURITY_ADMIN_USER=o__ni`, a generated `GF_SECURITY_ADMIN_PASSWORD`, and a generated persistent `GF_SECURITY_SECRET_KEY`. PID 1 reads this root-owned `EnvironmentFile` before starting Grafana, keeping both values out of the Nix store and allowing installation before the Grafana account exists.
 - Update `dns/zones/uspenskiy-tech.nix` with the proxied, auto-TTL CNAME `grafana -> mokosh.uspenskiy.tech.`. The existing wildcard ACME certificate already covers this subdomain.
 
 ## Grafana experience
@@ -73,7 +74,7 @@ The dashboard includes:
 - memory and swap usage;
 - disk free space and inode availability;
 - network traffic;
-- selected systemd unit health;
+- selected systemd unit health, including `stalwart.service`;
 - per-job `up`, scrape duration, and samples-scraped panels;
 - dashboard variables or links that make the native application series discoverable in Explore.
 
@@ -92,4 +93,4 @@ Before deployment:
 3. Run the DNS offline checks required by the DNS skill: `make fmt`, `nix build ".#checks.$(nix eval --impure --raw --expr builtins.currentSystem).dns-render" ".#checks.$(nix eval --impure --raw --expr builtins.currentSystem).dns-config" ".#checks.$(nix eval --impure --raw --expr builtins.currentSystem).dns-app-safety"`, then `make check`.
 4. Verify the mokosh NixOS configuration evaluates through `make check`.
 
-After deployment, confirm Grafana, VictoriaMetrics, node exporter, and each enabled source service are active; query VictoriaMetrics' targets API from the host; and log in to `https://grafana.uspenskiy.tech` as `o__ni` to confirm the provisioned datasource and dashboard load.
+After deployment, confirm Grafana, VictoriaMetrics, node exporter, and each enabled source service are active; query VictoriaMetrics' targets API from the host and fail verification unless every expected job is present and healthy; verify the dashboard JSON with `jq empty`; and log in to `https://grafana.uspenskiy.tech` as `o__ni` to confirm the provisioned datasource and dashboard load.

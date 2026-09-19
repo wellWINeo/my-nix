@@ -17,6 +17,7 @@ in
       type = types.str;
       description = "2nd level domain name (base)";
     };
+    metrics.enable = mkEnableOption "Miniflux native Prometheus metrics";
   };
 
   config = mkIf cfg.enable {
@@ -34,16 +35,29 @@ in
         HTTP_CLIENT_TIMEOUT = 60;
         ADMIN_USERNAME = "o__ni";
         CREATE_ADMIN = 1;
+      }
+      // optionalAttrs cfg.metrics.enable {
+        METRICS_COLLECTOR = 1;
+        METRICS_ALLOWED_NETWORKS = "127.0.0.1/8";
+        METRICS_REFRESH_INTERVAL = 60;
       };
     };
 
     services.postgresql.package = pkgs.postgresql_16;
+
+    roles.observability.scrapeJobs = mkIf cfg.metrics.enable (mkAfter [
+      {
+        name = "miniflux";
+        target = "127.0.0.1:8200";
+      }
+    ]);
 
     services.nginx.virtualHosts."rss.${cfg.baseDomain}" = {
       forceSSL = true;
       enableACME = false;
       sslCertificate = "/var/lib/acme/${cfg.baseDomain}/fullchain.pem";
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
+      locations."= /metrics".return = "404";
       locations."/" = {
         proxyPass = "http://${minifluxUrl}";
         recommendedProxySettings = true;

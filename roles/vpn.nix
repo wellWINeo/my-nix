@@ -21,6 +21,7 @@ in
     hostname = mkOption { type = types.str; };
     certificateDirectory = mkOption { type = types.str; };
     publicIPv4 = mkOption { type = types.str; };
+    metrics.enable = mkEnableOption "Headscale native Prometheus metrics";
   };
 
   config = mkIf cfg.enable (mkMerge [
@@ -109,5 +110,15 @@ in
       roles.backup.paths = [ backupDir ];
       roles.backup.afterServices = [ "backup-headscale.service" ];
     }
+    (mkIf cfg.metrics.enable {
+      services.headscale.settings.metrics_listen_addr = "127.0.0.1:9090";
+
+      roles.observability.scrapeJobs = mkAfter [
+        {
+          name = "headscale";
+          target = "127.0.0.1:9090";
+        }
+      ];
+    })
   ]);
 }

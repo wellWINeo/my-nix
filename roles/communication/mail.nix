@@ -46,6 +46,8 @@ in
       type = types.str;
       description = "Mail hostname";
     };
+
+    metrics.enable = mkEnableOption "Stalwart native Prometheus metrics";
   };
 
   config = mkIf cfg.enable {
@@ -198,9 +200,20 @@ in
             ];
           };
         };
+      }
+      // optionalAttrs cfg.metrics.enable {
+        metrics.prometheus.enable = true;
       };
 
     };
+
+    roles.observability.scrapeJobs = mkIf cfg.metrics.enable (mkAfter [
+      {
+        name = "stalwart";
+        target = "127.0.0.1:10080";
+        metricsPath = "/metrics/prometheus";
+      }
+    ]);
 
     users.users.stalwart.uid = 993;
     users.groups.stalwart.gid = 991;
@@ -220,6 +233,7 @@ in
           enableACME = false;
           sslCertificate = "${cfg.sslCertificatesDirectory}/fullchain.pem";
           sslCertificateKey = "${cfg.sslCertificatesDirectory}/key.pem";
+          locations."= /metrics/prometheus".return = "404";
           locations."/" = {
             proxyPass = "http://127.0.0.1:10080";
           };

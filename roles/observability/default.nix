@@ -38,4 +38,10 @@ in
       description = "Native Prometheus scrape targets registered by their owning roles.";
     };
   };
+
+  config = mkIf cfg.enable {
+    roles.vpn.metrics.enable = mkDefault true;
+    roles.rss.metrics.enable = mkDefault true;
+    roles.mail.metrics.enable = mkDefault true;
+  };
 }

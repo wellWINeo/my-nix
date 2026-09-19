@@ -9,8 +9,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     home-manager = {
-      url = "github:nix-community/home-manager/release-26.05";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nix-community/home-manager/master";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     miniflux-summarizer = {
       url = "github:wellWINeo/miniflux-summarizer";
@@ -22,7 +22,7 @@
     };
     agent-skills = {
       url = "github:Kyure-A/agent-skills-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
       inputs.home-manager.follows = "home-manager";
     };
     superpowers = {
@@ -46,8 +46,8 @@
       flake = false;
     };
     nixvim = {
-      url = "github:nix-community/nixvim/nixos-26.05";
-      inputs.nixpkgs.follows = "nixpkgs";
+      url = "github:nix-community/nixvim/main";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
   };
 

@@ -73,6 +73,13 @@
           config.allowUnfree = true;
         }
       );
+      nixpkgsUnstableFor = forAllSystems (
+        system:
+        import nixpkgs-unstable {
+          inherit system overlays;
+          config.allowUnfree = true;
+        }
+      );
       dnsOutputs = import ./dns/flake-outputs.nix {
         inherit forAllSystems nixpkgsFor;
       };
@@ -150,7 +157,7 @@
 
       # standalone home-manager for macOS
       homeConfigurations."o__ni@Stepans-MacBook-Pro" = inputs.home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgsFor.aarch64-darwin;
+        pkgs = nixpkgsUnstableFor.aarch64-darwin;
         extraSpecialArgs = { inherit inputs; };
         modules = [
           inputs.agent-skills.homeManagerModules.default
@@ -170,7 +177,7 @@
       };
 
       homeConfigurations."o__ni@DodoBook.local" = inputs.home-manager.lib.homeManagerConfiguration {
-        pkgs = nixpkgsFor.aarch64-darwin;
+        pkgs = nixpkgsUnstableFor.aarch64-darwin;
         extraSpecialArgs = { inherit inputs; };
         modules = [
           inputs.agent-skills.homeManagerModules.default

@@ -20,6 +20,7 @@ in
         security = {
           cookie_secure = true;
           cookie_samesite = "lax";
+          secret_key = "$__file{/etc/nixos/secrets/grafana-secret-key}";
         };
         users.allow_sign_up = false;
         "auth.anonymous".enabled = false;

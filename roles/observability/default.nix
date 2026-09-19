@@ -26,6 +26,7 @@ in
   imports = [
     ./node-exporter.nix
     ./victoria-metrics.nix
+    ./grafana.nix
   ];
 
   options.roles.observability = {

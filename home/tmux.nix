@@ -29,6 +29,8 @@ in
       # Terminal
       set -g default-terminal "tmux-256color"
       set -as terminal-features ",xterm-256color:RGB"
+      set -g extended-keys on
+      set -g extended-keys-format csi-u
 
       # Claude Code
       set -g focus-events on

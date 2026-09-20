@@ -14,5 +14,8 @@ in
     home.file.".agents/AGENTS.md" = lib.mkIf enableShared {
       source = ./AGENTS.md;
     };
+    home.file.".pi/agent/AGENTS.md" = lib.mkIf enableShared {
+      source = ./AGENTS.md;
+    };
   };
 }

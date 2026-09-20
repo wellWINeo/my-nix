@@ -50,6 +50,13 @@
       ttl = "auto";
     }
     {
+      type = "CNAME";
+      name = "grafana";
+      target = "mokosh.uspenskiy.tech.";
+      proxied = true;
+      ttl = "auto";
+    }
+    {
       type = "ALIAS";
       name = "@";
       target = "website-63n.pages.dev.";

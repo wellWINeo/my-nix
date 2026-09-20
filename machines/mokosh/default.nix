@@ -46,6 +46,11 @@ in
   ###
   roles.hardened.enable = true;
 
+  roles.observability = {
+    enable = true;
+    baseDomain = domainNames.secondary;
+  };
+
   roles.vpn = {
     enable = true;
     hostname = "headscale.${domainNames.secondary}";

@@ -15,12 +15,12 @@ in
           domain = hostname;
           root_url = "https://${hostname}/";
           enforce_domain = true;
-          http_port = 3001;
+          http_port = 3000;
         };
         security = {
           cookie_secure = true;
           cookie_samesite = "lax";
-          secret_key = "$__file{/etc/nixos/secrets/grafana-secret-key}";
+          secret_key = "$__env{GF_SECURITY_SECRET_KEY}";
         };
         users.allow_sign_up = false;
         "auth.anonymous".enabled = false;
@@ -62,7 +62,7 @@ in
     roles.observability.scrapeJobs = mkAfter [
       {
         name = "grafana";
-        target = "127.0.0.1:3001";
+        target = "127.0.0.1:3000";
       }
     ];
 
@@ -73,7 +73,7 @@ in
       sslCertificateKey = "/var/lib/acme/${cfg.baseDomain}/key.pem";
       locations."= /metrics".return = "404";
       locations."/" = {
-        proxyPass = "http://127.0.0.1:3001";
+        proxyPass = "http://127.0.0.1:3000";
         recommendedProxySettings = true;
       };
     };

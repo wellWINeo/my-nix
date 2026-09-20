@@ -12,7 +12,7 @@ let
   dataDir = "/var/lib/headscale";
   backupDir = "/var/backup/headscale";
   headscalePort = 8080;
-  headplanePort = 3000;
+  headplanePort = 3001;
   mkSqliteBackup = import ../common/sqlite-backup.nix;
 in
 {

@@ -67,6 +67,10 @@ in
   ###
   roles.hardened.enable = true;
 
+  roles.observability.agent.enable = true;
+
+  roles.xray.metrics.enable = true;
+
   roles.xray = {
     enable = true;
     server = {
@@ -138,9 +142,25 @@ in
     enable = true;
     useMiddleProxy = false;
     tls.domain = "api.ok.ru";
-    port = 9100;
+    port = 9102; # moved off 9100: node_exporter owns 9100 on agents
     upstream = "127.0.0.1:1080";
     users = secrets.mtproxy.users;
+  };
+
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
+    extraUpFlags = [
+      "--login-server=https://headscale.uspenskiy.tech"
+      "--accept-dns=false"
+    ];
+    extraSetFlags = [ "--accept-dns=false" ];
+  };
+
+  systemd.services.tailscaled-autoconnect.serviceConfig = {
+    Restart = "on-failure";
+    RestartSec = "30s";
   };
 
   roles.stream-forwarder = {

@@ -19,6 +19,11 @@ let
         ];
         default = "http";
       };
+      host = mkOption {
+        type = types.str;
+        default = config.networking.hostName;
+        description = "Host label for this job's targets";
+      };
     };
   };
 in
@@ -32,6 +37,37 @@ in
   options.roles.observability = {
     enable = mkEnableOption "observability stack";
     baseDomain = mkOption { type = types.str; };
+
+    agent = {
+      enable = mkEnableOption "node-side metrics agent (exporters + textfile collectors)";
+
+      textfileDir = mkOption {
+        type = types.str;
+        default = "/var/lib/prometheus-node-exporter-textfiles";
+        description = "Directory harvested by node_exporter's textfile collector";
+      };
+    };
+
+    remoteAgents = mkOption {
+      type = types.listOf (
+        types.submodule {
+          options = {
+            host = mkOption {
+              type = types.str;
+              description = "Hostname label; also the MagicDNS name prefix (<host>.<tailnetDomain>)";
+            };
+            port = mkOption {
+              type = types.port;
+              default = 9100;
+              description = "node_exporter port on the agent";
+            };
+          };
+        }
+      );
+      default = [ ];
+      description = "Tailnet hosts scraped by this VictoriaMetrics via the node job";
+    };
+
     scrapeJobs = mkOption {
       type = types.listOf scrapeJobType;
       default = [ ];

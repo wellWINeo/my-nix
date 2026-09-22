@@ -4,17 +4,33 @@ with lib;
 
 let
   cfg = config.roles.observability;
-  scrapeConfigs = map (job: {
-    job_name = job.name;
-    metrics_path = job.metricsPath;
-    scheme = job.scheme;
-    static_configs = [
-      {
-        targets = [ job.target ];
-        labels.host = "mokosh";
-      }
-    ];
-  }) cfg.scrapeJobs;
+
+  nodeStaticConfigs =
+    (optional config.roles.observability.agent.enable {
+      targets = [ "127.0.0.1:${toString config.services.prometheus.exporters.node.port}" ];
+      labels.host = config.networking.hostName;
+    })
+    ++ map (a: {
+      targets = [ "${a.host}.${config.roles.vpn.tailnetDomain}:${toString a.port}" ];
+      labels.host = a.host;
+    }) cfg.remoteAgents;
+
+  scrapeConfigs =
+    (optional (nodeStaticConfigs != [ ]) {
+      job_name = "node";
+      static_configs = nodeStaticConfigs;
+    })
+    ++ map (job: {
+      job_name = job.name;
+      metrics_path = job.metricsPath;
+      scheme = job.scheme;
+      static_configs = [
+        {
+          targets = [ job.target ];
+          labels.host = job.host;
+        }
+      ];
+    }) cfg.scrapeJobs;
 in
 {
   config = mkIf cfg.enable {

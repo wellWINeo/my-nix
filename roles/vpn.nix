@@ -66,6 +66,10 @@ in
             auto_update_enabled = false;
             server = {
               enabled = true;
+              region_id = 999;
+              region_code = "headscale";
+              region_name = "Headscale Embedded DERP";
+              automatically_add_embedded_derp_region = true;
               stun_listen_addr = "0.0.0.0:3478";
               ipv4 = cfg.publicIPv4;
             };

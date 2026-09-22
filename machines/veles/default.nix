@@ -150,7 +150,7 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-veles";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
     extraUpFlags = [
       "--login-server=https://headscale.uspenskiy.tech"
       "--accept-dns=false"

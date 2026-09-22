@@ -31,8 +31,8 @@ remote scrape agent" (2026-09-19 observability design).
   tailnet IPs.
 - Enroll `mokosh`, `veles`, and `buyan` on the tailnet via
   `services.tailscale.authKeyFile` + `extraUpFlags = [ "--login-server=..." ]`.
-  Each host receives its own one-time, explicitly expiring preauth key as a
-  file secret; enrollment state makes subsequent rebuilds idempotent.
+  All three hosts share one reusable, explicitly expiring preauth key as an
+  encrypted file secret; enrollment state makes subsequent rebuilds idempotent.
 - Add `roles.observability.agent` — a node-side slice of the observability
   role: node_exporter bound to the wildcard address, firewalled to the
   `tailscale0` interface, `netstat` and textfile collectors enabled.
@@ -135,19 +135,20 @@ it is intentionally excluded from the initial implementation plan.
 services.tailscale = {
   enable = true;
   openFirewall = true;
-  authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-<hostname>";
+  authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
   extraUpFlags = [ "--login-server=https://headscale.uspenskiy.tech" ];
 };
 ```
 
 The upstream `tailscaled-autoconnect` unit is idempotent: it presents the
-key only when the backend reports `NeedsLogin`, so redeploys and reboots are
-no-ops for an already-enrolled node. All three autoconnect units restart on
-failure so a transiently unavailable control plane does not strand initial
-enrollment. On mokosh the unit is also ordered after Headscale and Nginx so
-the first auth-key submission cannot race the local endpoint. Because each
-key is one-time and expires, lost Tailscale state requires the operator to
-create and install a fresh key before redeploying that host.
+shared key only when the backend reports `NeedsLogin`, so redeploys and
+reboots are no-ops for an already-enrolled node. All three autoconnect units
+restart on failure so a transiently unavailable control plane does not strand
+initial enrollment. On mokosh the unit is also ordered after Headscale and
+Nginx so the first auth-key submission cannot race the local endpoint. The
+shared key is reusable for recovery while valid; after expiration or
+revocation the operator must create a replacement, update the encrypted file
+bundle, and redeploy the affected host(s).
 
 DNS posture per host:
 
@@ -311,31 +312,31 @@ on all agents.
 | `machines/veles/default.nix` | `services.tailscale`, `agent.enable`, `xray.metrics.enable`, mtproxy port |
 | `machines/buyan/default.nix` | `services.tailscale`, `agent.enable`, `xray.metrics.enable` |
 | `machines/nixpi/default.nix` | `extraSetFlags = [ "--accept-dns=false" ]` |
-| `secrets/unlocked/spec.txt` | tracked installation entries for three host-specific Tailscale key files |
+| `secrets/unlocked/spec.txt` | tracked wildcard installation entry for the shared reusable Tailscale key file |
 
 ## Operational Runbook
 
-One-time manual steps (preauth keys are control-plane database state and
-cannot be declared in Nix):
+Key creation and bundle installation are manual steps because preauth keys
+are control-plane database state and plaintext key material must not be
+committed:
 
 1. On `mokosh`, run `sudo headscale users list`, note the intended user's
-   numeric ID, and create three one-time keys with an explicit 24-hour
-   enrollment window, immediately recording which key is for each host:
-   `sudo headscale preauthkeys create --user <user-id> --expiration 24h --reusable=false --ephemeral=false`.
-2. Commit the non-secret, host-specific installation entries in
-   `secrets/unlocked/spec.txt`; never add a key to `locked.tar.gpg` or any
-   other tracked artifact.
-3. For each host, `make unlock`, securely place only that host's key at its
-   gitignored `secrets/unlocked/tailscale-auth-key-<hostname>` path, run
-   `make install-secrets`, and remove the gitignored transfer copy after
-   enrollment succeeds.
-
-Deploy order:
-
-1. `mokosh`: install its key as above + deploy — Headscale starts MagicDNS;
-   `mokosh` joins its own tailnet.
-2. `veles`: install its key + deploy — joins, becomes scrape target.
-3. `buyan`: install its key + deploy — joins, becomes scrape target.
+   numeric ID, and use the existing reusable key if it is still valid.
+   Otherwise create one with an explicit expiration, for example:
+   `sudo headscale preauthkeys create --user <user-id> --expiration 24h --reusable=true --ephemeral=false`.
+2. On a trusted configuration machine, run `make unlock`, place the reusable
+   key at `secrets/unlocked/tailscale-auth-key`, verify the plaintext file is
+   not staged, then run `make lock` so it is stored in encrypted
+   `secrets/locked.tar.gpg`. Never commit the plaintext key or place it in
+   `secrets.json`; remove the plaintext transfer copy after locking.
+3. Deploy in order: `mokosh` → `veles` → `buyan`. On each host, run
+   `make unlock`, `sudo make install-secrets`, and `make switch`. The wildcard
+   manifest installs the same key as `/etc/nixos/secrets/tailscale-auth-key`
+   with mode 0400. Complete enrollment before the key expires.
+4. If a node loses its Tailscale state while the key is valid, reinstall the
+   bundle secret and redeploy it. If the key expired or was revoked, create a
+   replacement reusable key, update the encrypted bundle, and repeat the
+   rollout.
 
 Validation as each prerequisite becomes available:
 
@@ -363,10 +364,11 @@ Validation as each prerequisite becomes available:
   firewall, DERP, or upgrade regression triggers the userspace-sidecar
   fallback documented above; local mokosh scraping remains loopback-based so
   disabling native Tailscale only removes remote targets.
-- **Expiring one-time enrollment keys**: a host whose Tailscale state is lost
-  cannot reuse its installed key. Recovery requires generating and installing
-  a fresh per-host key, which avoids leaving a reusable enrollment credential
-  on internet-facing proxy hosts.
+- **Shared reusable enrollment key**: every enrolled host can use the same
+  credential while it remains valid, so compromise of any host can allow
+  additional node enrollment. Keep the key encrypted at rest, use an explicit
+  expiration, and rotate/revoke it through Headscale when the enrollment
+  window closes or compromise is suspected.
 - **veles disables IPv6 globally** (`net.ipv6.conf.all.disable_ipv6 = 1`):
   MagicDNS still publishes an AAAA for `veles.ts`. Go's dual-stack dialer
   (happy eyeballs) is expected to fall back to IPv4; if scraping breaks,

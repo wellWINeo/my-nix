@@ -59,7 +59,7 @@ in
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-mokosh";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
     extraUpFlags = [ "--login-server=https://headscale.uspenskiy.tech" ];
     extraSetFlags = [ "--accept-dns=true" ];
   };

@@ -4,7 +4,7 @@
 
 **Goal:** Scrape node/nginx/xray metrics from `veles` and `buyan` on the mokosh VictoriaMetrics over the Headscale tailnet, with per-SNI failure/duration metrics and host-wide TCP correlation signals for possible DPI interference.
 
-**Architecture:** MagicDNS provides `<hostname>.ts` names inside the tailnet (no records, no pinned IPs). Mokosh joins natively and VictoriaMetrics scrapes the remote agents directly over `tailscale0`. A new `roles.observability.agent` slice runs node_exporter (wildcard bind, firewalled to `tailscale0`, netstat + textfile collectors) on mokosh/veles/buyan. Role-owned collector scripts (xray expvar→textfile, bounded nginx stream journald log→textfile, TCP-state gauge) write Prometheus textfiles; VictoriaMetrics scrapes a unified `node` job built from a central `remoteAgents` list. Each newly enrolled node uses its own one-time, explicitly expiring preauth key supplied through `authKeyFile`.
+**Architecture:** MagicDNS provides `<hostname>.ts` names inside the tailnet (no records, no pinned IPs). Mokosh joins natively and VictoriaMetrics scrapes the remote agents directly over `tailscale0`. A new `roles.observability.agent` slice runs node_exporter (wildcard bind, firewalled to `tailscale0`, netstat + textfile collectors) on mokosh/veles/buyan. Role-owned collector scripts (xray expvar→textfile, bounded nginx stream journald log→textfile, TCP-state gauge) write Prometheus textfiles; VictoriaMetrics scrapes a unified `node` job built from a central `remoteAgents` list. All newly enrolled nodes use one reusable, explicitly expiring preauth key supplied through `authKeyFile` and distributed in the encrypted file-secrets bundle.
 
 **Tech Stack:** nixos-25.11 flake inputs with host state version 26.05, Headscale 0.28.0, Tailscale 1.98.10 (`services.tailscale`), VictoriaMetrics 1.150.0, node_exporter 1.11.1, xray 26.3.27, Grafana v2 dashboard provisioning, and `writeShellApplication` + jq collectors.
 
@@ -15,7 +15,7 @@
 - No new packages, no new flake inputs, no custom derivations — everything from stock nixpkgs.
 - Scrape endpoints must never be reachable from the public internet: node_exporter binds `0.0.0.0` but port 9100 is opened **only** on interface `tailscale0`. Xray expvar endpoint stays on loopback.
 - No public DNS changes; no `dns.extra_records`; MagicDNS names are `<hostname>.ts`.
-- Each preauth key flows only as a host-specific file secret (`/etc/nixos/secrets/tailscale-auth-key-<hostname>`, mode 0400 root:root), never through `secrets.json`, the nix store, `locked.tar.gpg`, or any other tracked artifact. Keys are one-time and created with an explicit 24-hour enrollment window.
+- The shared reusable preauth key flows only as an encrypted file secret: it is stored in `locked.tar.gpg` and installed as `/etc/nixos/secrets/tailscale-auth-key` with mode 0400 root:root. It never flows through `secrets.json`, the nix store, or plaintext tracked artifacts. The key must have an explicit expiration and is used only for initial enrollment or recovery while valid.
 - Collectors run on 30s timers; VM scrape interval stays 60s.
 - Job names carry no hostnames — identity is the `host` label.
 - Format every touched Nix file with `nixfmt` before committing.
@@ -857,7 +857,7 @@ In `machines/mokosh/default.nix`, extend the observability block and add tailsca
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-mokosh";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
     extraUpFlags = [ "--login-server=https://headscale.uspenskiy.tech" ];
     extraSetFlags = [ "--accept-dns=true" ];
   };
@@ -901,7 +901,7 @@ In `machines/veles/default.nix`:
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-veles";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
     extraUpFlags = [
       "--login-server=https://headscale.uspenskiy.tech"
       "--accept-dns=false"
@@ -933,7 +933,7 @@ In `machines/buyan/default.nix`:
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-buyan";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
     extraUpFlags = [
       "--login-server=https://headscale.uspenskiy.tech"
       "--accept-dns=false"
@@ -962,15 +962,13 @@ In `machines/nixpi/default.nix`, extend the existing `services.tailscale` block:
 
 - [ ] **Step 5: Add the tracked secret installation manifest entries**
 
-Append these non-secret declarations to `secrets/unlocked/spec.txt`:
+Append this non-secret declaration to `secrets/unlocked/spec.txt`:
 
 ```text
-mokosh:tailscale-auth-key-mokosh:0400:root:root
-veles:tailscale-auth-key-veles:0400:root:root
-buyan:tailscale-auth-key-buyan:0400:root:root
+*:tailscale-auth-key:0400:root:root
 ```
 
-Do not add the corresponding files under `secrets/unlocked/`; they remain gitignored key material created during Task 7's operator handoff.
+The reusable key file is intentionally included in the encrypted `locked.tar.gpg` bundle but must never be committed in plaintext or placed in `secrets.json`.
 
 - [ ] **Step 6: Format, spot-eval, check**
 
@@ -1236,7 +1234,7 @@ git commit -m "feat(grafana): proxy-health dashboard for tailnet agents"
 ### Task 7: Final validation and operator runbook handoff
 
 **Files:**
-- No repo files changed (the tracked secret installation manifest was committed in Task 5; key material remains gitignored).
+- No repo files changed (the tracked shared-secret installation manifest is committed in Task 5; plaintext key material remains outside Git while the encrypted bundle carries it).
 
 **Interfaces:**
 - Produces: verification that the branch is complete; documented operator steps.
@@ -1254,12 +1252,12 @@ Expected: flake check PASS. If commits were authorized, the commit list contains
 
 - [ ] **Step 2: Report operator runbook (no automation)**
 
-Surface these steps to the operator verbatim — they are one-time manual actions that cannot be committed:
+Surface these steps to the operator verbatim — key creation and bundle installation are manual actions that cannot be declared in Nix:
 
-1. On mokosh, run `sudo headscale users list` and note the intended user's numeric ID. Create three distinct one-time keys by running `sudo headscale preauthkeys create --user <user-id> --expiration 24h --reusable=false --ephemeral=false` once for each new node, immediately recording which returned key is for mokosh, veles, or buyan.
-2. Never run `make lock` with these ephemeral keys present: do not add them to `secrets/locked.tar.gpg` or any tracked artifact. On each host, run `make unlock`, securely place only its key at the gitignored `secrets/unlocked/tailscale-auth-key-<hostname>` path, run `make install-secrets`, and remove that gitignored transfer copy after successful enrollment.
-3. Deploy in order: mokosh → veles → buyan. Complete initial enrollment before each key's explicit expiry.
-4. If a node later loses its Tailscale state, create and install a fresh one-time key for that host before redeploying it.
+1. On `mokosh`, run `sudo headscale users list` and note the intended user's numeric ID. Use the existing reusable key if it is still valid; otherwise create one with an explicit expiration, for example `sudo headscale preauthkeys create --user <user-id> --expiration 24h --reusable=true --ephemeral=false`. Record its expiration and keep the value private.
+2. On the trusted configuration machine, run `make unlock`, place the reusable key at `secrets/unlocked/tailscale-auth-key`, verify it is not staged, then run `make lock` so it is stored in encrypted `secrets/locked.tar.gpg`. Never commit the plaintext file, `secrets.json`, or any copied key. Remove the plaintext transfer copy after the encrypted bundle is updated.
+3. Deploy in order: mokosh → veles → buyan. On each host, run `make unlock`, `sudo make install-secrets`, and `make switch`; the wildcard manifest installs the same key as `/etc/nixos/secrets/tailscale-auth-key` with mode 0400. Complete enrollment before the key expires.
+4. If a node later loses its Tailscale state and the shared key is still valid, reinstall the bundle secret and redeploy it. If the key has expired or was revoked, create a replacement reusable key, update the encrypted bundle, and repeat the rollout.
 5. Post-deploy validation (spec's Operational Runbook section): `tailscale status`, `getent hosts veles.ts` on mokosh, `tailscale netcheck`, public Headscale/DERP health, `curl http://veles.ts:9100/metrics` from mokosh, fresh `node_textfile_mtime_seconds` entries for all three collector files, collector systemd units healthy, public port scan shows 9100 is not open, and Grafana `proxy-health` renders. Expect `xray_` and `nginx_stream_` samples only after their corresponding proxy paths have handled traffic.
 
 - [ ] **Step 3: Final commit if nixfmt changed anything**
@@ -1274,6 +1272,6 @@ git add <files> && git commit -m "style: nixfmt tailnet metrics branch"
 
 ## Self-Review Notes
 
-- Spec coverage: MagicDNS (Task 1), agent split + node job + host labels (Task 2), xray expvar + observatory + policy counters (Task 3), bounded stream JSON labels + session/byte/duration histogram metrics (Task 4), native enrollment + tracked host-specific secret manifest + DNS posture per host + mtproxy port move (Task 5), dashboard (Task 6), runbook (Task 7).
+- Spec coverage: MagicDNS (Task 1), agent split + node job + host labels (Task 2), xray expvar + observatory + policy counters (Task 3), bounded stream JSON labels + session/byte/duration histogram metrics (Task 4), native enrollment + tracked shared reusable-secret manifest + DNS posture per host + mtproxy port move (Task 5), dashboard (Task 6), runbook (Task 7).
 - `scrapeJobType.host` defaults to `config.networking.hostName`, matching the spec's requirement that local jobs use the registering host's hostname.
 - Task 4 weaves the bounded-label nginx `map`, `log_format`, and `access_log` directives into the existing `streamConfig` string via `optionalString metricsEnabled`; nginx rejects formats defined after the referencing `server{}` block.

@@ -80,7 +80,8 @@ let
         probeURL = "https://www.google.com/generate_204";
         probeInterval = "60s";
       };
-    });
+    })
+    // cfg._extraConfig;
 
   configTemplateFile = pkgs.writeText "xray-config-template.json" (
     builtins.toJSON xrayConfigTemplate
@@ -92,6 +93,7 @@ in
     ./client.nix
     ./relay.nix
     ./subscriptions.nix
+    ./metrics.nix
     ../sni-router.nix
   ];
 
@@ -103,6 +105,13 @@ in
       internal = true;
       default = emptyConfig;
       description = "Config fragment exported by server.nix";
+    };
+
+    _extraConfig = mkOption {
+      type = types.attrs;
+      internal = true;
+      default = { };
+      description = "Extra top-level config keys merged into the xray config";
     };
 
     _relayConfig = mkOption {

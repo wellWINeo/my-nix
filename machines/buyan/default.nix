@@ -66,6 +66,10 @@ in
   ###
   roles.hardened.enable = true;
 
+  roles.observability.agent.enable = true;
+
+  roles.xray.metrics.enable = true;
+
   roles.xray = {
     enable = true;
     server = {
@@ -85,6 +89,22 @@ in
         sni = "dl.google.com";
       };
     };
+  };
+
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-buyan";
+    extraUpFlags = [
+      "--login-server=https://headscale.uspenskiy.tech"
+      "--accept-dns=false"
+    ];
+    extraSetFlags = [ "--accept-dns=false" ];
+  };
+
+  systemd.services.tailscaled-autoconnect.serviceConfig = {
+    Restart = "on-failure";
+    RestartSec = "30s";
   };
 
   system.stateVersion = "26.05";

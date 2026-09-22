@@ -125,6 +125,7 @@ in
     enable = true;
     openFirewall = true;
     disableUpstreamLogging = true;
+    extraSetFlags = [ "--accept-dns=false" ];
   };
 
   roles.xray = {

@@ -25,6 +25,7 @@ lock-files:
 		--exclude .gitkeep \
 		--exclude .gitignore \
 		--exclude spec.txt \
+		--exclude 'tailscale-auth-key-*' \
 		-cvf \
 		- \
 		* \

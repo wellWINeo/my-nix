@@ -10,12 +10,14 @@ Extend the observability stack on `mokosh` to scrape metrics from `veles` and
 endpoint to the public internet. The metrics answer three operational
 questions about the proxy hosts:
 
-1. which xray inbounds/outbounds are alive and how much traffic they carry;
-2. how many connections fail, time out, or drop per inbound at the nginx
-   stream front door (SNI router);
-3. where the kernel sees handshake/data delivery asymmetry — the
-   server-side fingerprint of DPI interference (SYN-ACK retransmissions,
-   stuck SYN_RECV, data retransmissions, timeouts).
+1. which observed xray outbounds are alive and how much traffic each
+   inbound/outbound carries;
+2. how many connections fail to parse or connect, and how many status-200
+   sessions terminate unusually quickly, at the nginx stream front door
+   (SNI router);
+3. where the kernel sees handshake/data delivery asymmetry — host-wide
+   correlation signals for possible DPI interference (SYN or SYN-ACK
+   retransmissions, stuck SYN_RECV, data retransmissions, timeouts).
 
 This spec supersedes two explicit deferrals from earlier designs: "Do not
 configure … MagicDNS" (2026-09-06 Headscale design) and "does not add … a
@@ -27,9 +29,10 @@ remote scrape agent" (2026-09-19 observability design).
   as `<hostname>.ts` inside the tailnet only (`veles.ts`, `buyan.ts`,
   `mokosh.ts`). No public DNS records, no `dns.extra_records`, no pinned
   tailnet IPs.
-- Enroll `mokosh`, `veles`, and `buyan` on the tailnet declaratively via
-  `services.tailscale.authKeyFile` + `extraUpFlags = [ "--login-server=..." ]`
-  with a reusable preauth key distributed as a file secret.
+- Enroll `mokosh`, `veles`, and `buyan` on the tailnet via
+  `services.tailscale.authKeyFile` + `extraUpFlags = [ "--login-server=..." ]`.
+  Each host receives its own one-time, explicitly expiring preauth key as a
+  file secret; enrollment state makes subsequent rebuilds idempotent.
 - Add `roles.observability.agent` — a node-side slice of the observability
   role: node_exporter bound to the wildcard address, firewalled to the
   `tailscale0` interface, `netstat` and textfile collectors enabled.
@@ -38,9 +41,9 @@ remote scrape agent" (2026-09-19 observability design).
   - `roles.xray.metrics`: native xray `metrics` endpoint (expvar JSON on
     loopback) converted by a jq collector script into per-inbound/outbound
     traffic counters and observatory health gauges.
-  - `roles.sni-router`: JSON stream access log to journald, aggregated by a
-    journal-cursor collector script into per-SNI session counters and byte
-    totals.
+  - `roles.sni-router`: bounded-label JSON stream access log to journald,
+    aggregated by a journal-cursor collector script into per-SNI session and
+    byte counters plus a status-labelled duration histogram.
   - `roles.observability.agent`: TCP state gauge (SYN_RECV et al.) from
     `/proc/net/tcp{,6}`.
 - VictoriaMetrics on `mokosh` gains a central `remoteAgents` list rendering
@@ -94,6 +97,36 @@ provision or maintain. Headscale assigns tailnet IPs sequentially at
 enrollment and offers no declarative pinning; nothing in this design depends
 on specific IPs.
 
+### Mokosh co-location decision and fallback
+
+The initial implementation enrolls `mokosh` with the native NixOS Tailscale
+service. This is the smallest deployment and keeps VictoriaMetrics scraping
+directly over `tailscale0`, but Headscale documents running Headscale and a
+Tailscale client on the same machine as unsupported, particularly when
+MagicDNS or a traffic relay is involved. This deployment deliberately accepts
+that supportability risk for the first rollout.
+
+The risk is constrained: mokosh advertises no subnet routes or exit-node
+function, the MagicDNS domain (`ts`) is separate from the public control-plane
+domain, and `override_local_dns` remains false. Deployment must nevertheless
+verify after every Headscale or Tailscale upgrade that the public Headscale
+endpoint, embedded DERP/STUN, mokosh DNS resolution, and remote node scrapes
+all remain healthy.
+
+If native co-location causes DNS, routing, firewall, or DERP regressions, the
+fallback is an isolated userspace Tailscale sidecar on mokosh:
+
+- remove native `services.tailscale` enrollment from the host;
+- run a `tailscaled --tun=userspace-networking` instance with its own state
+  and socket plus `--outbound-http-proxy-listen=127.0.0.1:1055`;
+- keep the local mokosh `node` scrape direct, and put remote agents in a
+  `node-tailnet` scrape job with `proxy_url` set to that loopback proxy;
+- enroll the sidecar with a fresh one-time key under a distinct node name.
+
+The userspace proxy resolves MagicDNS from its network map without changing
+mokosh's host routes or resolver. This fallback is a design contingency only;
+it is intentionally excluded from the initial implementation plan.
+
 ### Enrollment
 
 `mokosh`, `veles`, and `buyan` set:
@@ -102,20 +135,27 @@ on specific IPs.
 services.tailscale = {
   enable = true;
   openFirewall = true;
-  authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
+  authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-<hostname>";
   extraUpFlags = [ "--login-server=https://headscale.uspenskiy.tech" ];
 };
 ```
 
 The upstream `tailscaled-autoconnect` unit is idempotent: it presents the
 key only when the backend reports `NeedsLogin`, so redeploys and reboots are
-no-ops for an already-enrolled node.
+no-ops for an already-enrolled node. All three autoconnect units restart on
+failure so a transiently unavailable control plane does not strand initial
+enrollment. On mokosh the unit is also ordered after Headscale and Nginx so
+the first auth-key submission cannot race the local endpoint. Because each
+key is one-time and expires, lost Tailscale state requires the operator to
+create and install a fresh key before redeploying that host.
 
 DNS posture per host:
 
-- `mokosh`: default `--accept-dns=true` — must resolve `*.ts` to scrape.
-- `veles`, `buyan`: `extraUpFlags` also carries `--accept-dns=false` — their
-  resolvers stay exactly `1.1.1.1` as today.
+- `mokosh`: `extraSetFlags = [ "--accept-dns=true" ]` explicitly keeps
+  MagicDNS enabled because it must resolve `*.ts` to scrape.
+- `veles`, `buyan`: both initial `extraUpFlags` and persistent
+  `extraSetFlags` carry `--accept-dns=false` — their resolvers stay exactly
+  `1.1.1.1` as today.
 - `nixpi`: already enrolled; gains `extraSetFlags = [ "--accept-dns=false" ]`
   to pin its resolver against the newly-pushed MagicDNS config. No other
   change.
@@ -141,10 +181,13 @@ The agent side configures:
 - A TCP-state collector (timer, 30s) emitting `tcp_states{state=...}`
   gauges from `/proc/net/tcp` and `/proc/net/tcp6`.
 
-`netstat` collector supplies the kernel-level DPI signals:
-`Tcp_RetransSegs`, `TcpExt_TCPSynRetrans` (SYN-ACK retransmissions — "we
-answered, the client never ACKed"), `TcpExt_TCPTimeouts`,
+`netstat` collector supplies host-wide TCP/UDP correlation signals:
+`Tcp_RetransSegs`, `TcpExt_TCPSynRetrans`, `TcpExt_TCPTimeouts`,
 `TcpExt_ListenDrops`, `TcpExt_TCPAbortOnTimeout`, and UDP error counters.
+`TcpExt_TCPSynRetrans` includes retransmitted SYNs as well as SYN-ACKs, so it
+cannot by itself distinguish failed outbound connects from clients that never
+ACKed the proxy. Dashboards describe it as a handshake-retransmission signal,
+not proof of server-side DPI interference.
 
 ### Scrape-target list (central)
 
@@ -198,11 +241,14 @@ and converts `/debug/vars` expvar JSON to `<textfileDir>/xray.prom`:
 ### sni-router stream metrics
 
 `roles.sni-router` adds, at stream scope, an escaped-JSON `log_format`
-(fields: `ssl_preread_server_name`, `status`, `bytes_sent`,
-`bytes_received`, `session_time`, `upstream_connect_time`) and
+(fields: bounded SNI label, `status`, `bytes_sent`, `bytes_received`,
+`session_time`, `upstream_connect_time`) and
 `access_log syslog:server=unix:/dev/log,tag=nginx-stream` in the server
-block — the same journald pattern the http block already uses. The collector
-and log config activate only when the agent role is enabled on the host.
+block — the same journald pattern the http block already uses. A second nginx
+`map` converts configured SNI values to themselves and every other value,
+including an empty SNI, to `unknown`. Client-controlled SNI therefore cannot
+create unbounded persistent Prometheus label cardinality. The collector and
+log config activate only when the agent role is enabled on the host.
 fail2ban's nginx jails read log files, not this tag, so they are unaffected.
 
 A collector script runs on a 30s timer: `journalctl -t nginx-stream
@@ -211,26 +257,35 @@ A collector script runs on a 30s timer: `journalctl -t nginx-stream
 
 - `nginx_stream_sessions_total{sni=<sni>,status=<status>}`
 - `nginx_stream_{sent,received}_bytes_total{sni=<sni>}`
-- `nginx_stream_session_seconds_total{sni=<sni>}`
+- `nginx_stream_session_duration_seconds_{bucket,sum,count}` with `sni`,
+  `status`, and fixed duration buckets.
 
-State (journald cursor + running totals) persists across restarts in
-`/var/lib/<collector>/`. Session statuses follow nginx stream semantics:
-`200` completed, `400` client-side abort, `502` backend connect failure
-(xray inbound dead), `504` upstream timeout. Byte asymmetry
-(`sent` vs `received` per SNI) plus short `session_time` on status-200
-sessions is the DPI interference fingerprint this exposes, alongside the
-kernel counters.
+State (journald cursor + running totals in one atomically replaced snapshot)
+persists across restarts in `/var/lib/<collector>/`. If journal rotation
+invalidates the cursor, the collector advances to the current end of the
+journal and preserves its totals rather than replaying old sessions.
+
+Nginx stream statuses are bounded to `200` (completed), `400` (client data
+could not be parsed), `403` (forbidden), `500` (internal error), `502`
+(upstream selection/connect failure, including exhausted connect attempts),
+and `503` (service unavailable, such as a connection limit). Nginx records a
+TCP proxy idle timeout as `200`, so status alone is not a timeout classifier.
+Byte asymmetry (`sent` vs `received` per SNI), the rate of short status-200
+sessions, and the status-specific duration distribution are correlation
+signals for possible DPI interference alongside the host-wide kernel
+counters.
 
 ### Dashboards
 
 `roles/observability/dashboards/proxy-health.json` (provisioned like
 `machines-overview.json`), with a `host` dashboard variable:
 
-- TCP health: rates of `TcpExt_TCPSynRetrans`, `TcpExt_TCPTimeouts`,
-  `Tcp_RetransSegs`; `tcp_states{state="synrecv"}`; `ListenDrops`; UDP
-  errors.
+- TCP health: rates of `TcpExt_TCPSynRetrans` (labelled as SYN/SYN-ACK
+  retransmissions), `TcpExt_TCPTimeouts`, `Tcp_RetransSegs`;
+  `tcp_states{state="syn_recv"}`; `ListenDrops`; UDP errors.
 - Stream sessions: `rate(nginx_stream_sessions_total)` by `sni` × `status`;
-  sent vs received bytes per SNI; session duration distribution.
+  sent vs received bytes per SNI; short status-200 session rate and duration
+  quantiles from the histogram.
 - Xray: in/out traffic rates per inbound/outbound; observatory delay and
   alive state per outbound.
 
@@ -252,55 +307,77 @@ on all agents.
 | `roles/observability/dashboards/proxy-health.json` | new |
 | `roles/network/xray/metrics.nix` | new; imported by `xray/default.nix` |
 | `roles/network/sni-router.nix` | stream JSON log + collector |
-| `machines/mokosh/default.nix` | `services.tailscale`, `agent.enable`, `remoteAgents` |
+| `machines/mokosh/default.nix` | `services.tailscale`, local control-plane ordering, `agent.enable`, `remoteAgents` |
 | `machines/veles/default.nix` | `services.tailscale`, `agent.enable`, `xray.metrics.enable`, mtproxy port |
 | `machines/buyan/default.nix` | `services.tailscale`, `agent.enable`, `xray.metrics.enable` |
 | `machines/nixpi/default.nix` | `extraSetFlags = [ "--accept-dns=false" ]` |
-| `secrets/unlocked/spec.txt` | `*:tailscale-auth-key:0400:root:root` |
+| `secrets/unlocked/spec.txt` | tracked installation entries for three host-specific Tailscale key files |
 
 ## Operational Runbook
 
 One-time manual steps (preauth keys are control-plane database state and
 cannot be declared in Nix):
 
-1. On `mokosh`: `headscale preauthkeys create --user <user> --reusable`
-   (no expiry).
-2. `make unlock`, add `secrets/unlocked/tailscale-auth-key`, extend
-   `spec.txt`, `make lock`.
+1. On `mokosh`, run `sudo headscale users list`, note the intended user's
+   numeric ID, and create three one-time keys with an explicit 24-hour
+   enrollment window, immediately recording which key is for each host:
+   `sudo headscale preauthkeys create --user <user-id> --expiration 24h --reusable=false --ephemeral=false`.
+2. Commit the non-secret, host-specific installation entries in
+   `secrets/unlocked/spec.txt`; never add a key to `locked.tar.gpg` or any
+   other tracked artifact.
+3. For each host, `make unlock`, securely place only that host's key at its
+   gitignored `secrets/unlocked/tailscale-auth-key-<hostname>` path, run
+   `make install-secrets`, and remove the gitignored transfer copy after
+   enrollment succeeds.
 
 Deploy order:
 
-1. `mokosh`: `make install-secrets` + deploy — Headscale starts MagicDNS;
+1. `mokosh`: install its key as above + deploy — Headscale starts MagicDNS;
    `mokosh` joins its own tailnet.
-2. `veles`: secrets + deploy — joins, becomes scrape target.
-3. `buyan`: secrets + deploy — joins, becomes scrape target.
+2. `veles`: install its key + deploy — joins, becomes scrape target.
+3. `buyan`: install its key + deploy — joins, becomes scrape target.
 
-Validation after each step:
+Validation as each prerequisite becomes available:
 
 - `tailscale status` on `mokosh` lists the nodes with `100.64.0.0/10`
   addresses.
 - `getent hosts veles.ts` resolves on `mokosh` (and only via the tailnet
   resolver).
+- The public Headscale endpoint and embedded DERP/STUN remain healthy after
+  mokosh joins; `tailscale netcheck` does not reveal a routing or relay
+  regression.
 - From `mokosh`: `curl http://veles.ts:9100/metrics` returns node_exporter
-  output containing `xray_`, `nginx_stream_`, and `tcp_states` series
-  (after collectors' first tick).
-- From a public host: 9100 on veles/buyan public IPs is filtered.
+  output containing `tcp_states` and fresh `node_textfile_mtime_seconds`
+  entries for `tcp.prom`, `xray.prom`, and `nginx-stream.prom` after the
+  collectors' first tick. `xray_` and `nginx_stream_` samples appear once the
+  corresponding proxy paths have produced traffic.
+- From a public host: 9100 on veles/buyan public IPs is not open.
 - VM `vmui` targets page shows the `node` job targets up; Grafana
   `proxy-health` dashboard renders.
 - `nix flake check` passes (dummy secrets).
 
 ## Risks
 
+- **Unsupported Headscale/Tailscale co-location on mokosh**: the initial
+  native-client approach is intentionally provisional. Any DNS, routing,
+  firewall, DERP, or upgrade regression triggers the userspace-sidecar
+  fallback documented above; local mokosh scraping remains loopback-based so
+  disabling native Tailscale only removes remote targets.
+- **Expiring one-time enrollment keys**: a host whose Tailscale state is lost
+  cannot reuse its installed key. Recovery requires generating and installing
+  a fresh per-host key, which avoids leaving a reusable enrollment credential
+  on internet-facing proxy hosts.
 - **veles disables IPv6 globally** (`net.ipv6.conf.all.disable_ipv6 = 1`):
   MagicDNS still publishes an AAAA for `veles.ts`. Go's dual-stack dialer
   (happy eyeballs) is expected to fall back to IPv4; if scraping breaks,
   scope the sysctl to the public interface only so `tailscale0` keeps v6.
-- **Harvester/scrape cadence**: collectors run every 30s, VM scrapes every
-  60s — a scrape never sees a file older than ~30s (gauges fresh, counters
-  unaffected).
-- **journald rotation gaps** lose in-flight stream-log deltas between
-  collector runs; acceptable for failure-rate metrics. Counters resume
-  from persisted totals.
+- **Harvester/scrape cadence**: healthy collectors run every 30s and VM
+  scrapes every 60s. A failed collector leaves its last good textfile in
+  place, so operators must use `node_textfile_mtime_seconds` and systemd unit
+  status to distinguish stale data from a quiet proxy.
+- **journald rotation gaps** can lose stream-log deltas. An invalid persisted
+  cursor is advanced to the current journal end without replaying retained
+  entries; cumulative counters then resume from their persisted totals.
 - **Single-label base domain**: two-label `veles.ts` queries resolve as
   absolute names under default `ndots` settings; if a future host ships an
   unusual resolver, `tailnetDomain` is one option away from a longer name.

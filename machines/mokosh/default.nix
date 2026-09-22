@@ -48,7 +48,37 @@ in
 
   roles.observability = {
     enable = true;
+    agent.enable = true;
     baseDomain = domainNames.secondary;
+    remoteAgents = [
+      { host = "veles"; }
+      { host = "buyan"; }
+    ];
+  };
+
+  services.tailscale = {
+    enable = true;
+    openFirewall = true;
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-mokosh";
+    extraUpFlags = [ "--login-server=https://headscale.uspenskiy.tech" ];
+    extraSetFlags = [ "--accept-dns=true" ];
+  };
+
+  # Mokosh enrolls through its own public Headscale endpoint. Avoid racing the
+  # first auth-key submission against the local control plane and reverse proxy.
+  systemd.services.tailscaled-autoconnect = {
+    after = [
+      "headscale.service"
+      "nginx.service"
+    ];
+    wants = [
+      "headscale.service"
+      "nginx.service"
+    ];
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = "30s";
+    };
   };
 
   roles.vpn = {

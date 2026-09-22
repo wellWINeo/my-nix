@@ -21,6 +21,11 @@ in
     hostname = mkOption { type = types.str; };
     certificateDirectory = mkOption { type = types.str; };
     publicIPv4 = mkOption { type = types.str; };
+    tailnetDomain = mkOption {
+      type = types.str;
+      default = "ts";
+      description = "MagicDNS base domain; tailnet names are <hostname>.<tailnetDomain>";
+    };
     metrics.enable = mkEnableOption "Headscale native Prometheus metrics";
   };
 
@@ -52,7 +57,8 @@ in
             };
           };
           dns = {
-            magic_dns = false;
+            magic_dns = true;
+            base_domain = cfg.tailnetDomain;
             override_local_dns = false;
           };
           derp = {

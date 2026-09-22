@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Scrape node/nginx/xray metrics from `veles` and `buyan` on the mokosh VictoriaMetrics over the Headscale tailnet, with per-SNI connection-failure and kernel TCP counters for DPI forensics.
+**Goal:** Scrape node/nginx/xray metrics from `veles` and `buyan` on the mokosh VictoriaMetrics over the Headscale tailnet, with per-SNI failure/duration metrics and host-wide TCP correlation signals for possible DPI interference.
 
-**Architecture:** MagicDNS provides `<hostname>.ts` names inside the tailnet (no records, no pinned IPs). A new `roles.observability.agent` slice runs node_exporter (wildcard bind, firewalled to `tailscale0`, netstat + textfile collectors) on mokosh/veles/buyan. Role-owned collector scripts (xray expvar→textfile, nginx stream journald log→textfile, TCP-state gauge) write Prometheus textfiles; VictoriaMetrics scrapes a unified `node` job built from a central `remoteAgents` list. Tailscale enrollment is declarative via `authKeyFile` with a reusable preauth key distributed as a file secret.
+**Architecture:** MagicDNS provides `<hostname>.ts` names inside the tailnet (no records, no pinned IPs). Mokosh joins natively and VictoriaMetrics scrapes the remote agents directly over `tailscale0`. A new `roles.observability.agent` slice runs node_exporter (wildcard bind, firewalled to `tailscale0`, netstat + textfile collectors) on mokosh/veles/buyan. Role-owned collector scripts (xray expvar→textfile, bounded nginx stream journald log→textfile, TCP-state gauge) write Prometheus textfiles; VictoriaMetrics scrapes a unified `node` job built from a central `remoteAgents` list. Each newly enrolled node uses its own one-time, explicitly expiring preauth key supplied through `authKeyFile`.
 
-**Tech Stack:** NixOS 25.11/26.05 flakes, Headscale 0.28, Tailscale (`services.tailscale`), VictoriaMetrics single-node, Grafana (v2 dashboard provisioning schema), `writeShellApplication` + jq collectors.
+**Tech Stack:** nixos-25.11 flake inputs with host state version 26.05, Headscale 0.28.0, Tailscale 1.98.10 (`services.tailscale`), VictoriaMetrics 1.150.0, node_exporter 1.11.1, xray 26.3.27, Grafana v2 dashboard provisioning, and `writeShellApplication` + jq collectors.
 
 **Spec:** `docs/superpowers/specs/2026-09-21-tailnet-metrics-design.md` — the plan argues from the spec; executors read both.
 
@@ -15,12 +15,12 @@
 - No new packages, no new flake inputs, no custom derivations — everything from stock nixpkgs.
 - Scrape endpoints must never be reachable from the public internet: node_exporter binds `0.0.0.0` but port 9100 is opened **only** on interface `tailscale0`. Xray expvar endpoint stays on loopback.
 - No public DNS changes; no `dns.extra_records`; MagicDNS names are `<hostname>.ts`.
-- Preauth key flows only as a file secret (`/etc/nixos/secrets/tailscale-auth-key`, mode 0400 root:root), never through `secrets.json` or the nix store.
+- Each preauth key flows only as a host-specific file secret (`/etc/nixos/secrets/tailscale-auth-key-<hostname>`, mode 0400 root:root), never through `secrets.json`, the nix store, `locked.tar.gpg`, or any other tracked artifact. Keys are one-time and created with an explicit 24-hour enrollment window.
 - Collectors run on 30s timers; VM scrape interval stays 60s.
 - Job names carry no hostnames — identity is the `host` label.
 - Format every touched Nix file with `nixfmt` before committing.
 - Validate with `nix flake check 'path:.' --all-systems` (via `make check`) after dummy secrets are set up.
-- Commits: plain messages, no attribution trailers of any kind (repo AGENTS.md).
+- Run the listed commit steps only when the user has explicitly requested commits; otherwise leave validated changes uncommitted. Any commit uses a plain message with no attribution trailers (repo AGENTS.md).
 - All paths are relative to the worktree root `.worktrees/tailnet-metrics/`.
 
 ---
@@ -28,7 +28,7 @@
 ### Task 0: Worktree verification setup
 
 **Files:**
-- Create (untracked, never committed): `.worktrees/tailnet-metrics/secrets/secrets.json`
+- Create (untracked, never committed): `secrets/secrets.json`
 
 **Interfaces:**
 - Produces: an evaluable flake for all later `nix eval` / `make check` steps.
@@ -36,7 +36,6 @@
 - [ ] **Step 1: Create dummy secrets**
 
 ```bash
-cd .worktrees/tailnet-metrics
 make setup-dummy-secrets
 ```
 
@@ -175,6 +174,7 @@ let
     name = "tcp-state-collector";
     runtimeInputs = [
       pkgs.bash
+      pkgs.coreutils
       pkgs.gawk
     ];
     text = ''
@@ -205,6 +205,7 @@ let
           echo "tcp_states{state=\"''${NAMES[$s]}\"} ''${COUNT[$s]:-0}"
         done
       } > "$tmp"
+      chmod 0644 "$tmp"
       mv "$tmp" "$dir/tcp.prom"
     '';
   };
@@ -392,6 +393,7 @@ let
     name = "xray-metrics-collector";
     runtimeInputs = [
       pkgs.bash
+      pkgs.coreutils
       pkgs.curl
       pkgs.jq
     ];
@@ -420,11 +422,13 @@ let
         jq -r '.stats.outbound // {} | to_entries[] | "xray_outbound_downlink_bytes_total{outbound=\"\(.key)\"} \(.value.downlink // 0)"' "$data"
         echo "# HELP xray_observatory_alive Whether the observatory considers this outbound alive (0/1)."
         echo "# TYPE xray_observatory_alive gauge"
-        jq -r '.observatory // {} | to_entries[] | select(.value.alive != null) | "xray_observatory_alive{outbound=\"\(.key)\"} \(.value.alive)"' "$data"
+        # protobuf JSON omits false scalar fields, so a missing .alive is 0.
+        jq -r '.observatory // {} | to_entries[] | "xray_observatory_alive{outbound=\"\(.key)\"} \(if (.value.alive // false) then 1 else 0 end)"' "$data"
         echo "# HELP xray_observatory_delay_milliseconds Last observatory probe latency per outbound."
         echo "# TYPE xray_observatory_delay_milliseconds gauge"
         jq -r '.observatory // {} | to_entries[] | select(.value.delay != null) | "xray_observatory_delay_milliseconds{outbound=\"\(.key)\"} \(.value.delay)"' "$data"
       } > "$out"
+      chmod 0644 "$out"
       mv "$out" "$dir/xray.prom"
     '';
   };
@@ -442,6 +446,10 @@ in
 
   config = mkIf cfg.enable {
     assertions = [
+      {
+        assertion = config.roles.xray.enable && config.roles.xray.server.enable;
+        message = "roles.xray.metrics requires roles.xray server mode";
+      }
       {
         assertion = config.roles.observability.agent.enable;
         message = "roles.xray.metrics requires roles.observability.agent.enable (textfile consumer missing)";
@@ -506,25 +514,27 @@ cat > /tmp/xray-vars.json <<'EOF'
   "inbound":{"vless-tcp-in":{"downlink":74460,"uplink":10231}},
   "outbound":{"relay-tcp-out":{"downlink":0,"uplink":5512},"direct":{"downlink":977,"uplink":32}},
   "user":{}},
- "observatory":{"relay-tcp-out":{"alive":true,"delay":782,"last_seen_time":1648477189}}}
+ "observatory":{"relay-tcp-out":{"alive":true,"delay":782,"last_seen_time":1648477189},
+                  "relay-grpc-out":{"last_error_reason":"probe failed"}}}
 EOF
 jq -r '.stats.inbound // {} | to_entries[] | "xray_inbound_uplink_bytes_total{inbound=\"\(.key)\"} \(.value.uplink // 0)"' /tmp/xray-vars.json
-jq -r '.observatory // {} | to_entries[] | select(.value.alive != null) | "xray_observatory_alive{outbound=\"\(.key)\"} \(.value.alive)"' /tmp/xray-vars.json
+jq -r '.observatory // {} | to_entries[] | "xray_observatory_alive{outbound=\"\(.key)\"} \(if (.value.alive // false) then 1 else 0 end)"' /tmp/xray-vars.json
 ```
 
 Expected output lines:
 `xray_inbound_uplink_bytes_total{inbound="vless-tcp-in"} 10231`
-`xray_observatory_alive{outbound="relay-tcp-out"} true`
+`xray_observatory_alive{outbound="relay-tcp-out"} 1`
+`xray_observatory_alive{outbound="relay-grpc-out"} 0`
 
 - [ ] **Step 4: Format, evaluate, check**
 
 ```bash
 nixfmt roles/network/xray/metrics.nix roles/network/xray/default.nix
-nix eval path:.#nixosConfigurations.veles.config.roles.xray.metrics --json  # {} until Task 5 enables it
+nix eval path:.#nixosConfigurations.veles.config.roles.xray.metrics --json
 nix flake check 'path:.' --all-systems
 ```
 
-Expected: `{}` then PASS.
+Expected: `{"enable":false,"listen":"127.0.0.1:11111"}` then PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -542,7 +552,7 @@ git commit -m "feat(xray): expvar metrics option with textfile collector"
 
 **Interfaces:**
 - Consumes: `roles.observability.agent.enable`, `roles.observability.agent.textfileDir`.
-- Produces: JSON stream access log tagged `nginx-stream` in journald; textfile metrics `nginx_stream_sessions_total{sni,status}`, `nginx_stream_{sent,received}_bytes_total{sni}`, `nginx_stream_session_seconds_total{sni}`.
+- Produces: bounded-label JSON stream access log tagged `nginx-stream` in journald; textfile metrics `nginx_stream_sessions_total{sni,status}`, `nginx_stream_{sent,received}_bytes_total{sni}`, and `nginx_stream_session_duration_seconds_{bucket,sum,count}{sni,status}`.
 
 - [ ] **Step 1: Extend the module**
 
@@ -566,6 +576,8 @@ Inside `let`, after `defaultBackend`, add:
     name = "nginx-stream-collector";
     runtimeInputs = [
       pkgs.bash
+      pkgs.coreutils
+      pkgs.gawk
       pkgs.jq
       pkgs.systemd
     ];
@@ -575,89 +587,134 @@ Inside `let`, after `defaultBackend`, add:
       state="/var/lib/nginx-stream-collector"
       mkdir -p "$state"
       cursor=""
-      [ -f "$state/cursor" ] && cursor="$(cat "$state/cursor")"
 
-      declare -A SESS SENT RECV TIME
+      # Fixed cumulative duration buckets in milliseconds.
+      bucketMs=(100 500 1000 5000 30000 120000)
+      bucketLe=(0.1 0.5 1 5 30 120)
+      declare -A SESS SENT RECV DUR_SUM DUR_BUCKET
       if [ -f "$state/totals" ]; then
-        while IFS=$'\t' read -r kind a b c; do
+        while IFS=$'\t' read -r kind a b c d; do
           case "$kind" in
+            c) cursor="$a" ;;
             s) SESS["$a|$b"]="''${c:-0}" ;;
             y) SENT["$a"]="''${b:-0}"; RECV["$a"]="''${c:-0}" ;;
-            t) TIME["$a"]="''${b:-0}" ;;
+            d) DUR_SUM["$a|$b"]="''${c:-0}" ;;
+            b) DUR_BUCKET["$a|$b|$c"]="''${d:-0}" ;;
           esac
         done < "$state/totals"
       fi
 
       raw="$(mktemp)"
-      trap 'rm -f "$raw"' EXIT
+      events="$(mktemp)"
+      journal_error="$(mktemp)"
+      trap 'rm -f "$raw" "$events" "$journal_error"' EXIT
       if [ -n "$cursor" ]; then
-        journalctl -t nginx-stream -o json --after-cursor "$cursor" > "$raw"
+        if ! LC_ALL=C journalctl -t nginx-stream -o json --after-cursor "$cursor" > "$raw" 2> "$journal_error"; then
+          error="$(<"$journal_error")"
+          if [[ "$error" != *"Failed to seek to cursor"* ]]; then
+            printf '%s\n' "$error" >&2
+            exit 1
+          fi
+
+          # A vacuumed cursor cannot be replayed safely without double-counting
+          # retained sessions. Drop the unavailable gap and resume at journal end.
+          cursor_line="$(journalctl --no-pager -n 0 --show-cursor | tail -n 1)"
+          if [[ "$cursor_line" == "-- cursor: "* ]]; then
+            cursor="''${cursor_line#-- cursor: }"
+          else
+            cursor=""
+          fi
+          : > "$raw"
+          echo "nginx-stream journal cursor is stale; advanced to current journal end" >&2
+        fi
       else
         journalctl -t nginx-stream -o json > "$raw"
       fi
       new_cursor="$(tail -n 1 "$raw" | jq -r '.__CURSOR // empty')"
+      [ -n "$new_cursor" ] && cursor="$new_cursor"
 
-      while IFS=$'\t' read -r sni status sent recv ms; do
-        [ -z "$sni" ] && continue
-        SESS["$sni|$status"]=$(( ''${SESS["$sni|$status"]:-0} + 1 ))
-        SENT["$sni"]=$(( ''${SENT["$sni"]:-0} + sent ))
-        RECV["$sni"]=$(( ''${RECV["$sni"]:-0} + recv ))
-        TIME["$sni"]="$(awk -v a="''${TIME["$sni"]:-0}" -v b="$ms" 'BEGIN { printf "%.3f", a + b / 1000 }')"
-      done < <(jq -r '
+      jq -r '
         .MESSAGE | fromjson |
         [ (.sni // "unknown"), (.status | tostring), (.sent | tostring), (.recv | tostring),
           (((.time | tonumber? // 0) * 1000) | round | tostring) ] | @tsv
-      ' "$raw")
+      ' "$raw" > "$events"
+
+      while IFS=$'\t' read -r sni status sent recv ms; do
+        key="$sni|$status"
+        SESS["$key"]=$(( ''${SESS["$key"]:-0} + 1 ))
+        SENT["$sni"]=$(( ''${SENT["$sni"]:-0} + sent ))
+        RECV["$sni"]=$(( ''${RECV["$sni"]:-0} + recv ))
+        DUR_SUM["$key"]=$(( ''${DUR_SUM["$key"]:-0} + ms ))
+        for le_ms in "''${bucketMs[@]}"; do
+          if (( ms <= le_ms )); then
+            bucket_key="$key|$le_ms"
+            DUR_BUCKET["$bucket_key"]=$(( ''${DUR_BUCKET["$bucket_key"]:-0} + 1 ))
+          fi
+        done
+      done < "$events"
 
       totals_tmp="$(mktemp "$state/totals.XXXXXX")"
       {
+        printf 'c\t%s\t-\t-\t-\n' "$cursor"
         for k in "''${!SESS[@]}"; do
           IFS='|' read -r s st <<< "$k"
-          printf 's\t%s\t%s\t%s\n' "$s" "$st" "''${SESS[$k]}"
+          printf 's\t%s\t%s\t%s\t-\n' "$s" "$st" "''${SESS[$k]}"
         done
         for s in "''${!SENT[@]}"; do
-          printf 'y\t%s\t%s\t%s\n' "$s" "''${SENT[$s]}" "''${RECV[$s]:-0}"
+          printf 'y\t%s\t%s\t%s\t-\n' "$s" "''${SENT[$s]}" "''${RECV[$s]:-0}"
         done
-        for s in "''${!TIME[@]}"; do
-          printf 't\t%s\t%s\t-\n' "$s" "''${TIME[$s]}"
+        for k in "''${!DUR_SUM[@]}"; do
+          IFS='|' read -r s st <<< "$k"
+          printf 'd\t%s\t%s\t%s\t-\n' "$s" "$st" "''${DUR_SUM[$k]}"
+        done
+        for k in "''${!DUR_BUCKET[@]}"; do
+          IFS='|' read -r s st le_ms <<< "$k"
+          printf 'b\t%s\t%s\t%s\t%s\n' "$s" "$st" "$le_ms" "''${DUR_BUCKET[$k]}"
         done
       } > "$totals_tmp"
       mv "$totals_tmp" "$state/totals"
 
       out="$(mktemp -p "$dir")"
       {
-        echo "# HELP nginx_stream_sessions_total Completed stream sessions per SNI and status."
+        echo "# HELP nginx_stream_sessions_total Completed stream sessions per bounded SNI label and status."
         echo "# TYPE nginx_stream_sessions_total counter"
         for k in "''${!SESS[@]}"; do
           IFS='|' read -r s st <<< "$k"
           echo "nginx_stream_sessions_total{sni=\"$s\",status=\"$st\"} ''${SESS[$k]}"
         done
-        echo "# HELP nginx_stream_sent_bytes_total Bytes sent to clients per SNI."
+        echo "# HELP nginx_stream_sent_bytes_total Bytes sent to clients per bounded SNI label."
         echo "# TYPE nginx_stream_sent_bytes_total counter"
         for s in "''${!SENT[@]}"; do
           echo "nginx_stream_sent_bytes_total{sni=\"$s\"} ''${SENT[$s]}"
         done
-        echo "# HELP nginx_stream_received_bytes_total Bytes received from clients per SNI."
+        echo "# HELP nginx_stream_received_bytes_total Bytes received from clients per bounded SNI label."
         echo "# TYPE nginx_stream_received_bytes_total counter"
         for s in "''${!RECV[@]}"; do
           echo "nginx_stream_received_bytes_total{sni=\"$s\"} ''${RECV[$s]}"
         done
-        echo "# HELP nginx_stream_session_seconds_total Cumulative session duration per SNI."
-        echo "# TYPE nginx_stream_session_seconds_total counter"
-        for s in "''${!TIME[@]}"; do
-          echo "nginx_stream_session_seconds_total{sni=\"$s\"} ''${TIME[$s]}"
+        echo "# HELP nginx_stream_session_duration_seconds Stream session duration by bounded SNI label and status."
+        echo "# TYPE nginx_stream_session_duration_seconds histogram"
+        for k in "''${!SESS[@]}"; do
+          IFS='|' read -r s st <<< "$k"
+          for i in "''${!bucketMs[@]}"; do
+            le_ms="''${bucketMs[$i]}"
+            le="''${bucketLe[$i]}"
+            bucket_key="$k|$le_ms"
+            echo "nginx_stream_session_duration_seconds_bucket{sni=\"$s\",status=\"$st\",le=\"$le\"} ''${DUR_BUCKET[$bucket_key]:-0}"
+          done
+          echo "nginx_stream_session_duration_seconds_bucket{sni=\"$s\",status=\"$st\",le=\"+Inf\"} ''${SESS[$k]}"
+          seconds="$(awk -v ms="''${DUR_SUM[$k]:-0}" 'BEGIN { printf "%.3f", ms / 1000 }')"
+          echo "nginx_stream_session_duration_seconds_sum{sni=\"$s\",status=\"$st\"} $seconds"
+          echo "nginx_stream_session_duration_seconds_count{sni=\"$s\",status=\"$st\"} ''${SESS[$k]}"
         done
       } > "$out"
+      chmod 0644 "$out"
       mv "$out" "$dir/nginx-stream.prom"
-
-      if [ -n "$new_cursor" ]; then
-        printf '%s' "$new_cursor" > "$state/cursor"
-      fi
     '';
   };
 ```
 
-In `config`, wrap the existing block in `mkMerge` and weave the two log directives **into the existing `streamConfig` string** via `optionalString metricsEnabled` — nginx requires `log_format` to appear *before* the `server{}` block whose `access_log` references it, so the log directives must be generated inside the existing string, never appended as a second `streamConfig` assignment (a concatenated assignment lands after the server block and `nginx -t` fails with `unknown log format`). The final structure:
+In `config`, wrap the existing block in `mkMerge` and weave the bounded-label `map`, `log_format`, and `access_log` directives **into the existing `streamConfig` string** via `optionalString metricsEnabled`. The second map preserves configured SNI values and maps all client-controlled alternatives, including empty SNI, to the single `unknown` series. Nginx requires `log_format` to appear *before* the `server{}` block whose `access_log` references it, so these directives must be generated inside the existing string, never appended as a second `streamConfig` assignment (a concatenated assignment lands after the server block and `nginx -t` fails with `unknown log format`). The final structure:
 
 ```nix
   config = mkIf cfg.enable (mkMerge [
@@ -679,7 +736,13 @@ In `config`, wrap the existing block in `mkMerge` and weave the two log directiv
           }
 
           ${lib.optionalString metricsEnabled ''
-            log_format metrics_json escape=json '{"sni":"$ssl_preread_server_name","status":$status,"sent":$bytes_sent,"recv":$bytes_received,"time":"$session_time","uct":"$upstream_connect_time"}';
+            map $ssl_preread_server_name $metrics_sni {
+            ${
+              lib.concatMapStrings (e: "    ${e.sni}  ${e.sni};\n") cfg.entries
+            }    default  unknown;
+            }
+
+            log_format metrics_json escape=json '{"sni":"$metrics_sni","status":$status,"sent":$bytes_sent,"recv":$bytes_received,"time":"$session_time","uct":"$upstream_connect_time"}';
           ''}
 
           server {
@@ -728,7 +791,7 @@ In `config`, wrap the existing block in `mkMerge` and weave the two log directiv
   ]);
 ```
 
-- [ ] **Step 2: Validate the jq transform against a fixture**
+- [ ] **Step 2: Validate the bounded nginx map and jq transform against a fixture**
 
 ```bash
 cat > /tmp/journal-line.json <<'EOF'
@@ -748,6 +811,7 @@ vk.ru	200	94000	21000	12500
 
 ```bash
 nixfmt roles/network/sni-router.nix
+nix eval path:.#nixosConfigurations.veles.config.services.nginx.streamConfig --raw | grep -A12 'map $ssl_preread_server_name $metrics_sni'
 nix flake check 'path:.' --all-systems
 ```
 
@@ -769,10 +833,11 @@ git commit -m "feat(sni-router): stream session metrics via journald textfile co
 - Modify: `machines/veles/default.nix`
 - Modify: `machines/buyan/default.nix`
 - Modify: `machines/nixpi/default.nix`
+- Modify: `secrets/unlocked/spec.txt`
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–4.
-- Produces: enrolled tailnet members; agent role on mokosh/veles/buyan; xray metrics + stream metrics active on veles/buyan; `remoteAgents = [veles, buyan]` on mokosh.
+- Produces: enrolled tailnet members with retrying initial autoconnect; agent role on mokosh/veles/buyan; xray metrics + stream metrics active on veles/buyan; `remoteAgents = [veles, buyan]` on mokosh.
 
 - [ ] **Step 1: mokosh — tailscale + agent + remoteAgents**
 
@@ -792,8 +857,26 @@ In `machines/mokosh/default.nix`, extend the observability block and add tailsca
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-mokosh";
     extraUpFlags = [ "--login-server=https://headscale.uspenskiy.tech" ];
+    extraSetFlags = [ "--accept-dns=true" ];
+  };
+
+  # Mokosh enrolls through its own public Headscale endpoint. Avoid racing the
+  # first auth-key submission against the local control plane and reverse proxy.
+  systemd.services.tailscaled-autoconnect = {
+    after = [
+      "headscale.service"
+      "nginx.service"
+    ];
+    wants = [
+      "headscale.service"
+      "nginx.service"
+    ];
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = "30s";
+    };
   };
 ```
 
@@ -818,11 +901,17 @@ In `machines/veles/default.nix`:
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-veles";
     extraUpFlags = [
       "--login-server=https://headscale.uspenskiy.tech"
       "--accept-dns=false"
     ];
+    extraSetFlags = [ "--accept-dns=false" ];
+  };
+
+  systemd.services.tailscaled-autoconnect.serviceConfig = {
+    Restart = "on-failure";
+    RestartSec = "30s";
   };
 ```
 
@@ -844,11 +933,17 @@ In `machines/buyan/default.nix`:
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key";
+    authKeyFile = "/etc/nixos/secrets/tailscale-auth-key-buyan";
     extraUpFlags = [
       "--login-server=https://headscale.uspenskiy.tech"
       "--accept-dns=false"
     ];
+    extraSetFlags = [ "--accept-dns=false" ];
+  };
+
+  systemd.services.tailscaled-autoconnect.serviceConfig = {
+    Restart = "on-failure";
+    RestartSec = "30s";
   };
 ```
 
@@ -865,23 +960,40 @@ In `machines/nixpi/default.nix`, extend the existing `services.tailscale` block:
   };
 ```
 
-- [ ] **Step 5: Format, spot-eval, check**
+- [ ] **Step 5: Add the tracked secret installation manifest entries**
+
+Append these non-secret declarations to `secrets/unlocked/spec.txt`:
+
+```text
+mokosh:tailscale-auth-key-mokosh:0400:root:root
+veles:tailscale-auth-key-veles:0400:root:root
+buyan:tailscale-auth-key-buyan:0400:root:root
+```
+
+Do not add the corresponding files under `secrets/unlocked/`; they remain gitignored key material created during Task 7's operator handoff.
+
+- [ ] **Step 6: Format, spot-eval, check**
 
 ```bash
 nixfmt machines/mokosh/default.nix machines/veles/default.nix machines/buyan/default.nix machines/nixpi/default.nix
 nix eval path:.#nixosConfigurations.mokosh.config.services.victoriametrics.prometheusConfig.scrape_configs --json | jq '.[] | select(.job_name=="node")'
+nix eval path:.#nixosConfigurations.mokosh.config.systemd.services.tailscaled-autoconnect.after --json
+nix eval path:.#nixosConfigurations.veles.config.systemd.services.tailscaled-autoconnect.serviceConfig.Restart --raw
 nix eval path:.#nixosConfigurations.veles.config.roles.xray.metrics.enable
 nix eval path:.#nixosConfigurations.veles.config.services.prometheus.exporters.node.listenAddress
+nix eval path:.#nixosConfigurations.mokosh.config.services.tailscale.extraSetFlags --json
+nix eval path:.#nixosConfigurations.veles.config.services.tailscale.extraSetFlags --json
 nix eval path:.#nixosConfigurations.veles.config.networking.firewall.interfaces --json
+git ls-files --error-unmatch secrets/unlocked/spec.txt
 nix flake check 'path:.' --all-systems
 ```
 
-Expected: node job has three static_configs (mokosh loopback + `veles.ts:9100` + `buyan.ts:9100`, host labels `mokosh`/`veles`/`buyan`); `true`; `"0.0.0.0"`; firewall `tailscale0` → `[9100]`; flake check PASS.
+Expected: node job has three static_configs (mokosh loopback + `veles.ts:9100` + `buyan.ts:9100`, host labels `mokosh`/`veles`/`buyan`); autoconnect ordering contains `headscale.service` and `nginx.service`; restart policy is `on-failure`; `true`; `"0.0.0.0"`; DNS set flags are `["--accept-dns=true"]` on mokosh and `["--accept-dns=false"]` on veles; firewall `tailscale0` → `[9100]`; `spec.txt` is tracked; flake check PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add machines/
+git add machines/mokosh/default.nix machines/veles/default.nix machines/buyan/default.nix machines/nixpi/default.nix secrets/unlocked/spec.txt
 git commit -m "feat(machines): tailnet enrollment and metrics agents on mokosh, veles, buyan"
 ```
 
@@ -907,53 +1019,56 @@ import json
 panels = [
     # (title, [(expr, legend)], unit, row)
     ("TCP data retransmissions",
-     [("rate(node_netstat_Tcp_RetransSegs{host=\"$host\"}[$__rate_interval])", "{{host}}")],
+     [("rate(node_netstat_Tcp_RetransSegs{host=~\"$host\"}[$__rate_interval])", "{{host}}")],
      "ops", "TCP / Kernel"),
-    ("SYN-ACK retransmissions and timeouts",
-     [("rate(node_netstat_TcpExt_TCPSynRetrans{host=\"$host\"}[$__rate_interval])", "syn-ack retrans {{host}}"),
-      ("rate(node_netstat_TcpExt_TCPTimeouts{host=\"$host\"}[$__rate_interval])", "timeouts {{host}}")],
+    ("SYN/SYN-ACK retransmissions and timeouts",
+     [("rate(node_netstat_TcpExt_TCPSynRetrans{host=~\"$host\"}[$__rate_interval])", "handshake retrans {{host}}"),
+      ("rate(node_netstat_TcpExt_TCPTimeouts{host=~\"$host\"}[$__rate_interval])", "timeouts {{host}}")],
      "ops", "TCP / Kernel"),
     ("Half-open handshakes (SYN_RECV)",
-     [("tcp_states{host=\"$host\",state=\"synrecv\"}", "{{host}}")],
+     [("tcp_states{host=~\"$host\",state=\"syn_recv\"}", "{{host}}")],
      "short", "TCP / Kernel"),
     ("Listen drops",
-     [("rate(node_netstat_TcpExt_ListenDrops{host=\"$host\"}[$__rate_interval])", "{{host}}")],
+     [("rate(node_netstat_TcpExt_ListenDrops{host=~\"$host\"}[$__rate_interval])", "{{host}}")],
      "ops", "TCP / Kernel"),
     ("UDP errors",
-     [("rate(node_netstat_Udp_InErrors{host=\"$host\"}[$__rate_interval])", "in {{host}}"),
-      ("rate(node_netstat_Udp_RcvbufErrors{host=\"$host\"}[$__rate_interval])", "rcvbuf {{host}}"),
-      ("rate(node_netstat_Udp_SndbufErrors{host=\"$host\"}[$__rate_interval])", "sndbuf {{host}}")],
+     [("rate(node_netstat_Udp_InErrors{host=~\"$host\"}[$__rate_interval])", "in {{host}}"),
+      ("rate(node_netstat_Udp_RcvbufErrors{host=~\"$host\"}[$__rate_interval])", "rcvbuf {{host}}"),
+      ("rate(node_netstat_Udp_SndbufErrors{host=~\"$host\"}[$__rate_interval])", "sndbuf {{host}}")],
      "ops", "TCP / Kernel"),
     ("Stream sessions by status",
-     [("sum by (sni, status) (rate(nginx_stream_sessions_total{host=\"$host\"}[$__rate_interval]))", "{{sni}} {{status}}")],
+     [("sum by (host, sni, status) (rate(nginx_stream_sessions_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{sni}} {{status}}")],
      "ops", "nginx stream"),
     ("Stream bytes: sent vs received",
-     [("sum by (sni) (rate(nginx_stream_sent_bytes_total{host=\"$host\"}[$__rate_interval]))", "{{sni}} sent"),
-      ("sum by (sni) (rate(nginx_stream_received_bytes_total{host=\"$host\"}[$__rate_interval]))", "{{sni}} recv")],
+     [("sum by (host, sni) (rate(nginx_stream_sent_bytes_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{sni}} sent"),
+      ("sum by (host, sni) (rate(nginx_stream_received_bytes_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{sni}} recv")],
      "Bps", "nginx stream"),
-    ("Mean session duration",
-     [("sum by (sni) (rate(nginx_stream_session_seconds_total{host=\"$host\"}[$__rate_interval])) / sum by (sni) (rate(nginx_stream_sessions_total{host=\"$host\"}[$__rate_interval]))", "{{sni}}")],
+    ("Short status-200 sessions (≤1s)",
+     [("sum by (host, sni) (rate(nginx_stream_session_duration_seconds_bucket{host=~\"$host\",status=\"200\",le=\"1\"}[$__rate_interval]))", "{{host}} {{sni}}")],
+     "ops", "nginx stream"),
+    ("Status-200 session duration p95",
+     [("histogram_quantile(0.95, sum by (le, host, sni) (rate(nginx_stream_session_duration_seconds_bucket{host=~\"$host\",status=\"200\"}[$__rate_interval])))", "{{host}} {{sni}}")],
      "s", "nginx stream"),
     ("xray inbound traffic",
-     [("sum by (inbound) (rate(xray_inbound_uplink_bytes_total{host=\"$host\"}[$__rate_interval]))", "{{inbound}} up"),
-      ("sum by (inbound) (rate(xray_inbound_downlink_bytes_total{host=\"$host\"}[$__rate_interval]))", "{{inbound}} down")],
+     [("sum by (host, inbound) (rate(xray_inbound_uplink_bytes_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{inbound}} up"),
+      ("sum by (host, inbound) (rate(xray_inbound_downlink_bytes_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{inbound}} down")],
      "Bps", "xray"),
     ("xray outbound traffic",
-     [("sum by (outbound) (rate(xray_outbound_uplink_bytes_total{host=\"$host\"}[$__rate_interval]))", "{{outbound}} up"),
-      ("sum by (outbound) (rate(xray_outbound_downlink_bytes_total{host=\"$host\"}[$__rate_interval]))", "{{outbound}} down")],
+     [("sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{outbound}} up"),
+      ("sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\"}[$__rate_interval]))", "{{host}} {{outbound}} down")],
      "Bps", "xray"),
     ("Observatory probe delay",
-     [("xray_observatory_delay_milliseconds{host=\"$host\"}", "{{outbound}}")],
+     [("xray_observatory_delay_milliseconds{host=~\"$host\"}", "{{host}} {{outbound}}")],
      "ms", "xray"),
     ("Observatory outbound alive",
-     [("xray_observatory_alive{host=\"$host\"}", "{{outbound}}")],
+     [("xray_observatory_alive{host=~\"$host\"}", "{{host}} {{outbound}}")],
      "short", "xray"),
 ]
 
 rows = ["TCP / Kernel", "nginx stream", "xray"]
 elements = {}
 layout_items = {r: [] for r in rows}
-y = 0
+row_y = {r: 0 for r in rows}
 for i, (title, queries, unit, row) in enumerate(panels, start=1):
     name = f"panel-{i}"
     elements[name] = {
@@ -1016,10 +1131,10 @@ for i, (title, queries, unit, row) in enumerate(panels, start=1):
     }
     layout_items[row].append({
         "kind": "GridLayoutItem",
-        "spec": {"x": 0, "y": y, "width": 12, "height": 8,
+        "spec": {"x": 0, "y": row_y[row], "width": 12, "height": 8,
                  "element": {"kind": "ElementReference", "name": name}},
     })
-    y += 8
+    row_y[row] += 8
 
 dashboard = {
     "apiVersion": "dashboard.grafana.app/v2",
@@ -1050,9 +1165,12 @@ dashboard = {
                     },
                     "regex": "",
                     "regexApplyTo": "value",
+                    "sort": "disabled",
+                    "options": [],
                     "multi": True,
                     "includeAll": True,
                     "allValue": ".*",
+                    "allowCustomValue": True,
                 },
             }
         ],
@@ -1073,7 +1191,7 @@ dashboard = {
             },
         },
         "elements": elements,
-        "annotations": {"list": []},
+        "annotations": [],
         "links": [],
         "liveNow": False,
         "preload": False,
@@ -1091,10 +1209,12 @@ PYEOF
 
 ```bash
 jq -e '.spec.title' roles/observability/dashboards/proxy-health.json
+jq -e '.spec.annotations | type == "array"' roles/observability/dashboards/proxy-health.json
+jq -e '[.. | objects | .expr? // empty | select(contains("host")) | contains("host=~")] | all' roles/observability/dashboards/proxy-health.json
 grep -o 'xray_[a-z_]*\|nginx_stream_[a-z_]*\|tcp_states\|node_netstat_[A-Za-z_]*' roles/observability/dashboards/proxy-health.json | sort -u
 ```
 
-Expected: `"Proxy Health"` and a metric list matching Tasks 2–4 outputs only.
+Expected: `"Proxy Health"`; both schema/query assertions return `true`; metric list matches Tasks 2–4 outputs only.
 
 - [ ] **Step 3: Flake check**
 
@@ -1116,7 +1236,7 @@ git commit -m "feat(grafana): proxy-health dashboard for tailnet agents"
 ### Task 7: Final validation and operator runbook handoff
 
 **Files:**
-- No repo files changed (secrets spec is an operator-local, gitignored artifact).
+- No repo files changed (the tracked secret installation manifest was committed in Task 5; key material remains gitignored).
 
 **Interfaces:**
 - Produces: verification that the branch is complete; documented operator steps.
@@ -1130,16 +1250,17 @@ nix flake check 'path:.' --all-systems
 git log --oneline main..HEAD
 ```
 
-Expected: flake check PASS; commit list = Tasks 1–6 (plus any nixfmt fixup committed by path).
+Expected: flake check PASS. If commits were authorized, the commit list contains Tasks 1–6 plus any explicit nixfmt fixup; otherwise `git status --short` lists only the intended implementation files.
 
 - [ ] **Step 2: Report operator runbook (no automation)**
 
 Surface these steps to the operator verbatim — they are one-time manual actions that cannot be committed:
 
-1. On mokosh: `headscale preauthkeys create --user <headscale user> --reusable` (no expiry).
-2. `make unlock`; save the key to `secrets/unlocked/tailscale-auth-key`; append `*:tailscale-auth-key:0400:root:root` to `secrets/unlocked/spec.txt`; `make lock`.
-3. Deploy order with secrets installed per host: mokosh → veles → buyan.
-4. Post-deploy validation (spec's Operational Runbook section): `tailscale status`, `getent hosts veles.ts` on mokosh, `curl http://veles.ts:9100/metrics` from mokosh, public port scan shows 9100 filtered, Grafana `proxy-health` renders.
+1. On mokosh, run `sudo headscale users list` and note the intended user's numeric ID. Create three distinct one-time keys by running `sudo headscale preauthkeys create --user <user-id> --expiration 24h --reusable=false --ephemeral=false` once for each new node, immediately recording which returned key is for mokosh, veles, or buyan.
+2. Never run `make lock` with these ephemeral keys present: do not add them to `secrets/locked.tar.gpg` or any tracked artifact. On each host, run `make unlock`, securely place only its key at the gitignored `secrets/unlocked/tailscale-auth-key-<hostname>` path, run `make install-secrets`, and remove that gitignored transfer copy after successful enrollment.
+3. Deploy in order: mokosh → veles → buyan. Complete initial enrollment before each key's explicit expiry.
+4. If a node later loses its Tailscale state, create and install a fresh one-time key for that host before redeploying it.
+5. Post-deploy validation (spec's Operational Runbook section): `tailscale status`, `getent hosts veles.ts` on mokosh, `tailscale netcheck`, public Headscale/DERP health, `curl http://veles.ts:9100/metrics` from mokosh, fresh `node_textfile_mtime_seconds` entries for all three collector files, collector systemd units healthy, public port scan shows 9100 is not open, and Grafana `proxy-health` renders. Expect `xray_` and `nginx_stream_` samples only after their corresponding proxy paths have handled traffic.
 
 - [ ] **Step 3: Final commit if nixfmt changed anything**
 
@@ -1153,6 +1274,6 @@ git add <files> && git commit -m "style: nixfmt tailnet metrics branch"
 
 ## Self-Review Notes
 
-- Spec coverage: MagicDNS (Task 1), agent split + node job + host labels (Task 2), xray expvar + observatory + policy counters (Task 3), stream JSON log + session/byte/duration metrics (Task 4), enrollment + DNS posture per host + mtproxy port move (Task 5), dashboard (Task 6), runbook (Task 7). Preauth key secret spec is operator-local (gitignored), documented in Task 7.
-- Known deviations, both improvements: `scrapeJobType.host` defaults to `config.networking.hostName` (spec: "becomes the job-registering host's hostname" — identical semantics); `nginx_stream_session_seconds_total` accumulates via awk float totals seeded from state (spec listed the metric; mechanism refined).
-- Task 4 weaves the nginx `log_format`/`access_log` directives into the existing `streamConfig` string via `optionalString metricsEnabled` — nginx rejects `access_log` formats defined after the referencing `server{}` block, so appending a second `types.lines` assignment would break `nginx -t`.
+- Spec coverage: MagicDNS (Task 1), agent split + node job + host labels (Task 2), xray expvar + observatory + policy counters (Task 3), bounded stream JSON labels + session/byte/duration histogram metrics (Task 4), native enrollment + tracked host-specific secret manifest + DNS posture per host + mtproxy port move (Task 5), dashboard (Task 6), runbook (Task 7).
+- `scrapeJobType.host` defaults to `config.networking.hostName`, matching the spec's requirement that local jobs use the registering host's hostname.
+- Task 4 weaves the bounded-label nginx `map`, `log_format`, and `access_log` directives into the existing `streamConfig` string via `optionalString metricsEnabled`; nginx rejects formats defined after the referencing `server{}` block.

@@ -115,6 +115,7 @@ in
         reality = {
           publicKey = secrets.xray.reality.publicKey;
           shortId = builtins.head (secrets.xray.reality.shortIds);
+          fingerprint = "randomized";
         };
         vlessTcp = {
           enable = true;

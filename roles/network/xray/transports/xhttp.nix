@@ -153,9 +153,13 @@ rec {
     };
 
   mkClientOutbound =
-    { cfg, realityCfg }:
+    {
+      cfg,
+      realityCfg,
+      tag ? "vless-xhttp-out",
+    }:
     helpers.mkVnextOutbound {
-      tag = "vless-xhttp-out";
+      inherit tag;
       address = cfg.server;
       port = cfg.port;
       uuid = cfg.auth.uuid;
@@ -178,11 +182,13 @@ rec {
       realityCfg,
       user,
       serverAddr,
+      port ? 443,
+      tag ? "relay-xhttp-out",
     }:
     helpers.mkVnextOutbound {
-      tag = "relay-xhttp-out";
+      inherit tag;
       address = serverAddr;
-      port = 443;
+      inherit port;
       uuid = user.uuid;
       streamSettings = {
         network = "xhttp";

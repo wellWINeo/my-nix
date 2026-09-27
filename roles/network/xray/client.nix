@@ -20,6 +20,12 @@ let
 
   realityCfg = cfg.reality;
 
+  backupEnabled = cfg.backupPort != null;
+
+  # Balancer selector tag of a transport's backup client outbound; must match
+  # the builders' primary tag convention ("<tagPrefix>-out").
+  backupOutboundTag = t: "${t.tagPrefix}-backup-out";
+
   parseEndpoint =
     optionName: endpoint:
     let
@@ -96,12 +102,25 @@ let
     ++ tunnelInbounds;
 
     outbounds =
-      (map (
+      (lib.concatMap (
         t:
-        t.mkClientOutbound {
-          cfg = cfg.${t.name};
-          inherit realityCfg;
-        }
+        [
+          # Primary candidate (per-transport port, TCP/443 by default).
+          (t.mkClientOutbound {
+            cfg = cfg.${t.name};
+            inherit realityCfg;
+          })
+        ]
+        ++ lib.optionals backupEnabled [
+          # Backup candidate on backupPort (e.g. TCP/2053).
+          (t.mkClientOutbound {
+            cfg = cfg.${t.name} // {
+              port = cfg.backupPort;
+            };
+            inherit realityCfg;
+            tag = backupOutboundTag t;
+          })
+        ]
       ) enabledTransports)
       ++ [
         {
@@ -121,7 +140,9 @@ let
       balancers = [
         {
           tag = "proxy-balancer";
-          selector = map (t: "${t.tagPrefix}-out") enabledTransports;
+          selector =
+            (map (t: "${t.tagPrefix}-out") enabledTransports)
+            ++ lib.optionals backupEnabled (map backupOutboundTag enabledTransports);
           strategy = {
             type = "leastPing";
           };
@@ -144,6 +165,12 @@ in
       type = types.port;
       default = 1081;
       description = "SOCKS5 listen port";
+    };
+
+    backupPort = mkOption {
+      type = types.nullOr types.port;
+      default = null;
+      description = "Optional backup server port; when set, every enabled VLESS transport gets a second outbound candidate on it";
     };
 
     openFirewall = mkOption {
@@ -228,6 +255,11 @@ in
           tunnel: tunnel.listen.port != cfg.port && (!cfg.http.enable || tunnel.listen.port != cfg.http.port)
         ) parsedTunnels;
         message = "roles.xray.client.tunnels must not reuse the SOCKS or HTTP proxy listen port";
+      }
+      {
+        assertion =
+          cfg.backupPort == null || all (t: cfg.${t.name}.port != cfg.backupPort) enabledTransports;
+        message = "roles.xray.client.backupPort must differ from every enabled transport's primary server port";
       }
       {
         assertion =

@@ -40,6 +40,15 @@ let
   hyInboundEnabled = cfg.hysteria.enable;
   hyOutboundEnabled = cfg.target.hysteria.enable;
 
+  backupEnabled = cfg.target.backupPort != null;
+
+  # Balancer selector tag of a transport's primary relay outbound; must match
+  # the builders' default relay tags ("relay-<name>-out").
+  relayOutboundTag = t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-out";
+
+  # Balancer selector tag of a transport's backup relay outbound.
+  backupOutboundTag = t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-backup-out";
+
   relayConfig = {
     inbounds =
       lib.optionals cfg.socks.enable [
@@ -70,14 +79,28 @@ let
       );
 
     outbounds =
-      map (
+      lib.concatMap (
         t:
-        t.mkRelayOutbound {
-          cfg = cfg.target.${t.name};
-          realityCfg = cfg.target.reality;
-          user = cfg.user;
-          serverAddr = cfg.target.server;
-        }
+        [
+          # Primary candidate (TCP/443 by builder default).
+          (t.mkRelayOutbound {
+            cfg = cfg.target.${t.name};
+            realityCfg = cfg.target.reality;
+            user = cfg.user;
+            serverAddr = cfg.target.server;
+          })
+        ]
+        ++ lib.optionals backupEnabled [
+          # Backup candidate on target.backupPort (e.g. TCP/2053).
+          (t.mkRelayOutbound {
+            cfg = cfg.target.${t.name};
+            realityCfg = cfg.target.reality;
+            user = cfg.user;
+            serverAddr = cfg.target.server;
+            port = cfg.target.backupPort;
+            tag = backupOutboundTag t;
+          })
+        ]
       ) enabledOutbound
       ++ lib.optional hyOutboundEnabled (
         hysteria.mkRelayOutbound {
@@ -111,7 +134,8 @@ let
         {
           tag = "relay-balancer";
           selector =
-            (map (t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-out") enabledOutbound)
+            (map relayOutboundTag enabledOutbound)
+            ++ lib.optionals backupEnabled (map backupOutboundTag enabledOutbound)
             ++ lib.optional hyOutboundEnabled hysteria.relayOutboundTag;
           strategy = {
             type = "leastPing";
@@ -154,6 +178,12 @@ in
       server = mkOption {
         type = types.str;
         description = "Target xray server IP or hostname";
+      };
+
+      backupPort = mkOption {
+        type = types.nullOr types.port;
+        default = null;
+        description = "Optional backup target port; when set, every enabled VLESS relay transport gets a second outbound candidate on it";
       };
 
       reality = {
@@ -210,6 +240,10 @@ in
         assertion =
           !hyOutboundEnabled || cfg.target.hysteria.insecure || cfg.target.hysteria.pinSHA256 != "";
         message = "roles.xray.relay.target.hysteria requires insecure=true or pinSHA256 set";
+      }
+      {
+        assertion = cfg.target.backupPort == null || cfg.target.backupPort != 443;
+        message = "roles.xray.relay.target.backupPort must differ from the primary target port 443";
       }
       {
         assertion = !hyInboundEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;

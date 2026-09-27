@@ -133,6 +133,7 @@ in
     client = {
       enable = true;
       port = 1081;
+      backupPort = 2053;
       openFirewall = true;
       http.enable = true;
       tunnels = [

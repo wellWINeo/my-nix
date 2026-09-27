@@ -91,6 +91,10 @@ in
     };
   };
 
+  # Public TCP/2053 reaches the existing SNI-router listener on TCP/443
+  # via a host-firewall PREROUTING REDIRECT.
+  roles.sni-router.redirectPorts = [ 2053 ];
+
   services.tailscale = {
     enable = true;
     openFirewall = true;

@@ -80,6 +80,10 @@
           config.allowUnfree = true;
         }
       );
+      # Select xray from nixpkgs-unstable; applied only on xray hosts (nixpi, veles, buyan).
+      xrayOverlay = final: prev: {
+        xray = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.xray;
+      };
       dnsOutputs = import ./dns/flake-outputs.nix {
         inherit forAllSystems nixpkgsFor;
       };
@@ -91,6 +95,7 @@
         system = "aarch64-linux";
         specialArgs = inputs;
         modules = [
+          { nixpkgs.overlays = [ xrayOverlay ]; }
           ./machines/nixpi
           ./users/o__ni
         ];
@@ -125,6 +130,7 @@
               (final: prev: {
                 telemt = nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.telemt;
               })
+              xrayOverlay
             ];
           }
           ./machines/veles
@@ -137,6 +143,7 @@
         system = "x86_64-linux";
         specialArgs = inputs;
         modules = [
+          { nixpkgs.overlays = [ xrayOverlay ]; }
           ./machines/buyan
           ./users/o__ni
         ];

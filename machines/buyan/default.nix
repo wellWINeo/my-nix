@@ -25,6 +25,10 @@ in
       device = "/dev/disk/by-label/NIXROOT";
       fsType = "ext4";
     };
+    "/nix" = {
+      device = "/dev/disk/by-label/NIXSTORE";
+      fsType = "ext4";
+    };
   };
 
   swapDevices = [

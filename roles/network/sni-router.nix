@@ -60,7 +60,7 @@ let
       journal_error="$(mktemp)"
       trap 'rm -f "$raw" "$events" "$journal_error"' EXIT
       if [ -n "$cursor" ]; then
-        if ! LC_ALL=C journalctl -t nginx-stream -o json --after-cursor "$cursor" > "$raw" 2> "$journal_error"; then
+        if ! LC_ALL=C journalctl -t nginx_stream -o json --after-cursor "$cursor" > "$raw" 2> "$journal_error"; then
           error="$(<"$journal_error")"
           if [[ "$error" != *"Failed to seek to cursor"* ]]; then
             printf '%s\n' "$error" >&2
@@ -82,7 +82,7 @@ let
           echo "nginx-stream journal cursor is stale; advanced to current journal end" >&2
         fi
       else
-        journalctl -t nginx-stream -o json > "$raw"
+        journalctl -t nginx_stream -o json > "$raw"
       fi
       new_cursor="$(tail -n 1 "$raw" | jq -r '.__CURSOR // empty')"
       [ -n "$new_cursor" ] && cursor="$new_cursor"
@@ -246,7 +246,7 @@ in
             proxy_pass $sni_backend;
             proxy_protocol on; # all registered backends are expected to accept proxy protocol
             ${lib.optionalString metricsEnabled ''
-              access_log syslog:server=unix:/dev/log,tag=nginx-stream metrics_json;
+              access_log syslog:server=unix:/dev/log,tag=nginx_stream metrics_json;
             ''}
           }
         '';

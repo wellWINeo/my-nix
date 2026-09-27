@@ -177,6 +177,12 @@ in
       description = "External port to listen on";
     };
 
+    redirectPorts = mkOption {
+      type = types.listOf types.port;
+      default = [ ];
+      description = "Extra public TCP ports redirected by the host firewall to the SNI-router listener on `port`";
+    };
+
     entries = mkOption {
       type = types.listOf (
         types.submodule {
@@ -246,7 +252,23 @@ in
         '';
       };
 
-      networking.firewall.allowedTCPPorts = [ cfg.port ];
+      # Keep the listener and configured public redirect ports explicit in the
+      # TCP firewall allowlist.
+      networking.firewall = {
+        allowedTCPPorts = [ cfg.port ] ++ cfg.redirectPorts;
+
+        # Idempotent TCP-only PREROUTING REDIRECT: extra public ports reach the
+        # single SNI-router listener on cfg.port. UDP is untouched.
+        extraCommands = lib.concatMapStrings (redirectPort: ''
+          ${pkgs.iptables}/bin/iptables -t nat -C PREROUTING -p tcp --dport ${toString redirectPort} -j REDIRECT --to-ports ${toString cfg.port} 2>/dev/null \
+            || ${pkgs.iptables}/bin/iptables -t nat -A PREROUTING -p tcp --dport ${toString redirectPort} -j REDIRECT --to-ports ${toString cfg.port}
+        '') cfg.redirectPorts;
+
+        extraStopCommands = lib.concatMapStrings (redirectPort: ''
+          ${pkgs.iptables}/bin/iptables -t nat -C PREROUTING -p tcp --dport ${toString redirectPort} -j REDIRECT --to-ports ${toString cfg.port} 2>/dev/null \
+            && ${pkgs.iptables}/bin/iptables -t nat -D PREROUTING -p tcp --dport ${toString redirectPort} -j REDIRECT --to-ports ${toString cfg.port}
+        '') cfg.redirectPorts;
+      };
     }
 
     (mkIf metricsEnabled {

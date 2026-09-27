@@ -131,9 +131,13 @@ rec {
     };
 
   mkClientOutbound =
-    { cfg, realityCfg }:
+    {
+      cfg,
+      realityCfg,
+      tag ? "vless-tcp-out",
+    }:
     helpers.mkVnextOutbound {
-      tag = "vless-tcp-out";
+      inherit tag;
       address = cfg.server;
       port = cfg.port;
       uuid = cfg.auth.uuid;
@@ -156,11 +160,13 @@ rec {
       realityCfg,
       user,
       serverAddr,
+      port ? 443,
+      tag ? "relay-tcp-out",
     }:
     helpers.mkVnextOutbound {
-      tag = "relay-tcp-out";
+      inherit tag;
       address = serverAddr;
-      port = 443;
+      inherit port;
       uuid = user.uuid;
       extraUser = {
         flow = "xtls-rprx-vision";

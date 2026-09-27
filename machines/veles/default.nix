@@ -112,6 +112,9 @@ in
       user = relayUser;
       target = {
         server = secrets.ip.buyan.address;
+        # Paired relay candidates: primary TCP/443 + backup TCP/2053 (the
+        # REDIRECTed SNI-router port on buyan).
+        backupPort = 2053;
         reality = {
           publicKey = secrets.xray.reality.publicKey;
           shortId = builtins.head (secrets.xray.reality.shortIds);
@@ -138,6 +141,10 @@ in
       };
     };
   };
+
+  # Public TCP/2053 reaches the existing SNI-router listener on TCP/443
+  # via a host-firewall PREROUTING REDIRECT.
+  roles.sni-router.redirectPorts = [ 2053 ];
 
   roles.mtproxy = {
     enable = true;

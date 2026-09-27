@@ -161,9 +161,13 @@ rec {
     };
 
   mkClientOutbound =
-    { cfg, realityCfg }:
+    {
+      cfg,
+      realityCfg,
+      tag ? "vless-grpc-out",
+    }:
     helpers.mkVnextOutbound {
-      tag = "vless-grpc-out";
+      inherit tag;
       address = cfg.server;
       port = cfg.port;
       uuid = cfg.auth.uuid;
@@ -186,11 +190,13 @@ rec {
       realityCfg,
       user,
       serverAddr,
+      port ? 443,
+      tag ? "relay-grpc-out",
     }:
     helpers.mkVnextOutbound {
-      tag = "relay-grpc-out";
+      inherit tag;
       address = serverAddr;
-      port = 443;
+      inherit port;
       uuid = user.uuid;
       streamSettings = {
         network = "grpc";

@@ -16,11 +16,19 @@ let
   cfg = config.roles.xray.relay;
   serverCfg = config.roles.xray.server;
   secrets = import ../../../secrets;
+  transportHelpers = import ./transports/lib.nix { inherit lib; };
   transports = import ./transports { inherit lib; };
   hysteria = import ./hysteria.nix { inherit lib; };
   transportList = lib.attrValues transports;
 
   shortIds = secrets.xray.reality.shortIds or [ ];
+
+  fragmentClientHelloOutbound =
+    outbound:
+    if config.roles.xray.fragmentClientHello then
+      transportHelpers.withClientHelloFragmentation outbound
+    else
+      outbound;
 
   clients = {
     withFlow = map (u: {
@@ -79,29 +87,31 @@ let
       );
 
     outbounds =
-      lib.concatMap (
-        t:
-        [
-          # Primary candidate (TCP/443 by builder default).
-          (t.mkRelayOutbound {
-            cfg = cfg.target.${t.name};
-            realityCfg = cfg.target.reality;
-            user = cfg.user;
-            serverAddr = cfg.target.server;
-          })
-        ]
-        ++ lib.optionals backupEnabled [
-          # Backup candidate on target.backupPort (e.g. TCP/2053).
-          (t.mkRelayOutbound {
-            cfg = cfg.target.${t.name};
-            realityCfg = cfg.target.reality;
-            user = cfg.user;
-            serverAddr = cfg.target.server;
-            port = cfg.target.backupPort;
-            tag = backupOutboundTag t;
-          })
-        ]
-      ) enabledOutbound
+      (map fragmentClientHelloOutbound (
+        lib.concatMap (
+          t:
+          [
+            # Primary candidate (TCP/443 by builder default).
+            (t.mkRelayOutbound {
+              cfg = cfg.target.${t.name};
+              realityCfg = cfg.target.reality;
+              user = cfg.user;
+              serverAddr = cfg.target.server;
+            })
+          ]
+          ++ lib.optionals backupEnabled [
+            # Backup candidate on target.backupPort (e.g. TCP/2053).
+            (t.mkRelayOutbound {
+              cfg = cfg.target.${t.name};
+              realityCfg = cfg.target.reality;
+              user = cfg.user;
+              serverAddr = cfg.target.server;
+              port = cfg.target.backupPort;
+              tag = backupOutboundTag t;
+            })
+          ]
+        ) enabledOutbound
+      ))
       ++ lib.optional hyOutboundEnabled (
         hysteria.mkRelayOutbound {
           cfg = cfg.target.hysteria;

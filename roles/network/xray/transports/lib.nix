@@ -8,6 +8,22 @@
 with lib;
 
 rec {
+  withClientHelloFragmentation =
+    outbound:
+    lib.recursiveUpdate outbound {
+      streamSettings.finalmask.tcp = [
+        {
+          type = "fragment";
+          settings = {
+            packets = "tlshello";
+            lengths = [ "100-200" ];
+            delays = [ "10-20" ];
+            maxSplit = "3-6";
+          };
+        }
+      ];
+    };
+
   # Reality server-side realitySettings block. privateKey is injected at
   # runtime by the coordinator (see default.nix), so we leave it out here.
   mkRealityServerSettings =

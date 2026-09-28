@@ -13,10 +13,18 @@ with lib;
 
 let
   cfg = config.roles.xray.client;
+  transportHelpers = import ./transports/lib.nix { inherit lib; };
   transports = import ./transports { inherit lib; };
   transportList = lib.attrValues transports;
 
   enabledTransports = lib.filter (t: cfg.${t.name}.enable) transportList;
+
+  fragmentClientHelloOutbound =
+    outbound:
+    if config.roles.xray.fragmentClientHello then
+      transportHelpers.withClientHelloFragmentation outbound
+    else
+      outbound;
 
   realityCfg = cfg.reality;
 
@@ -102,26 +110,28 @@ let
     ++ tunnelInbounds;
 
     outbounds =
-      (lib.concatMap (
-        t:
-        [
-          # Primary candidate (per-transport port, TCP/443 by default).
-          (t.mkClientOutbound {
-            cfg = cfg.${t.name};
-            inherit realityCfg;
-          })
-        ]
-        ++ lib.optionals backupEnabled [
-          # Backup candidate on backupPort (e.g. TCP/2053).
-          (t.mkClientOutbound {
-            cfg = cfg.${t.name} // {
-              port = cfg.backupPort;
-            };
-            inherit realityCfg;
-            tag = backupOutboundTag t;
-          })
-        ]
-      ) enabledTransports)
+      (map fragmentClientHelloOutbound (
+        lib.concatMap (
+          t:
+          [
+            # Primary candidate (per-transport port, TCP/443 by default).
+            (t.mkClientOutbound {
+              cfg = cfg.${t.name};
+              inherit realityCfg;
+            })
+          ]
+          ++ lib.optionals backupEnabled [
+            # Backup candidate on backupPort (e.g. TCP/2053).
+            (t.mkClientOutbound {
+              cfg = cfg.${t.name} // {
+                port = cfg.backupPort;
+              };
+              inherit realityCfg;
+              tag = backupOutboundTag t;
+            })
+          ]
+        ) enabledTransports
+      ))
       ++ [
         {
           protocol = "freedom";

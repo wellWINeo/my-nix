@@ -100,6 +100,12 @@ in
   options.roles.xray = {
     enable = mkEnableOption "xray proxy";
 
+    fragmentClientHello = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Fragment ClientHello messages on outgoing VLESS connections";
+    };
+
     _serverConfig = mkOption {
       type = types.attrs;
       internal = true;

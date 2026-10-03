@@ -68,6 +68,29 @@ in
       description = "Tailnet hosts scraped by this VictoriaMetrics via the node job";
     };
 
+    remoteScrapeJobs = mkOption {
+      type = types.listOf (
+        types.submodule {
+          options = {
+            name = mkOption {
+              type = types.str;
+              description = "Scrape job name";
+            };
+            host = mkOption {
+              type = types.str;
+              description = "Hostname label; also the MagicDNS name prefix (<host>.<tailnetDomain>)";
+            };
+            port = mkOption {
+              type = types.port;
+              description = "Metrics port on the agent";
+            };
+          };
+        }
+      );
+      default = [ ];
+      description = "Cross-host service metrics scraped by this VictoriaMetrics via dedicated jobs";
+    };
+
     scrapeJobs = mkOption {
       type = types.listOf scrapeJobType;
       default = [ ];

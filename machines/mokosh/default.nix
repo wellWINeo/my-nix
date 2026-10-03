@@ -55,11 +55,11 @@ in
       { host = "buyan"; }
       { host = "nixpi"; }
     ];
-    scrapeJobs = [
+    remoteScrapeJobs = [
       {
         name = "coredns";
-        target = "nixpi.ts:9153";
         host = "nixpi";
+        port = 9153;
       }
     ];
   };

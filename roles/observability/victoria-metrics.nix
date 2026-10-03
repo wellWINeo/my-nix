@@ -30,7 +30,16 @@ let
           labels.host = job.host;
         }
       ];
-    }) cfg.scrapeJobs;
+    }) cfg.scrapeJobs
+    ++ map (job: {
+      job_name = job.name;
+      static_configs = [
+        {
+          targets = [ "${job.host}.${config.roles.vpn.tailnetDomain}:${toString job.port}" ];
+          labels.host = job.host;
+        }
+      ];
+    }) cfg.remoteScrapeJobs;
 in
 {
   config = mkIf cfg.enable {

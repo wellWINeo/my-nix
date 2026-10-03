@@ -101,6 +101,12 @@ in
 - **Variables**: camelCase for local vars
 - **Hostnames**: lowercase (e.g., `mokosh`, `nixpi`)
 
+### Self-Contained Roles
+
+- A role owns its service configuration end to end: listeners, firewall rules for its own ports, native metrics endpoints, and its scrape-job registration. Machine configs only enable roles and set their inputs.
+- Never write internal registries (such as `roles.observability.scrapeJobs`) from machine configs; the owning role registers its own jobs.
+- Cross-host metrics scraping is declared only on the collecting host through the observability pull-side options (`remoteAgents`, `remoteScrapeJobs`). These carry host/port facts, not service setup.
+
 ### Roles Auto-Import Pattern
 
 Roles are auto-discovered via `roles/default.nix`, which recursively collects all `.nix` files and directories containing `default.nix`. Machine configs import the entire `roles/` directory — **do not import individual role files**.

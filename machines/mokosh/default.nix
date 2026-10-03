@@ -53,6 +53,14 @@ in
     remoteAgents = [
       { host = "veles"; }
       { host = "buyan"; }
+      { host = "nixpi"; }
+    ];
+    remoteScrapeJobs = [
+      {
+        name = "coredns";
+        host = "nixpi";
+        port = 9153;
+      }
     ];
   };
 

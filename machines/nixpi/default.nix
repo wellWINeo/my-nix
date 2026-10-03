@@ -98,7 +98,10 @@ in
     openFirewall = true;
     useLocalDNS = true;
     ipAddress = ip;
+    metrics.enable = true;
   };
+
+  roles.observability.agent.enable = true;
 
   roles.dhcp = {
     enable = true;

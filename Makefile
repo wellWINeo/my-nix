@@ -51,6 +51,18 @@ dns\:plan:
 dns\:apply:
 	nix run .#dns-apply -- --confirm
 
+# Provision a proxy VPS from a live ISO. HOST/IP must be passed on the
+# command line (make exports them as environment variables); the allowlist
+# guard runs before nix develop evaluates anything.
+.PHONY: provision
+provision:
+	@case "$${HOST:-}" in \
+		buyan|veles|stribog) ;; \
+		*) echo "provision: unsupported HOST '$${HOST:-}' (supported: buyan, veles, stribog)" >&2; \
+		   echo "usage: make provision HOST=<buyan|veles|stribog> IP=<target-ipv4>" >&2; exit 1 ;; \
+	esac
+	nix develop .#provision -c ./provision/install.sh
+
 switch:
 	@sudo nixos-rebuild switch --flake "path:.#$(shell hostname)"
 

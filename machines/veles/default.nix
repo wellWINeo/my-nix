@@ -19,21 +19,12 @@ in
     ../../common/server.nix
     ../../hardware/vm.nix
     ../../roles
+    ./disk.nix
   ];
 
   boot = {
-    loader.grub.device = "/dev/sda";
-
     # ipv6 on twc has poor performance
     kernel.sysctl."net.ipv6.conf.all.disable_ipv6" = 1;
-  };
-
-  # disk layout
-  fileSystems = {
-    "/" = {
-      device = "/dev/disk/by-label/NIXROOT";
-      fsType = "ext4";
-    };
   };
 
   swapDevices = [

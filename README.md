@@ -9,6 +9,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 | `mokosh` | VPS | 1 CPU, 2GB RAM | Main server — website, mail, VPN, vault, blog, RSS, calibre, backup |
 | `veles` | VPS | 1 CPU, 1GB RAM (RU) | Xray relay, mtproxy, stream-forwarder to mokosh |
 | `buyan` | VPS | 1 CPU, 1GB RAM (NL) | Xray server (entry point) |
+| `stribog` | VPS | 1 CPU, 1GB RAM (RU, Timeweb) | Xray server (entry point, pilot for nixos-anywhere provisioning) |
 | `nixpi` | Raspberry Pi 4 | Home server | Media, NAS, DNS, DHCP, photos, torrent |
 | macOS | MacBook Pro | — | Standalone home-manager configs (alacritty, neovim, tmux, coding agents) |
 
@@ -22,6 +23,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   ├── mokosh/              # Main VPS
 │   ├── veles/               # Russian relay VPS
 │   ├── buyan/               # Netherlands entry VPS
+│   ├── stribog/             # Timeweb entry VPS
 │   └── nixpi/               # Raspberry Pi 4
 ├── roles/                   # Reusable service modules (auto-discovered)
 │   ├── default.nix          # Auto-discovers all roles recursively
@@ -157,6 +159,7 @@ make setup-dummy-secrets # Copy placeholder secrets (for CI/agents)
 | `make apply:home` | Apply home-manager config for current user@hostname |
 | `make apply:home:ATTR` | Apply specific home-manager config by attribute name |
 | `make fmt` | Format all Nix files |
+| `make provision HOST=H IP=IP` | Install a proxy VPS from a NixOS live ISO (see below) |
 
 ## Roles System
 
@@ -223,6 +226,113 @@ sudo make switch
 The image is generic — the same artifact can bootstrap any x86_64 NixOS
 machine in this flake. The `make switch` step picks the machine config from
 `$(hostname)`.
+
+## Provisioning a proxy VPS from a NixOS live ISO
+
+New proxy VPSes are installed from a remotely accessible NixOS live ISO with
+`provision/install.sh`, a guarded wrapper around `nixos-anywhere`. **The
+target disk is destroyed.** The pilot host is `stribog`; `buyan` and `veles`
+share the same workflow but have not been run against a real machine.
+
+### Prerequisites
+
+- A NixOS live ISO booted on the VPS with network up. On the ISO console:
+  `passwd nixos` (short-lived SSH password for the installer).
+- A controller with Nix (flakes) and GPG.
+- Locally decrypted secrets: `make unlock` — only if `secrets/secrets.json`
+  and `secrets/unlocked/` are not already unlocked.
+- The ISO's ED25519 SSH host-key fingerprint, read from the provider console
+  (out-of-band, not from the network).
+
+### Run it
+
+```bash
+make provision HOST=stribog IP=<ISO-IP>
+```
+
+`HOST` is one of `buyan`, `veles`, `stribog`; `IP` is the live ISO's IPv4
+address.
+
+### What is checked before anything destructive
+
+In order, the wrapper refuses to continue unless all of these pass:
+
+1. **Local preflight** — `secrets/secrets.json` is present and JSON-shaped,
+   `secrets/unlocked/spec.txt` exists, every required unlocked file is present
+   (`xray-reality-private-key` and `tailscale-auth-key` on buyan/stribog;
+   veles also needs `hysteria-veles-key` and `hysteria-veles-cert`) with a
+   spec entry for the host or `*`, the hostname filter leaves a non-empty
+   Xray user list, and the target disk evaluates from the flake.
+2. **ISO trust gate** — the ISO's scanned ED25519 fingerprint must exactly
+   match the value typed from the provider console; the scanned key is then
+   pinned for the wrapper's own SSH connections.
+3. **Live-ISO hardware preflight** — BIOS boot (UEFI is refused), the target
+   disk exists as a whole disk, and it is big enough (16 GiB for buyan,
+   8 GiB for veles/stribog; both leave room for the 2 GiB swapfile). The
+   disk's path, size, and partition table are printed.
+4. **Typed confirmation** — the hostname and the disk path must be retyped
+   exactly. After this, every byte on that disk is destroyed.
+
+### Two-phase install
+
+The wrapper runs `nixos-anywhere` in two phases with one temporary installer
+key (bootstrapped to root on the ISO via the `nixos` password):
+
+- **Phase A** (`--phases disko`): partition and format the disk, verify
+  `/mnt`, then create a 2 GiB `/.swapfile` on the mounted target so the 1 GB
+  VPS can build its closure remotely.
+- **Phase B** (`--phases install,reboot --build-on remote`): install the full
+  configuration with the host's staged secrets (`--extra-files`), then reboot.
+
+A failed phase never retries Disko on its own. If Phase A fails, the disk may
+be partially partitioned — inspect the still-running live ISO first (provider
+console or SSH: `lsblk`, `mount`, `journalctl`, install logs) before doing
+anything else.
+
+### Recovery: --resume-install
+
+If Disko completed but the install phase failed, resume **without
+repartitioning** (direct invocation, not via make):
+
+```bash
+HOST=<host> IP=<ip> nix develop .#provision -c ./provision/install.sh --resume-install
+```
+
+Resume repeats the fingerprint gate and the installer-key bootstrap (you type
+the `nixos` password again), then requires the live ISO to still be booted
+with the target root mounted at `/mnt` (remount it from the provider console
+if needed, e.g. `mount /dev/disk/by-label/NIXROOT /mnt`). If ISO SSH is lost,
+reach the machine through the provider console first.
+
+### After install
+
+The installed system has password SSH login disabled; log in as the operator:
+
+```bash
+ssh o__ni@<ip>
+```
+
+Expect **two SSH host-key transitions**: the fresh ISO has its own new host
+key (the fingerprint you confirmed from the console), and the installed
+system generates another new key on first boot. On the first post-install
+login, verify the new fingerprint in the provider console before accepting
+it — do not blindly delete the old `known_hosts` entry. The wrapper's
+post-reboot SSH check is informational only.
+
+### Honest limitations
+
+- `nixos-anywhere` itself disables SSH host-key verification internally
+  (`StrictHostKeyChecking=no`). The wrapper verifies the ISO fingerprint
+  out-of-band once, before any destructive action, but cannot enforce
+  per-connection checking inside nixos-anywhere.
+- Decrypted secrets are already included in `path:.` flake snapshots and end
+  up in the remote Nix store. This installer does not change that model.
+- `buyan` and `veles` are installable by config but have **not** been
+  deployed or runtime-tested this way — the pilot is `stribog` only.
+- A real proxy smoke test on `stribog` also needs at least one `singBoxUser`
+  whose `hosts` includes `stribog`. The wrapper refuses to install a host
+  whose filtered user list is empty, but an installed Xray with zero real
+  users is still not a working proxy.
 
 ## Adding a New Role
 

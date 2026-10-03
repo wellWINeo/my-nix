@@ -35,6 +35,7 @@ in
   config = mkIf cfg.enable {
     networking = {
       firewall.allowedUDPPorts = optionals cfg.openFirewall [ 53 ];
+      firewall.interfaces."tailscale0".allowedTCPPorts = [ 9153 ];
       nameservers = optionals cfg.useLocalDNS [ "127.0.0.1" ];
     };
 
@@ -42,6 +43,7 @@ in
       enable = true;
       config = ''
         . {
+          prometheus 0.0.0.0:9153
           errors
           log
           cache {
@@ -49,6 +51,30 @@ in
             denial 2500 1800 30
             prefetch 10 1m 10%
             serve_stale 1h
+          }
+
+          forward ru 127.0.0.1:9058 127.0.0.1:9055 127.0.0.1:9057 {
+            policy sequential
+            health_check 5s
+            max_fails 2
+            failfast_all_unhealthy_upstreams
+            failover SERVFAIL REFUSED
+          }
+
+          forward su 127.0.0.1:9058 127.0.0.1:9055 127.0.0.1:9057 {
+            policy sequential
+            health_check 5s
+            max_fails 2
+            failfast_all_unhealthy_upstreams
+            failover SERVFAIL REFUSED
+          }
+
+          forward xn--p1ai 127.0.0.1:9058 127.0.0.1:9055 127.0.0.1:9057 {
+            policy sequential
+            health_check 5s
+            max_fails 2
+            failfast_all_unhealthy_upstreams
+            failover SERVFAIL REFUSED
           }
 
           forward . 127.0.0.1:9055 127.0.0.1:9057 127.0.0.1:9058 {
@@ -62,6 +88,7 @@ in
         }
 
         home {
+          prometheus 0.0.0.0:9153
           hosts {
             ${cfg.ipAddress} photos.home 
             ${cfg.ipAddress} torrent.home 
@@ -107,7 +134,7 @@ in
 
         # fallbacks to provider's dns servers :(
         .:9058 {
-          forward . dns://217.10.32.5 dns://217.10.35.5 {
+          forward . dns://217.10.32.5 dns://217.10.35.5 dns://217.10.32.100 {
             max_fails 3
           }
         }

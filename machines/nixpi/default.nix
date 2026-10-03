@@ -100,6 +100,8 @@ in
     ipAddress = ip;
   };
 
+  roles.observability.agent.enable = true;
+
   roles.dhcp = {
     enable = true;
     openFirewall = true;

@@ -90,8 +90,8 @@ in
         message = "roles.xray.metrics.listen must be a loopback address (127.0.0.0/8 or [::1]) with a numeric port";
       }
       {
-        assertion = config.roles.xray.enable && config.roles.xray.server.enable;
-        message = "roles.xray.metrics requires roles.xray server mode";
+        assertion = config.roles.xray.server.enable || config.roles.xray.relay.enable;
+        message = "roles.xray.metrics requires roles.xray server or relay mode";
       }
       {
         assertion = config.roles.observability.agent.enable;
@@ -99,16 +99,9 @@ in
       }
     ];
 
-    roles.xray._extraConfig = {
-      metrics.listen = cfg.listen;
-      stats = { };
-      policy.system = {
-        statsInboundUplink = true;
-        statsInboundDownlink = true;
-        statsOutboundUplink = true;
-        statsOutboundDownlink = true;
-      };
-    };
+    # The coordinator merges metrics.listen/stats/policy into the active
+    # mode's complete config template when metrics is enabled; no fragment
+    # option is used.
 
     systemd.services.xray-metrics-collector = {
       description = "Xray expvar to textfile collector";

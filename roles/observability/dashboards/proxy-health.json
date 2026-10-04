@@ -689,8 +689,8 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "xray_observatory_alive{host=\"veles\",outbound=\"reverse-buyan-out\"}",
-                        "legendFormat": "reverse-buyan-out (veles)",
+                        "expr": "xray_observatory_alive{host=\"veles\",outbound=~\"reverse-raw-out|reverse-xhttp-out\"}",
+                        "legendFormat": "reverse-{raw,xhttp}-out (veles)",
                         "range": true
                       },
                       "version": "v0"
@@ -703,7 +703,7 @@
               "transformations": []
             }
           },
-          "description": "Veles observatory probe via the dynamic reverse outbound: 1 = healthy, 0 = unhealthy. No series means the outbound or telemetry is absent, not that it is healthy; this is not a connection count.",
+          "description": "Veles observatory probes of the dynamically registered reverse outbounds (reverse-raw-out, reverse-xhttp-out): 1 = healthy, 0 = unhealthy. No series means the outbound or telemetry is absent, not that it is healthy; this is not a connection count.",
           "id": 14,
           "links": [],
           "title": "Reverse path probe (Veles)",
@@ -810,7 +810,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-buyan-out|reverse-veles-client|reverse-public-out\"}[$__rate_interval]))",
+                        "expr": "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))",
                         "legendFormat": "{{outbound}} up ({{host}})",
                         "range": true
                       },
@@ -831,7 +831,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-buyan-out|reverse-veles-client|reverse-public-out\"}[$__rate_interval]))",
+                        "expr": "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))",
                         "legendFormat": "{{outbound}} down ({{host}})",
                         "range": true
                       },
@@ -845,7 +845,7 @@
               "transformations": []
             }
           },
-          "description": "Xray outbound bytes per second: Veles reverse-buyan-out, Buyan reverse-veles-client (link) and reverse-public-out (public egress). Up/down are relative to each outbound; no traffic is not proof that the link is down.",
+          "description": "Xray outbound bytes per second: Veles reverse-raw-out/reverse-xhttp-out (link), Buyan bridge-raw-out/bridge-xhttp-out (link) and reverse-public-out (public egress). Up/down are relative to each outbound; no traffic is not proof that the link is down.",
           "id": 15,
           "links": [],
           "title": "Reverse traffic by outbound",

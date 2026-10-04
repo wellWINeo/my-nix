@@ -126,12 +126,7 @@
         specialArgs = inputs;
         modules = [
           {
-            nixpkgs.overlays = (import ./overlays) ++ [
-              (final: prev: {
-                telemt = nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.telemt;
-              })
-              xrayOverlay
-            ];
+            nixpkgs.overlays = (import ./overlays) ++ [ xrayOverlay ];
           }
           ./machines/veles
           ./users/o__ni

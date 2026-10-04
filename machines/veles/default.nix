@@ -10,6 +10,9 @@ let
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   selectProxyUser = import ../../common/select-proxy-user.nix;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
+  # Reverse-link identity (Buyan-initiated bridge), selected from the same
+  # host-filtered list the relay advertises to ordinary clients.
+  reverseUser = selectProxyUser "buyan" users;
   relayUser = selectProxyUser hostname secrets.singBoxUsers;
 in
 {
@@ -71,37 +74,33 @@ in
 
   roles.xray.metrics.enable = true;
 
-  roles.xray = {
+  # Sole xray mode on veles: the relay portal. Ordinary clients keep the
+  # existing relay SNIs/ports; egress goes out through Buyan via the
+  # Buyan-initiated reverse links. The full forward target tree stays
+  # configured (inert) for a manual rollback via egress.via = "forward".
+  roles.xray.relay = {
     enable = true;
-    server = {
-      enable = true;
+    ingress = {
       users = users;
-      reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
-      vlessTcp = {
-        enable = true;
-        sni = "mapi.vk.ru";
+      reality = {
+        privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+        shortIds = secrets.xray.reality.shortIds;
       };
-      vlessGrpc = {
-        enable = true;
-        sni = "api.vk.ru";
+      vless = {
+        raw = {
+          enable = true;
+          sni = "api.oneme.ru";
+        };
+        grpc = {
+          enable = true;
+          sni = "avatars.mds.yandex.net";
+        };
+        xhttp = {
+          enable = true;
+          sni = "onlymir.ru"; # xhttp.path defaults to "/vl-xhttp"
+        };
       };
-      vlessXhttp = {
-        enable = true;
-        sni = "vk.ru";
-      };
-    };
-    # Buyan-initiated reverse link: tag the existing xHTTP client for the
-    # portal. Relay routing stays unchanged until the approved cutover.
-    reverse.portal.enable = true;
-    relay = {
-      enable = true;
-      users = users;
-      socks.enable = true;
-
-      vlessTcp.sni = "api.oneme.ru";
-      vlessGrpc.sni = "avatars.mds.yandex.net";
-      vlessXhttp.sni = "onlymir.ru";
-      hysteria = {
+      hysteria2 = {
         enable = true;
         port = 443;
         sni = "turn.webrtc.yandex.net";
@@ -112,33 +111,40 @@ in
           url = "https://turn.webrtc.yandex.net";
         };
       };
-      user = relayUser;
-      target = {
+    };
+    egress = {
+      via = "reverse";
+      reverse.user = reverseUser;
+      forward = {
+        user = relayUser;
         server = secrets.ip.buyan.address;
-        # Paired relay candidates: primary TCP/443 + backup TCP/2053 (the
-        # REDIRECTed SNI-router port on buyan).
+        # Paired forward candidates: primary TCP/443 + backup TCP/2053 (the
+        # REDIRECTed SNI-router port on buyan). Inert while via = "reverse".
         backupPort = 2053;
         reality = {
           publicKey = secrets.xray.reality.publicKey;
-          shortId = builtins.head (secrets.xray.reality.shortIds);
-          fingerprint = "randomized";
+          shortId = builtins.head secrets.xray.reality.shortIds;
+          fingerprint = "randomized"; # preserved, not newly recommended
         };
-        vlessTcp = {
-          enable = true;
-          serverName = "ghcr.io";
+        vless = {
+          raw = {
+            enable = true;
+            serverName = "ghcr.io";
+          };
+          grpc = {
+            enable = true;
+            serverName = "update.googleapis.com";
+          };
+          xhttp = {
+            enable = true;
+            serverName = "dl.google.com";
+          };
         };
-        vlessGrpc = {
-          enable = true;
-          serverName = "update.googleapis.com";
-        };
-        vlessXhttp = {
-          enable = true;
-          serverName = "dl.google.com";
-        };
-        hysteria = {
+        hysteria2 = {
           enable = false;
           serverName = "bing.com";
           insecure = true;
+          certificateFingerprint = null;
           port = 36712;
         };
       };
@@ -148,15 +154,6 @@ in
   # Public TCP/2053 reaches the existing SNI-router listener on TCP/443
   # via a host-firewall PREROUTING REDIRECT.
   roles.sni-router.redirectPorts = [ 2053 ];
-
-  roles.mtproxy = {
-    enable = true;
-    useMiddleProxy = false;
-    tls.domain = "api.ok.ru";
-    port = 9102; # moved off 9100: node_exporter owns 9100 on agents
-    upstream = "127.0.0.1:1080";
-    users = secrets.mtproxy.users;
-  };
 
   services.tailscale = {
     enable = true;

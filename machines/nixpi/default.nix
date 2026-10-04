@@ -132,57 +132,42 @@ in
   };
 
   roles.xray = {
-    enable = true;
     client = {
       enable = true;
-      port = 1081;
-      backupPort = 2053;
-      openFirewall = true;
-      http.enable = true;
-      tunnels = [
-        {
-          listen = "127.0.0.1:5053";
-          target = "1.1.1.1:853";
-        }
-      ];
-
-      reality = {
-        enable = true;
-        publicKey = secrets.xray.reality.publicKey;
-        shortId = builtins.head secrets.xray.reality.shortIds;
-        serverName = "api.oneme.ru";
-        fingerprint = "randomized";
+      ingress = {
+        socks.port = 1081;
+        http.enable = true;
+        openFirewall = true;
+        tunnels = [
+          {
+            listen = "127.0.0.1:5053";
+            target = "1.1.1.1:853";
+          }
+        ];
       };
 
-      vlessTcp = {
-        enable = true;
+      egress = {
         server = secrets.ip.veles.address;
-        serverName = "api.oneme.ru";
-        auth = {
-          name = nixpiXrayUser.name;
-          uuid = nixpiXrayUser.uuid;
+        user = nixpiXrayUser;
+        backupPort = 2053;
+        reality = {
+          publicKey = secrets.xray.reality.publicKey;
+          shortId = builtins.head secrets.xray.reality.shortIds;
+          fingerprint = "randomized";
         };
-      };
-
-      vlessGrpc = {
-        enable = true;
-        server = secrets.ip.veles.address;
-        serverName = "avatars.mds.yandex.net";
-        serviceName = "VlGrpc";
-        auth = {
-          name = nixpiXrayUser.name;
-          uuid = nixpiXrayUser.uuid;
-        };
-      };
-
-      vlessXhttp = {
-        enable = true;
-        server = secrets.ip.veles.address;
-        serverName = "onlymir.ru";
-        path = "/vl-xhttp";
-        auth = {
-          name = nixpiXrayUser.name;
-          uuid = nixpiXrayUser.uuid;
+        vless = {
+          raw = {
+            enable = true;
+            serverName = "api.oneme.ru";
+          };
+          grpc = {
+            enable = true;
+            serverName = "avatars.mds.yandex.net";
+          };
+          xhttp = {
+            enable = true;
+            serverName = "onlymir.ru";
+          };
         };
       };
     };

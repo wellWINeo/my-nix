@@ -35,9 +35,7 @@ let
   hysteriaRelayInboundEnabled = cfg.relay.enable && relayCfg.hysteria.enable;
   hysteriaInboundEnabled = hysteriaServerEnabled || hysteriaRelayInboundEnabled;
 
-  # The Buyan-initiated reverse link (portal on Veles, bridge on Buyan) is the
-  # only consumer of the dedicated reverse UUID credential.
-  reverseCredentialEnabled = cfg.reverse.portal.enable || cfg.reverse.bridge.enable;
+  reverseEnabled = cfg.reverse.portal.enable || cfg.reverse.bridge.enable;
 
   serverConfig = if cfg.server.enable then cfg._serverConfig else emptyConfig;
   relayConfig = if cfg.relay.enable then cfg._relayConfig else emptyConfig;
@@ -69,8 +67,7 @@ let
   # Buyan-initiated reverse link (bridge side). Uses the simplified VLESS
   # settings shape (address/port/id/encryption/reverse at the settings level):
   # Xray 26.9.9's VLESS parser rejects `reverse` inside the vnext[].users[]
-  # shape, so this outbound must not use mkVnextOutbound. The id is a template
-  # placeholder replaced at runtime from the reverse-uuid credential.
+  # shape, so this outbound must not use mkVnextOutbound.
   reverseBridgeOutbound =
     let
       outbound = {
@@ -79,7 +76,7 @@ let
         settings = {
           address = cfg.reverse.bridge.address;
           port = 443;
-          id = "00000000-0000-4000-8000-000000000001";
+          id = cfg.reverse.uuid;
           encryption = "none";
           reverse.tag = "reverse-veles-in";
         };
@@ -242,10 +239,10 @@ in
         };
       };
 
-      uuidFile = mkOption {
-        type = types.path;
-        default = "/etc/nixos/secrets/xray-reverse-uuid";
-        description = "Installed reverse UUID credential file";
+      uuid = mkOption {
+        type = types.str;
+        default = "";
+        description = "UUID of the Veles-authorized buyan user for the reverse link";
       };
     };
   };
@@ -263,6 +260,14 @@ in
       {
         assertion = !(cfg.reverse.portal.enable && cfg.reverse.bridge.enable);
         message = "roles.xray.reverse.portal and roles.xray.reverse.bridge cannot be enabled on the same host";
+      }
+      {
+        assertion =
+          !reverseEnabled
+          ||
+            builtins.match "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" cfg.reverse.uuid
+            != null;
+        message = "roles.xray.reverse.uuid must be a UUID when portal or bridge is enabled";
       }
       {
         assertion = !cfg.reverse.portal.enable || cfg.server.enable;
@@ -313,7 +318,6 @@ in
         LoadCredential = [
           "private-key:${cfg.server.reality.privateKeyFile}"
         ]
-        ++ lib.optional reverseCredentialEnabled "reverse-uuid:${cfg.reverse.uuidFile}"
         ++ lib.optional hysteriaServerEnabled "hysteria-cert:${serverHysteriaCfg.certFile}"
         ++ lib.optional hysteriaServerEnabled "hysteria-key:${serverHysteriaCfg.keyFile}"
         ++ lib.optional hysteriaRelayInboundEnabled "hysteria-relay-cert:${relayCfg.hysteria.certFile}"
@@ -339,17 +343,6 @@ in
               relayCert="$CREDENTIALS_DIRECTORY/hysteria-relay-cert"
               relayKey="$CREDENTIALS_DIRECTORY/hysteria-relay-key"
             '';
-
-          # The reverse UUID is a secret: it is read into a variable,
-          # validated, and passed to jq without ever being printed.
-          reverseCredentialRead = lib.optionalString reverseCredentialEnabled ''
-            reverseId="$(cat "$CREDENTIALS_DIRECTORY/reverse-uuid")"
-            reverseId="''${reverseId%$'\n'}"
-            if ! [[ "$reverseId" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-              echo "xray: reverse UUID credential missing or malformed" >&2
-              exit 1
-            fi
-          '';
         in
         ''
           set -euo pipefail
@@ -357,9 +350,8 @@ in
           configFile="$(mktemp)"
 
           privateKey="$(cat "$CREDENTIALS_DIRECTORY/private-key")"
-          cert="" certKey="" relayCert="" relayKey="" reverseId=""
+          cert="" certKey="" relayCert="" relayKey=""
           ${hysteriaCredentialPaths}
-          ${reverseCredentialRead}
           cat ${configTemplateFile} \
             | jq \
                 --arg privateKey "$privateKey" \
@@ -367,7 +359,6 @@ in
                 --arg certKey "$certKey" \
                 --arg relayCert "$relayCert" \
                 --arg relayKey "$relayKey" \
-                --arg reverseId "$reverseId" \
                 '.inbounds[] |=
                   if (.streamSettings.security // "") == "reality" then
                     .streamSettings.realitySettings.privateKey = $privateKey
@@ -376,10 +367,7 @@ in
                     .streamSettings.tlsSettings.certificates[0] = {certificateFile: $relayCert, keyFile: $relayKey}
                   else
                     .streamSettings.tlsSettings.certificates[0] = {certificateFile: $cert, keyFile: $certKey}
-                  end
-                | (.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] |
-                   select(.reverse.tag? == "reverse-buyan-out") | .id) = $reverseId
-                | (.outbounds[] | select(.tag == "reverse-veles-client") | .settings.id) = $reverseId' \
+                  end' \
             > "$configFile"
 
           # Activation guard: refuse to launch an invalid rendered config.

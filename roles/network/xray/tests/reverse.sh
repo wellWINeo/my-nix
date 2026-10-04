@@ -22,6 +22,26 @@ printf '%s' "$buyan" | jq -e --argjson veles "$veles" '
   and (.outbounds[0].tag == "direct-out")
 ' >/dev/null
 
+# Both sides use the Veles-authorized buyan entry from singBoxUsers, but
+# Veles admits it only as a reverse client, not as an ordinary proxy user.
+reverseId=$(jq -er '[.singBoxUsers[] | select(.name == "buyan" and (.hosts | index("veles")))] | if length == 1 then .[0].uuid else error("expected one Veles-authorized buyan user") end' "${flake#path:}/secrets/secrets.dummy.json")
+printf '%s' "$veles" | jq -e --arg id "$reverseId" '
+  ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-buyan-out")] | length == 1)
+  and ([.inbounds[] | .settings.clients[]? | select(.id == $id)] | length == 1)
+' >/dev/null
+printf '%s' "$buyan" | jq -e --arg id "$reverseId" '
+  ([.outbounds[] | select(.tag == "reverse-veles-client") | .settings.id] == [$id])
+  and ([.inbounds[] | .settings.clients[]? | select(.id == $id)] | length == 0)
+' >/dev/null
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; users = f.nixosConfigurations.veles.config.roles.xray;
+in { server = users.server.users; relay = users.relay.users; }
+' | jq -e --arg id "$reverseId" '[.server[], .relay[]] | all(.[]; .uuid != $id)' >/dev/null
+for host in veles buyan; do
+  nix eval --json "$flake#nixosConfigurations.$host.config.systemd.services.xray.serviceConfig.LoadCredential" |
+    jq -e 'all(.[]; startswith("reverse-uuid:") | not)' >/dev/null
+done
+
 # Cutover-mode checks: evaluate roles.xray.relay.useReverse = true as a
 # temporary extendModules override on the template (tracked host configs stay
 # in staging with useReverse unset/false).

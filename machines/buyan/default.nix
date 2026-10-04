@@ -6,7 +6,9 @@ let
   ip = (import ../../secrets).ip.buyan;
   secrets = import ../../secrets;
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
+  selectProxyUser = import ../../common/select-proxy-user.nix;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
+  reverseUser = selectProxyUser hostname (filterProxyUsersForHost "veles" secrets.singBoxUsers);
 in
 {
   imports = [
@@ -95,6 +97,7 @@ in
     };
     # Buyan-initiated reverse link: bridge + restricted public egress only.
     # No new public listeners; ordinary users and inbounds are unchanged.
+    reverse.uuid = reverseUser.uuid;
     reverse.bridge = {
       enable = true;
       address = secrets.ip.veles.address;

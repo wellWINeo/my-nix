@@ -1,9 +1,7 @@
 { lib, ... }:
 
 let
-  hostname = "buyan";
-  ifname = "ens3";
-  ip = (import ../../secrets).ip.buyan;
+  hostname = "stribog";
   secrets = import ../../secrets;
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
@@ -18,6 +16,11 @@ in
     ./disk.nix
   ];
 
+  boot = {
+    # ipv6 on twc has poor performance
+    kernel.sysctl."net.ipv6.conf.all.disable_ipv6" = 1;
+  };
+
   swapDevices = [
     {
       device = "/.swapfile";
@@ -28,24 +31,16 @@ in
   # network
   networking = {
     hostName = hostname;
-    useDHCP = false;
-    nameservers = [ "1.1.1.1" ];
+    useDHCP = true;
+    nameservers = [
+      "1.1.1.1"
+      "1.0.0.1"
+    ];
     firewall.enable = true;
-
-    interfaces."${ifname}" = {
-      ipv4.addresses = [
-        {
-          address = ip.address;
-          prefixLength = 24;
-        }
-      ];
-    };
-
-    defaultGateway = {
-      address = ip.gateway;
-      interface = ifname;
-    };
   };
+
+  services.qemuGuest.enable = true;
+  services.spice-vdagentd.enable = true;
 
   services.openssh.settings = {
     PermitRootLogin = "no";

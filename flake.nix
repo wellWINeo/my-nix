@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -133,6 +137,7 @@
               xrayOverlay
             ];
           }
+          inputs.disko.nixosModules.disko
           ./machines/veles
           ./users/o__ni
         ];
@@ -144,7 +149,20 @@
         specialArgs = inputs;
         modules = [
           { nixpkgs.overlays = [ xrayOverlay ]; }
+          inputs.disko.nixosModules.disko
           ./machines/buyan
+          ./users/o__ni
+        ];
+      };
+
+      # Timeweb VPS (new proxy host)
+      nixosConfigurations."stribog" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          { nixpkgs.overlays = [ xrayOverlay ]; }
+          inputs.disko.nixosModules.disko
+          ./machines/stribog
           ./users/o__ni
         ];
       };
@@ -216,6 +234,11 @@
               nixd
               actionlint
             ];
+          };
+
+          # opt-in provisioning shell for nixos-anywhere (see provision/install.sh)
+          provision = pkgs.mkShell {
+            nativeBuildInputs = [ pkgs.nixos-anywhere ];
           };
         }
       );

@@ -69,3 +69,15 @@ in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles
   modules = [ { roles.xray.server.vlessXhttp.enable = lib.mkForce false; } ];
 }).config.assertions)
 ' | jq -e 'any(.[]; contains("reverse.portal"))' >/dev/null
+
+# Dashboard queries must distinguish Veles probe health from reverse traffic
+# and show both directions without treating an absent probe as a healthy link.
+jq -e '
+  .spec as $s |
+  ($s.elements["panel-14"] | .spec.data.spec.queries[0].spec.query.spec.expr == "xray_observatory_alive{host=\"veles\",outbound=\"reverse-buyan-out\"}" and .spec.vizConfig.spec.fieldConfig.defaults.unit == "short")
+  and ($s.elements["panel-15"] | [.spec.data.spec.queries[].spec.query.spec.expr] == [
+    "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-buyan-out|reverse-veles-client|reverse-public-out\"}[$__rate_interval]))",
+    "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-buyan-out|reverse-veles-client|reverse-public-out\"}[$__rate_interval]))"
+  ] and .spec.vizConfig.spec.fieldConfig.defaults.unit == "Bps")
+  and any($s.layout.spec.rows[]; .spec.title == "xray reverse" and ([.spec.layout.spec.items[].spec.element.name] | sort == ["panel-14", "panel-15"]))
+' "${flake#path:}/roles/observability/dashboards/proxy-health.json" >/dev/null

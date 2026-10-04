@@ -29,6 +29,7 @@ let
   subsCfg = config.roles.xray.subscriptions;
 
   transportHelpers = import ./transports/lib.nix { inherit lib; };
+  selectProxyUser = import ../../../common/select-proxy-user.nix;
 
   serverHysteriaCfg = serverCfg.hysteria;
   hysteriaServerEnabled = cfg.server.enable && serverHysteriaCfg.enable;
@@ -241,7 +242,7 @@ in
 
       uuid = mkOption {
         type = types.str;
-        default = "";
+        default = if cfg.reverse.portal.enable then (selectProxyUser "buyan" serverCfg.users).uuid else "";
         description = "UUID of the Veles-authorized buyan user for the reverse link";
       };
     };

@@ -46,16 +46,17 @@ let
             inherit clients shortIds;
           };
         in
-        # Portal admission is xHTTP-only: the reverse client is appended to
-        # the server xHTTP inbound alone and must never appear in cfg.users.
+        # Mark the existing buyan client for reverse only on the server xHTTP
+        # inbound; ordinary user lists retain their host-based filtering.
         if t.name == "vlessXhttp" && config.roles.xray.reverse.portal.enable then
           lib.recursiveUpdate inbound {
-            settings.clients = inbound.settings.clients ++ [
-              {
-                id = config.roles.xray.reverse.uuid;
-                reverse.tag = "reverse-buyan-out";
-              }
-            ];
+            settings.clients = map (
+              client:
+              if client.id == config.roles.xray.reverse.uuid then
+                client // { reverse.tag = "reverse-buyan-out"; }
+              else
+                client
+            ) inbound.settings.clients;
           }
         else
           inbound

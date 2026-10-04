@@ -8,7 +8,7 @@ let
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   selectProxyUser = import ../../common/select-proxy-user.nix;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
-  reverseUser = selectProxyUser hostname (filterProxyUsersForHost "veles" secrets.singBoxUsers);
+  reverseUser = selectProxyUser hostname secrets.singBoxUsers;
 in
 {
   imports = [

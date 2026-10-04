@@ -9,10 +9,8 @@ let
   mokoshIp = secrets.ip.mokosh.address;
   filterProxyUsersForHost = import ../../common/filter-proxy-users.nix { inherit lib; };
   selectProxyUser = import ../../common/select-proxy-user.nix;
-  proxyUsers = filterProxyUsersForHost hostname secrets.singBoxUsers;
-  users = builtins.filter (u: (u.name or "") != "buyan") proxyUsers;
+  users = filterProxyUsersForHost hostname secrets.singBoxUsers;
   relayUser = selectProxyUser hostname secrets.singBoxUsers;
-  reverseUser = selectProxyUser "buyan" proxyUsers;
 in
 {
   imports = [
@@ -92,10 +90,9 @@ in
         sni = "vk.ru";
       };
     };
-    # Buyan-initiated reverse link: its user is admitted only on the portal
-    # xHTTP inbound. Relay routing stays unchanged until the approved cutover.
+    # Buyan-initiated reverse link: tag the existing xHTTP client for the
+    # portal. Relay routing stays unchanged until the approved cutover.
     reverse.portal.enable = true;
-    reverse.uuid = reverseUser.uuid;
     relay = {
       enable = true;
       users = users;

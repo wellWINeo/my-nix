@@ -372,8 +372,8 @@ in
             > "$configFile"
 
           # Activation guard: refuse to launch an invalid rendered config.
-          xray run -test -config "$configFile"
-          exec xray -config "$configFile"
+          xray run -test -format json -config "$configFile"
+          exec xray run -format json -config "$configFile"
         '';
     };
   };

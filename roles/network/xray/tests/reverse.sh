@@ -43,6 +43,11 @@ in { server = users.server.users; relay = users.relay.users; }
 for host in veles buyan; do
   nix eval --json "$flake#nixosConfigurations.$host.config.systemd.services.xray.serviceConfig.LoadCredential" |
     jq -e 'all(.[]; startswith("reverse-uuid:") | not)' >/dev/null
+
+  # mktemp creates an extensionless config; both CLI invocations must declare JSON.
+  script=$(nix eval --raw "$flake#nixosConfigurations.$host.config.systemd.services.xray.script")
+  grep -Fq 'xray run -test -format json -config "$configFile"' <<< "$script"
+  grep -Fq 'exec xray run -format json -config "$configFile"' <<< "$script"
 done
 
 # Cutover-mode checks: evaluate roles.xray.relay.useReverse = true as a

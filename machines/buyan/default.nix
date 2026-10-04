@@ -76,35 +76,46 @@ in
 
   roles.xray.metrics.enable = true;
 
-  roles.xray = {
+  # Sole xray mode on buyan: the public server. Public SNIs/ports are
+  # unchanged; the reverseBridge adds the two Buyan-initiated links to
+  # Veles's relay RAW/xHTTP portal (relay SNIs, not the retired direct SNIs).
+  roles.xray.server = {
     enable = true;
-    server = {
-      enable = true;
+    ingress = {
       users = users;
-      reality.privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
-      vlessTcp = {
-        enable = true;
-        sni = "ghcr.io";
+      reality = {
+        privateKeyFile = "/etc/nixos/secrets/xray-reality-private-key";
+        shortIds = secrets.xray.reality.shortIds;
       };
-      vlessGrpc = {
-        enable = true;
-        sni = "update.googleapis.com";
+      vless = {
+        raw = {
+          enable = true;
+          sni = "ghcr.io";
+        };
+        grpc = {
+          enable = true;
+          sni = "update.googleapis.com";
+        };
+        xhttp = {
+          enable = true;
+          sni = "dl.google.com";
+        };
       };
-      vlessXhttp = {
-        enable = true;
-        sni = "dl.google.com";
-      };
+      hysteria2.enable = false; # keep supported server mode
     };
-    # Buyan-initiated reverse link: bridge + restricted public egress only.
-    # No new public listeners; ordinary users and inbounds are unchanged.
-    reverse.uuid = reverseUser.uuid;
-    reverse.bridge = {
+    reverseBridge = {
       enable = true;
       address = secrets.ip.veles.address;
-      serverName = "vk.ru";
-      path = "/vl-xhttp";
-      publicKey = secrets.xray.reality.publicKey;
-      shortId = builtins.head secrets.xray.reality.shortIds;
+      user = reverseUser;
+      reality = {
+        publicKey = secrets.xray.reality.publicKey;
+        shortId = builtins.head secrets.xray.reality.shortIds;
+      };
+      vless = {
+        raw.serverName = "api.oneme.ru";
+        xhttp.serverName = "onlymir.ru";
+        # xhttp.path defaults to "/vl-xhttp"
+      };
     };
   };
 

@@ -1,9 +1,17 @@
 # roles/network/xray/relay.nix
 #
-# Defines roles.xray.relay options and exports _relayConfig fragment.
-# Relay inbounds are gated on the server's corresponding transport being
-# enabled (to reuse server's serviceName/path/shortIds). Relay outbounds
-# are gated independently via cfg.target.<transport>.enable.
+# Defines roles.xray.relay: the complete relay mode (Veles-style). Clients
+# enter through ingress (VLESS RAW/gRPC/xHTTP on the SNI-routed TCP/443
+# backends plus an optional Hysteria2 UDP inbound) and leave through egress:
+#   egress.via = "reverse" — the Buyan-initiated reverse links are selected by
+#     an observatory-backed leastPing balancer; the only static outbound is
+#     the blocked-out blackhole, so new requests fail closed when neither
+#     reverse link is healthy.
+#   egress.via = "forward" — manual rollback to the classic Veles-initiated
+#     forward candidates (primary TCP/443, optional backup port, optional
+#     Hysteria2), also falling back to blocked-out.
+# The reverse portal clients are advertised whenever egress.reverse.user is
+# set, independent of egress.via, so the bridge can connect before cutover.
 {
   config,
   lib,
@@ -14,275 +22,503 @@ with lib;
 
 let
   cfg = config.roles.xray.relay;
-  serverCfg = config.roles.xray.server;
-  secrets = import ../../../secrets;
-  transportHelpers = import ./transports/lib.nix { inherit lib; };
-  transports = import ./transports { inherit lib; };
+  vless = import ./vless.nix { inherit lib; };
   hysteria = import ./hysteria.nix { inherit lib; };
-  transportList = lib.attrValues transports;
 
-  shortIds = secrets.xray.reality.shortIds or [ ];
+  ingressCfg = cfg.ingress;
+  egressCfg = cfg.egress;
+  fwdCfg = egressCfg.forward;
 
-  fragmentClientHelloOutbound =
-    outbound:
-    if config.roles.xray.fragmentClientHello then
-      transportHelpers.withClientHelloFragmentation outbound
+  reverseUser = egressCfg.reverse.user;
+  hasReverseUser = reverseUser != null;
+
+  uuidFormat =
+    uuid:
+    builtins.match "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$" uuid
+    != null;
+
+  # The reverse user must appear exactly once in the host-filtered user list
+  # and is excluded from every ordinary client list (VLESS and Hysteria2).
+  reverseUserMatches = filter (u: u.uuid == reverseUser.uuid) ingressCfg.users;
+  normalUsers =
+    if hasReverseUser then
+      filter (u: u.uuid != reverseUser.uuid) ingressCfg.users
     else
-      outbound;
+      ingressCfg.users;
 
-  clients = {
-    withFlow = map (u: {
+  vlessClients = {
+    raw = map (u: {
       id = u.uuid;
       flow = "xtls-rprx-vision";
       email = "${u.name}@xray";
-    }) cfg.users;
-
-    noFlow = map (u: {
+    }) normalUsers;
+    plain = map (u: {
       id = u.uuid;
       email = "${u.name}@xray";
-    }) cfg.users;
+    }) normalUsers;
   };
 
-  enabledInbound = lib.filter (t: serverCfg.${t.name}.enable) transportList;
-  enabledOutbound = lib.filter (t: cfg.target.${t.name}.enable) transportList;
-  hyInboundEnabled = cfg.hysteria.enable;
-  hyOutboundEnabled = cfg.target.hysteria.enable;
+  # Reverse-marked portal clients: Xray registers a dynamic outbound under the
+  # client's reverse.tag once the bridge connects with this identity.
+  reverseClient =
+    tag: flow:
+    {
+      id = reverseUser.uuid;
+      email = "${reverseUser.name}@xray";
+      reverse.tag = tag;
+    }
+    // optionalAttrs (flow != null) { inherit flow; };
 
-  backupEnabled = cfg.target.backupPort != null;
+  ingressTransports = {
+    grpc = {
+      enable = ingressCfg.vless.grpc.enable;
+      sni = ingressCfg.vless.grpc.sni;
+      inbound = vless.mkInbound {
+        transport = "grpc";
+        tag = "vless-grpc-in";
+        port = 9011;
+        clients = vlessClients.plain;
+        sni = ingressCfg.vless.grpc.sni;
+        shortIds = ingressCfg.reality.shortIds;
+        serviceName = ingressCfg.vless.grpc.serviceName;
+      };
+    };
+    raw = {
+      enable = ingressCfg.vless.raw.enable;
+      sni = ingressCfg.vless.raw.sni;
+      inbound = vless.mkInbound {
+        transport = "raw";
+        tag = "vless-raw-in";
+        port = 9010;
+        clients =
+          vlessClients.raw
+          ++ optionals hasReverseUser [ (reverseClient "reverse-raw-out" "xtls-rprx-vision") ];
+        sni = ingressCfg.vless.raw.sni;
+        shortIds = ingressCfg.reality.shortIds;
+      };
+    };
+    xhttp = {
+      enable = ingressCfg.vless.xhttp.enable;
+      sni = ingressCfg.vless.xhttp.sni;
+      inbound = vless.mkInbound {
+        transport = "xhttp";
+        tag = "vless-xhttp-in";
+        port = 9012;
+        clients =
+          vlessClients.plain ++ optionals hasReverseUser [ (reverseClient "reverse-xhttp-out" null) ];
+        sni = ingressCfg.vless.xhttp.sni;
+        shortIds = ingressCfg.reality.shortIds;
+        path = ingressCfg.vless.xhttp.path;
+      };
+    };
+  };
+  enabledIngress = filter (t: t.enable) (attrValues ingressTransports);
+  hyIngressEnabled = ingressCfg.hysteria2.enable;
+  ingressTags =
+    (map (t: t.inbound.tag) enabledIngress) ++ optional hyIngressEnabled hysteria.relayInboundTag;
 
-  # Balancer selector tag of a transport's primary relay outbound; must match
-  # the builders' default relay tags ("relay-<name>-out").
-  relayOutboundTag = t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-out";
+  reverseMode = egressCfg.via == "reverse";
 
-  # Balancer selector tag of a transport's backup relay outbound.
-  backupOutboundTag = t: "relay-${lib.removePrefix "vless-" t.tagPrefix}-backup-out";
+  # --- Forward egress (manual rollback; inert while egress.via = "reverse") ---
+  realityClientSettings = serverName: {
+    publicKey = fwdCfg.reality.publicKey;
+    shortId = fwdCfg.reality.shortId;
+    inherit serverName;
+    fingerprint = fwdCfg.reality.fingerprint;
+  };
+
+  forwardTransports = {
+    grpc = {
+      tag = "forward-grpc";
+      enable = fwdCfg.vless.grpc.enable;
+      sni = fwdCfg.vless.grpc.serverName;
+      flow = null;
+      streamSettings = {
+        network = "grpc";
+        security = "reality";
+        realitySettings = realityClientSettings fwdCfg.vless.grpc.serverName;
+        grpcSettings.serviceName = fwdCfg.vless.grpc.serviceName;
+      };
+    };
+    raw = {
+      tag = "forward-raw";
+      enable = fwdCfg.vless.raw.enable;
+      sni = fwdCfg.vless.raw.serverName;
+      flow = "xtls-rprx-vision";
+      streamSettings = {
+        network = "tcp";
+        security = "reality";
+        realitySettings = realityClientSettings fwdCfg.vless.raw.serverName;
+      };
+    };
+    xhttp = {
+      tag = "forward-xhttp";
+      enable = fwdCfg.vless.xhttp.enable;
+      sni = fwdCfg.vless.xhttp.serverName;
+      flow = null;
+      streamSettings = {
+        network = "xhttp";
+        security = "reality";
+        realitySettings = realityClientSettings fwdCfg.vless.xhttp.serverName;
+        xhttpSettings.path = fwdCfg.vless.xhttp.path;
+      };
+    };
+  };
+  enabledForward = filter (t: t.enable) (attrValues forwardTransports);
+  hyForwardEnabled = fwdCfg.hysteria2.enable;
+  backupEnabled = fwdCfg.backupPort != null;
+
+  fragmentOutbound =
+    outbound:
+    if config.roles.xray.fragmentClientHello then
+      vless.withClientHelloFragmentation outbound
+    else
+      outbound;
+
+  forwardOutbounds =
+    concatMap (
+      t:
+      [
+        # Primary candidate (TCP/443 on the forward target).
+        (fragmentOutbound (
+          vless.mkRegularOutbound {
+            tag = "${t.tag}-out";
+            address = fwdCfg.server;
+            port = 443;
+            uuid = fwdCfg.user.uuid;
+            flow = t.flow;
+            streamSettings = t.streamSettings;
+          }
+        ))
+      ]
+      ++ optionals backupEnabled [
+        # Backup candidate on the configured backup port (e.g. TCP/2053, the
+        # REDIRECTed SNI-router port on the target host).
+        (fragmentOutbound (
+          vless.mkRegularOutbound {
+            tag = "${t.tag}-backup-out";
+            address = fwdCfg.server;
+            port = fwdCfg.backupPort;
+            uuid = fwdCfg.user.uuid;
+            flow = t.flow;
+            streamSettings = t.streamSettings;
+          }
+        ))
+      ]
+    ) enabledForward
+    ++ optional hyForwardEnabled (
+      hysteria.mkRelayOutbound {
+        cfg = fwdCfg.hysteria2;
+        user = fwdCfg.user;
+        serverAddr = fwdCfg.server;
+      }
+    );
+
+  forwardBalancerTags =
+    (map (t: "${t.tag}-out") enabledForward)
+    ++ optionals backupEnabled (map (t: "${t.tag}-backup-out") enabledForward)
+    ++ optional hyForwardEnabled hysteria.relayOutboundTag;
 
   relayConfig = {
+    log = {
+      loglevel = "info";
+    };
     inbounds =
-      lib.optionals cfg.socks.enable [
-        {
-          listen = "127.0.0.1";
-          port = cfg.socks.port;
-          protocol = "socks";
-          tag = "socks-relay-in";
-          settings = {
-            auth = "noauth";
-            udp = true;
-          };
-        }
-      ]
-      ++ map (
-        t:
-        t.mkRelayInbound {
-          cfg = cfg.${t.name};
-          serverCfg = serverCfg.${t.name};
-          inherit clients shortIds;
-        }
-      ) enabledInbound
-      ++ lib.optional hyInboundEnabled (
+      (map (t: t.inbound) enabledIngress)
+      ++ optional hyIngressEnabled (
         hysteria.mkRelayInbound {
-          cfg = cfg.hysteria;
-          inherit (cfg) users;
+          cfg = ingressCfg.hysteria2;
+          users = normalUsers;
         }
       );
-
-    outbounds =
-      (map fragmentClientHelloOutbound (
-        lib.concatMap (
-          t:
-          [
-            # Primary candidate (TCP/443 by builder default).
-            (t.mkRelayOutbound {
-              cfg = cfg.target.${t.name};
-              realityCfg = cfg.target.reality;
-              user = cfg.user;
-              serverAddr = cfg.target.server;
-            })
-          ]
-          ++ lib.optionals backupEnabled [
-            # Backup candidate on target.backupPort (e.g. TCP/2053).
-            (t.mkRelayOutbound {
-              cfg = cfg.target.${t.name};
-              realityCfg = cfg.target.reality;
-              user = cfg.user;
-              serverAddr = cfg.target.server;
-              port = cfg.target.backupPort;
-              tag = backupOutboundTag t;
-            })
-          ]
-        ) enabledOutbound
-      ))
-      ++ lib.optional hyOutboundEnabled (
-        hysteria.mkRelayOutbound {
-          cfg = cfg.target.hysteria;
-          inherit (cfg) user;
-          serverAddr = cfg.target.server;
-        }
-      );
-
+    outbounds = [
+      {
+        protocol = "blackhole";
+        tag = "blocked-out";
+      }
+    ]
+    ++ optionals (!reverseMode) forwardOutbounds;
     routing = {
-      rules =
-        lib.optionals cfg.socks.enable [
-          {
-            type = "field";
-            inboundTag = [ "socks-relay-in" ];
-            balancerTag = if cfg.useReverse then "reverse-first-balancer" else "relay-balancer";
-          }
-        ]
-        ++ lib.optionals (enabledInbound != [ ]) [
-          {
-            type = "field";
-            inboundTag =
-              (map (
-                t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
-              ) enabledInbound)
-              ++ lib.optional hyInboundEnabled hysteria.relayInboundTag;
-            balancerTag = if cfg.useReverse then "reverse-first-balancer" else "relay-balancer";
-          }
-        ];
+      rules = [
+        {
+          type = "field";
+          inboundTag = ingressTags;
+          balancerTag = if reverseMode then "reverse-balancer" else "forward-balancer";
+        }
+      ];
       balancers =
-        lib.optionals (enabledOutbound != [ ] || hyOutboundEnabled) [
+        optionals reverseMode [
           {
-            tag = "relay-balancer";
-            selector =
-              (map relayOutboundTag enabledOutbound)
-              ++ lib.optionals backupEnabled (map backupOutboundTag enabledOutbound)
-              ++ lib.optional hyOutboundEnabled hysteria.relayOutboundTag;
-            strategy = {
-              type = "leastPing";
-            };
+            tag = "reverse-balancer";
+            selector = [
+              "reverse-raw-out"
+              "reverse-xhttp-out"
+            ];
+            fallbackTag = "blocked-out";
+            strategy.type = "leastPing";
           }
         ]
-        # Reverse-first routing (opt-in): selects only the dynamically
-        # registered Buyan-initiated reverse outbound; fallbackTag must be a
-        # single outbound tag (relay-grpc-out). relay-balancer above stays
-        # unchanged for rollback.
-        ++ lib.optionals cfg.useReverse [
+        ++ optionals (!reverseMode) [
           {
-            tag = "reverse-first-balancer";
-            selector = [ "reverse-buyan-out" ];
-            fallbackTag = "relay-grpc-out";
-            strategy.type = "roundRobin";
+            tag = "forward-balancer";
+            selector = forwardBalancerTags;
+            fallbackTag = "blocked-out";
+            strategy.type = "leastPing";
           }
         ];
     };
-
-    nginxSniEntries = map (t: {
-      sni = cfg.${t.name}.sni;
-      port = t.relayPort;
-    }) enabledInbound;
+    observatory = {
+      subjectSelector = [ (if reverseMode then "reverse-" else "forward-") ];
+      probeURL = "https://www.google.com/generate_204";
+      probeInterval = "60s";
+    };
   };
 in
 {
   options.roles.xray.relay = {
-    enable = mkEnableOption "relay traffic to another xray server";
+    enable = mkEnableOption "relay clients to another xray host (Veles-style portal)";
 
-    useReverse = mkEnableOption "reverse-first routing for relay inbounds";
-
-    users = mkOption {
-      type = types.listOf types.attrs;
-      default = [ ];
-      description = "Proxy users to allow for relay inbounds. Each entry must have at least { name, uuid }.";
-    };
-
-    socks = {
-      enable = mkEnableOption "local SOCKS5 inbound for relay";
-      port = mkOption {
-        type = types.port;
-        default = 1080;
-        description = "SOCKS5 listen port on 127.0.0.1";
-      };
-    };
-
-    user = mkOption {
-      type = types.attrs;
-      description = "User credentials for authenticating to the target server ({ uuid, name, ... } from secrets.singBoxUsers)";
-    };
-
-    target = {
-      server = mkOption {
-        type = types.str;
-        description = "Target xray server IP or hostname";
-      };
-
-      backupPort = mkOption {
-        type = types.nullOr types.port;
-        default = null;
-        description = "Optional backup target port; when set, every enabled VLESS relay transport gets a second outbound candidate on it";
+    ingress = {
+      users = mkOption {
+        type = types.listOf types.attrs;
+        default = [ ];
+        description = "Proxy users allowed on relay inbounds. Each entry must have at least { name, uuid }; the reverse user is excluded from ordinary client lists by the role.";
       };
 
       reality = {
-        publicKey = mkOption {
-          type = types.str;
-          default = "";
-          description = "Target server's Reality public key";
+        privateKeyFile = mkOption {
+          type = types.path;
+          description = "Path to the REALITY private key file (injected at runtime via LoadCredential, not stored in the template)";
+          example = "/etc/nixos/secrets/xray-reality-private-key";
         };
-        shortId = mkOption {
-          type = types.str;
-          default = "";
-          description = "Authorized shortId";
-        };
-        serverName = mkOption {
-          type = types.str;
-          default = "";
-          description = "Fallback SNI";
-        };
-        fingerprint = mkOption {
-          type = types.str;
-          default = "chrome";
-          description = "uTLS fingerprint";
+        shortIds = mkOption {
+          type = types.listOf types.str;
+          default = [ ];
+          description = "Authorized REALITY short IDs for relay inbounds";
         };
       };
-    }
-    // lib.mapAttrs (_: t: t.relayTargetOptions) transports
-    // hysteria.relayTargetOptions;
-  }
-  // lib.mapAttrs (_: t: t.relayInboundOptions) transports
-  // hysteria.relayInboundOptions;
 
-  config = mkIf (config.roles.xray.enable && cfg.enable) {
+      vless = {
+        raw = {
+          enable = mkEnableOption "VLESS RAW (TCP+Vision) relay inbound";
+          sni = mkOption {
+            type = types.str;
+            default = "";
+            description = "REALITY SNI of the RAW relay inbound";
+          };
+        };
+        grpc = {
+          enable = mkEnableOption "VLESS gRPC relay inbound";
+          sni = mkOption {
+            type = types.str;
+            default = "";
+            description = "REALITY SNI of the gRPC relay inbound";
+          };
+          serviceName = mkOption {
+            type = types.str;
+            default = "VlGrpc";
+            description = "gRPC serviceName of the relay inbound";
+          };
+        };
+        xhttp = {
+          enable = mkEnableOption "VLESS xHTTP relay inbound";
+          sni = mkOption {
+            type = types.str;
+            default = "";
+            description = "REALITY SNI of the xHTTP relay inbound";
+          };
+          path = mkOption {
+            type = types.str;
+            default = "/vl-xhttp";
+            description = "xHTTP path of the relay inbound";
+          };
+        };
+      };
+
+      hysteria2 = hysteria.relayInboundOptions.hysteria;
+    };
+
+    egress = {
+      via = mkOption {
+        type = types.enum [
+          "forward"
+          "reverse"
+        ];
+        default = "forward";
+        description = "Where ordinary ingress traffic leaves: \"reverse\" routes through the Buyan-initiated reverse links behind the reverse-balancer; \"forward\" selects the classic Veles-initiated candidates (manual rollback). Never an automatic fallback.";
+      };
+
+      reverse = {
+        user = mkOption {
+          type = types.nullOr types.attrs;
+          default = null;
+          description = "Relay-authorized user entry ({ name, uuid, ... }) authenticated as the reverse portal client on the RAW and xHTTP inbounds. Its presence advertises the portal even while egress.via = \"forward\"; reverse mode requires it.";
+        };
+      };
+
+      forward = {
+        user = mkOption {
+          type = types.attrs;
+          description = "User credentials for authenticating to the forward target server ({ uuid, name, password, ... })";
+        };
+        server = mkOption {
+          type = types.str;
+          default = "";
+          description = "Forward target server IP or hostname";
+        };
+        backupPort = mkOption {
+          type = types.nullOr types.port;
+          default = null;
+          description = "Optional backup forward port; when set, every enabled VLESS forward transport gets a second candidate on it";
+        };
+        reality = {
+          publicKey = mkOption {
+            type = types.str;
+            default = "";
+            description = "Forward target's REALITY public key";
+          };
+          shortId = mkOption {
+            type = types.str;
+            default = "";
+            description = "Authorized shortId on the forward target";
+          };
+          fingerprint = mkOption {
+            type = types.str;
+            default = "chrome";
+            description = "uTLS fingerprint for forward candidates";
+          };
+        };
+        vless = {
+          raw = {
+            enable = mkEnableOption "forward candidate VLESS over direct TCP with Vision flow";
+            serverName = mkOption {
+              type = types.str;
+              default = "";
+              description = "REALITY SNI of the forward RAW target";
+            };
+          };
+          grpc = {
+            enable = mkEnableOption "forward candidate VLESS over gRPC";
+            serverName = mkOption {
+              type = types.str;
+              default = "";
+              description = "REALITY SNI of the forward gRPC target";
+            };
+            serviceName = mkOption {
+              type = types.str;
+              default = "VlGrpc";
+              description = "gRPC serviceName of the forward target";
+            };
+          };
+          xhttp = {
+            enable = mkEnableOption "forward candidate VLESS over xHTTP";
+            serverName = mkOption {
+              type = types.str;
+              default = "";
+              description = "REALITY SNI of the forward xHTTP target";
+            };
+            path = mkOption {
+              type = types.str;
+              default = "/vl-xhttp";
+              description = "xHTTP path of the forward target";
+            };
+          };
+        };
+        hysteria2 = hysteria.relayTargetOptions.hysteria;
+      };
+    };
+
+    _configTemplate = mkOption {
+      type = types.attrs;
+      internal = true;
+      default = { };
+      description = "The complete relay-mode config template JSON produced by this module";
+    };
+  };
+
+  config = mkIf cfg.enable {
     assertions = [
       {
-        assertion = config.roles.xray.server.enable;
-        message = "roles.xray.relay requires roles.xray.server to be enabled";
+        assertion = enabledIngress != [ ] || hyIngressEnabled;
+        message = "roles.xray.relay requires at least one enabled ingress transport (vless raw/grpc/xhttp or hysteria2)";
       }
       {
-        assertion = enabledOutbound != [ ];
-        message = "At least one relay target transport must be enabled (roles.xray.relay.target.<transport>.enable)";
+        assertion = all (t: !t.enable || t.sni != "") (attrValues ingressTransports);
+        message = "every enabled roles.xray.relay.ingress.vless.*.sni must be set";
       }
       {
-        assertion = cfg.socks.enable || enabledInbound != [ ];
-        message = "At least one relay inbound must be enabled: either socks.enable = true or at least one server transport must be active";
+        assertion = !ingressCfg.vless.grpc.enable || !(hasPrefix "/" ingressCfg.vless.grpc.serviceName);
+        message = "roles.xray.relay.ingress.vless.grpc.serviceName must not start with '/'";
+      }
+      {
+        assertion = !hasReverseUser || reverseUser ? uuid && reverseUser.uuid != "";
+        message = "roles.xray.relay.egress.reverse.user must have a uuid";
+      }
+      {
+        assertion = !hasReverseUser || uuidFormat reverseUser.uuid;
+        message = "roles.xray.relay.egress.reverse.user must have a valid UUID";
+      }
+      {
+        assertion = !hasReverseUser || reverseUser ? name;
+        message = "roles.xray.relay.egress.reverse.user must have a name";
+      }
+      {
+        assertion = !hasReverseUser || length reverseUserMatches == 1;
+        message = "roles.xray.relay: the reverse user must appear exactly once in roles.xray.relay.ingress.users";
+      }
+      {
+        assertion = !reverseMode || hasReverseUser;
+        message = "roles.xray.relay.egress.via = \"reverse\" requires roles.xray.relay.egress.reverse.user";
+      }
+      {
+        assertion =
+          reverseMode
+          || (
+            fwdCfg.user ? uuid
+            && fwdCfg.user.uuid != ""
+            && fwdCfg.server != ""
+            && (enabledForward != [ ] || hyForwardEnabled)
+          );
+        message = "roles.xray.relay.egress.via = \"forward\" requires forward.user, forward.server and at least one enabled forward target";
+      }
+      {
+        assertion =
+          reverseMode
+          || (
+            fwdCfg.reality.publicKey != "" && fwdCfg.reality.shortId != "" && fwdCfg.reality.fingerprint != ""
+          );
+        message = "roles.xray.relay.egress.forward.reality.{publicKey,shortId,fingerprint} must be set in forward mode";
+      }
+      {
+        assertion = reverseMode || all (t: !t.enable || t.sni != "") (attrValues forwardTransports);
+        message = "every enabled roles.xray.relay.egress.forward.vless.*.serverName must be set";
+      }
+      {
+        assertion = reverseMode || fwdCfg.backupPort == null || fwdCfg.backupPort != 443;
+        message = "roles.xray.relay.egress.forward.backupPort must differ from the primary forward port 443";
+      }
+      {
+        assertion =
+          !(hyForwardEnabled && fwdCfg.hysteria2.insecure && fwdCfg.hysteria2.certificateFingerprint != null);
+        message = "roles.xray.relay.egress.forward.hysteria2 must not combine insecure = true with certificateFingerprint; set insecure = false or clear the pin (and never enable this target without deployed-binary pin verification)";
       }
       {
         # certFile/keyFile are types.path with no default, so an unset value
         # already fails at module-evaluation time before this assertion runs;
         # the != null check here is a defensive guard, not the primary check.
-        assertion = !hyInboundEnabled || (cfg.hysteria.certFile != null && cfg.hysteria.keyFile != null);
-        message = "roles.xray.relay.hysteria requires certFile and keyFile";
-      }
-      {
         assertion =
-          !hyOutboundEnabled || cfg.target.hysteria.insecure || cfg.target.hysteria.pinSHA256 != "";
-        message = "roles.xray.relay.target.hysteria requires insecure=true or pinSHA256 set";
+          !hyIngressEnabled
+          || (ingressCfg.hysteria2.certFile != null && ingressCfg.hysteria2.keyFile != null);
+        message = "roles.xray.relay.ingress.hysteria2 requires certFile and keyFile";
       }
       {
-        assertion = cfg.target.backupPort == null || cfg.target.backupPort != 443;
-        message = "roles.xray.relay.target.backupPort must differ from the primary target port 443";
-      }
-      {
-        assertion = !hyInboundEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;
-        message = "roles.xray.relay.hysteria requires at least one user with a non-empty password";
-      }
-      {
-        assertion =
-          !cfg.useReverse || (config.roles.xray.reverse.portal.enable && cfg.target.vlessGrpc.enable);
-        message = "roles.xray.relay.useReverse requires roles.xray.reverse.portal.enable and roles.xray.relay.target.vlessGrpc.enable";
+        assertion = !hyIngressEnabled || any (u: u.password != null && u.password != "") ingressCfg.users;
+        message = "roles.xray.relay.ingress.hysteria2 requires at least one user with a non-empty password";
       }
     ];
 
-    networking.firewall.allowedUDPPorts = lib.optional hyInboundEnabled cfg.hysteria.port;
+    networking.firewall.allowedUDPPorts = optional hyIngressEnabled ingressCfg.hysteria2.port;
 
-    roles.xray._relayConfig = relayConfig;
+    roles.xray.relay._configTemplate = relayConfig;
   };
 }

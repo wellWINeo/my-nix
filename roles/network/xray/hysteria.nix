@@ -1,9 +1,9 @@
 # roles/network/xray/hysteria.nix
 #
-# Hysteria2 protocol module for xray. Folded into server.nix / relay.nix /
-# subscriptions.nix ALONGSIDE the VLESS transports/ registry. Hysteria2 is
+# Hysteria2 protocol module for xray, consumed by server.nix (public inbound)
+# and relay.nix (relay inbound plus optional forward outbound). Hysteria2 is
 # UDP/QUIC with real TLS (not REALITY) and password auth (not uuid), so it
-# intentionally does NOT reuse transports/lib.nix (VLESS/Reality helpers).
+# does not share the VLESS builder in vless.nix.
 #
 # Cert/key files are referenced via inert placeholder strings (@HYSTERIA_CERT@/
 # @HYSTERIA_KEY@, @HYSTERIA_RELAY_CERT@/@HYSTERIA_RELAY_KEY@). The coordinator
@@ -18,10 +18,11 @@
 with lib;
 
 rec {
-  name = "hysteria2";
   serverInboundTag = "hy2-in";
   relayInboundTag = "hy2-relay-in";
-  relayOutboundTag = "relay-hy2-out";
+  # Tag of the optional Hysteria2 forward outbound on the relay host; kept
+  # under the generic "forward-" selector prefix probed by the forward balancer.
+  relayOutboundTag = "forward-hy2-out";
   defaultPort = 36712;
 
   # --- Option schema fragments (merged into consumers via // ) ---
@@ -50,12 +51,6 @@ rec {
       keyFile = mkOption {
         type = types.path;
         description = "TLS private key file path (deployed via secrets; quoted string, no store copy)";
-      };
-
-      pinSHA256 = mkOption {
-        type = types.str;
-        default = "";
-        description = "SHA256 of the cert advertised in subscriptions for client pinning. Empty => insecure=1.";
       };
 
       masquerade = mkOption {
@@ -92,12 +87,6 @@ rec {
         description = "TLS private key file path for the relay inbound";
       };
 
-      pinSHA256 = mkOption {
-        type = types.str;
-        default = "";
-        description = "SHA256 of the relay inbound cert, advertised for subscription pinning";
-      };
-
       masquerade = mkOption {
         type = types.attrs;
         default = { };
@@ -116,10 +105,14 @@ rec {
         description = "SNI of the target Hysteria2 server";
       };
 
-      pinSHA256 = mkOption {
-        type = types.str;
-        default = "";
-        description = "Pinned SHA256 of the target cert. Used only when insecure = false.";
+      # SHA-256 pin of the remote target certificate, rendered as a single
+      # hex string in tlsSettings.pinnedPeerCertSha256. Distinct from a
+      # ClientHello fingerprint; never enable this target without
+      # deployed-binary pin verification.
+      certificateFingerprint = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Pinned SHA256 of the target certificate (single hex string). Used only when insecure = false.";
       };
 
       insecure = mkOption {
@@ -132,30 +125,6 @@ rec {
         type = types.port;
         default = defaultPort;
         description = "Target Hysteria2 UDP port";
-      };
-    };
-  };
-
-  subscriptionUpstreamOptions = {
-    hysteria = {
-      enable = mkEnableOption "advertise Hysteria2 in generated subscriptions";
-
-      port = mkOption {
-        type = types.port;
-        default = defaultPort;
-        description = "Hysteria2 UDP port advertised to clients";
-      };
-
-      sni = mkOption {
-        type = types.str;
-        default = "";
-        description = "SNI clients use for the Hysteria2 connection";
-      };
-
-      pinSHA256 = mkOption {
-        type = types.str;
-        default = "";
-        description = "Cert pin advertised to clients. Empty => insecure=1 emitted.";
       };
     };
   };
@@ -259,24 +228,9 @@ rec {
           serverName = cfg.serverName;
         }
         // optionalAttrs cfg.insecure { allowInsecure = true; }
-        // optionalAttrs (cfg.pinSHA256 != "") {
-          pinnedPeerCertificateChainSha256 = [ cfg.pinSHA256 ];
+        // optionalAttrs (cfg.certificateFingerprint != null) {
+          pinnedPeerCertSha256 = cfg.certificateFingerprint;
         };
       };
     };
-
-  mkSubscriptionEntry =
-    {
-      cfg,
-      user,
-      serverAddr,
-    }:
-    let
-      query =
-        if cfg.pinSHA256 != "" then
-          "sni=${cfg.sni}&pinSHA256=${cfg.pinSHA256}"
-        else
-          "sni=${cfg.sni}&insecure=1";
-    in
-    "hysteria2://${user.password}@${serverAddr}:${toString cfg.port}/?${query}#${name}";
 }

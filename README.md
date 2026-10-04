@@ -7,7 +7,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 | Hostname | Hardware | Specs | Purpose |
 |----------|----------|-------|---------|
 | `mokosh` | VPS | 1 CPU, 2GB RAM | Main server — website, mail, VPN, vault, blog, RSS, calibre, backup |
-| `veles` | VPS | 1 CPU, 1GB RAM (RU) | Xray relay, mtproxy, stream-forwarder to mokosh |
+| `veles` | VPS | 1 CPU, 1GB RAM (RU) | Xray relay, stream-forwarder to mokosh |
 | `buyan` | VPS | 1 CPU, 1GB RAM (NL) | Xray server (entry point) |
 | `nixpi` | Raspberry Pi 4 | Home server | Media, NAS, DNS, DHCP, photos, torrent |
 | macOS | MacBook Pro | — | Standalone home-manager configs (alacritty, neovim, tmux, coding agents) |
@@ -39,8 +39,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   │   ├── shadowsocks/     #   client + server
 │   │   ├── sing-box/        #   client + server
 │   │   ├── wireguard/       #   client + router
-│   │   ├── xray/            #   server + relay + client + transports
-│   │   ├── mtproxy.nix      #   MTProxy
+│   │   ├── xray/            #   server + relay + client
 │   │   ├── sni-router.nix   #   SNI-based routing
 │   │   └── stream-forwarder.nix
 │   ├── reading/             # Reading apps

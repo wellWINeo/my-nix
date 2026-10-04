@@ -7,7 +7,7 @@ Guide for AI coding agents working in this NixOS configuration repository.
 This is a NixOS configuration repository using Flakes (nixos-25.11 channel) to manage multiple machines and standalone home-manager configs:
 
 - **mokosh**: Main VPS (1 CPU, 2GB RAM) — website, mail, VPN, vault, blog, RSS, calibre, backup
-- **veles**: VPS (1 CPU, 1GB RAM, Russia) — xray relay, mtproxy, stream-forwarder to mokosh
+- **veles**: VPS (1 CPU, 1GB RAM, Russia) — xray relay, stream-forwarder to mokosh
 - **buyan**: VPS (1 CPU, 1GB RAM, Netherlands) — xray server (entry point)
 - **nixpi**: Raspberry Pi 4 (home server) — media, NAS, DNS, DHCP, photos, torrent
 - **Home Manager** (macOS): Standalone configs for `o__ni@Stepans-MacBook-Pro` and `o__ni@DodoBook.local`
@@ -54,7 +54,7 @@ Note: There are no automated tests. Validation is via `nix flake check` and manu
 | Input | Purpose |
 |-------|---------|
 | `nixpkgs` | nixos-25.11 stable |
-| `nixpkgs-unstable` | Used for select packages (e.g. `telemt` on veles) |
+| `nixpkgs-unstable` | Used for select packages (e.g. `xray` on veles/buyan/nixpi) |
 | `nixos-hardware` | Hardware-specific tweaks (RPi4) |
 | `home-manager` | User environment management (release-25.11) |
 | `miniflux-summarizer` | RSS feed summarizer package (mokosh overlay) |
@@ -134,7 +134,7 @@ Complex roles are organized into subdirectories under `roles/`:
 | Directory | Contents |
 |-----------|----------|
 | `roles/communication/` | `mail.nix` |
-| `roles/network/` | `shadowsocks/` (client + server), `sing-box/` (client + server), `wireguard/` (client + router), `xray/` (server + relay + client + transports), `mtproxy.nix`, `sni-router.nix`, `stream-forwarder.nix` |
+| `roles/network/` | `shadowsocks/` (client + server), `sing-box/` (client + server), `wireguard/` (client + router), `xray/` (server + relay + client), `sni-router.nix`, `stream-forwarder.nix` |
 | `roles/reading/` | `calibre.nix`, `rss/` (miniflux + summarizer + backup) |
 | `roles/router/` | `dhcp.nix`, `dns.nix`, `nginx.nix` (home nginx with PAC proxy) |
 
@@ -214,7 +214,7 @@ services.nginx.virtualHosts.${hostname} = {
 
 ### Overlays
 
-Global overlays live in `overlays/default.nix`. Per-machine overlays (e.g., `miniflux-summarizer` on mokosh, `telemt` on veles) are added inline in `flake.nix` within the machine's `modules` list.
+Global overlays live in `overlays/default.nix`. Per-machine overlays (e.g., `miniflux-summarizer` on mokosh, `xray` on veles) are added inline in `flake.nix` within the machine's `modules` list.
 
 ### Home Manager Config Pattern
 
@@ -251,7 +251,7 @@ Home-manager option namespaces:
 | `machines/` | Per-machine NixOS configurations (`buyan/`, `mokosh/`, `nixpi/`, `veles/`) |
 | `roles/` | Reusable service modules — auto-discovered via `default.nix` |
 | `roles/communication/` | Mail server role |
-| `roles/network/` | Proxy/VPN roles (shadowsocks, sing-box, wireguard, xray, mtproxy) |
+| `roles/network/` | Proxy/VPN roles (shadowsocks, sing-box, wireguard, xray) |
 | `roles/reading/` | Reading roles (calibre, rss/miniflux) |
 | `roles/router/` | Home router roles (dhcp, dns, nginx with PAC) |
 | `common/` | Shared configs, utilities, and reusable modules |
@@ -309,7 +309,6 @@ secrets = import ../../secrets;
 - `secrets.singBoxUsers` — list of proxy users with `uuid`, `name`, `password`, `hosts`
 - `secrets.wireguard.mokosh-pubkey` — WireGuard public key
 - `secrets.xray.reality.publicKey` / `.shortIds` — Xray Reality keys
-- `secrets.mtproxy.users` — MTProxy user secrets
 - `secrets.miniflux.apiKey` — Miniflux API key
 - `secrets.hashedPassword` — user login password hash
 - `secrets.sshKey` — SSH authorized key

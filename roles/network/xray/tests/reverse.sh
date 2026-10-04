@@ -1,45 +1,173 @@
 #!/usr/bin/env bash
+# Eval-time topology tests for the xray role's integrated server/relay modes.
+#
+# Checks the generated roles.xray._configTemplate of the tracked hosts:
+#   veles — relay mode, egress.via = "reverse" (Buyan-initiated reverse links)
+#   buyan — server mode with reverseBridge (two bridge outbounds to Veles)
+# plus forward-mode and failure-mode variations via extendModules, and the
+# dashboard's generic reverse tag queries.
+#
+# Only dummy secrets are evaluated; user UUIDs are kept in shell/jq variables
+# and never printed.
 set -euo pipefail
 flake="${1:?pass path:source-tree}"
 veles=$(nix eval --json "$flake#nixosConfigurations.veles.config.roles.xray._configTemplate")
 buyan=$(nix eval --json "$flake#nixosConfigurations.buyan.config.roles.xray._configTemplate")
+
+# --- Veles relay topology: four generic inbounds, blackhole-first egress, reverse balancer ---
 printf '%s' "$veles" | jq -e '
   . as $cfg |
-  ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.reverse.tag? == "reverse-buyan-out")] | length == 1)
-  and ([.inbounds[] | select(.tag != "vless-xhttp-in") | .settings.clients[]? | select(.reverse? != null)] | length == 0)
-  and (.outbounds[0].tag == "direct-out")
-  and (["vless-tcp-in", "vless-grpc-in", "vless-xhttp-in"] as $tags |
-       all($tags[]; . as $tag | [$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .outboundTag] == ["direct-out"]))
-' >/dev/null
-printf '%s' "$buyan" | jq -e --argjson veles "$veles" '
-  ([$veles.inbounds[] | select(.tag == "vless-xhttp-in") | .streamSettings.realitySettings.serverNames[0]]) as $velesSni |
-  ([$veles.inbounds[] | select(.tag == "vless-xhttp-in") | .streamSettings.xhttpSettings.path]) as $velesPath |
-  ([.outbounds[] | select(.tag == "reverse-veles-client") | select(.settings.vnext? == null and .settings.reverse.tag == "reverse-veles-in" and .streamSettings.network == "xhttp" and .streamSettings.realitySettings.fingerprint == "firefox")] | length == 1)
-  and ([.outbounds[] | select(.tag == "reverse-veles-client") | .streamSettings.realitySettings.serverName] == $velesSni)
-  and ([.outbounds[] | select(.tag == "reverse-veles-client") | .streamSettings.xhttpSettings.path] == $velesPath)
-  and ([.outbounds[] | select(.tag == "reverse-public-out") | .settings.finalRules] == [[{"action":"allow","network":"tcp,udp","ip":["!geoip:private"]}]])
-  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-veles-in")) | .outboundTag] == ["reverse-public-out"])
-  and (.outbounds[0].tag == "direct-out")
+  ([.inbounds[].tag] | sort == ["hy2-relay-in", "vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
+  and (.outbounds[0].tag == "blocked-out")
+  and ([.outbounds[] | select(.tag == "direct-out" or (.tag | startswith("forward-")))] | length == 0)
+  and ([.routing.balancers[] | select(.tag == "reverse-balancer" and .strategy.type == "leastPing" and .selector == ["reverse-raw-out", "reverse-xhttp-out"] and .fallbackTag == "blocked-out")] | length == 1)
+  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in", "hy2-relay-in"] as $ingress |
+    all($ingress[]; . as $tag |
+      ([$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .balancerTag] == ["reverse-balancer"])
+      # No matching rule may bypass the balancer with a static outboundTag.
+      # (Plain `.outboundTag` on a rule without the key yields null, so the
+      # projection must be guarded with has("outboundTag") to be satisfiable.)
+      and ([$cfg.routing.rules[] | select(((.inboundTag // []) | index($tag)) and has("outboundTag")) | .outboundTag] == [])))
+  and (all(["reverse-raw-out", "reverse-xhttp-out"][]; . as $tag | any($cfg.observatory.subjectSelector[]; . as $sel | $tag | startswith($sel))))
 ' >/dev/null
 
-# Veles uses its normal host-filtered users. The existing buyan xHTTP client
-# becomes the reverse client, with no duplicate UUID or reverse tag elsewhere.
+# --- Removed paths stay removed: no MTProxy service, no MTProxy SNI entry, no
+# extra VLESS listener beyond the three loopback ingress inbounds. The relay
+# SOCKS listener (socks-relay-in) absence is asserted above. ---
+nix eval --impure --json --expr 'let f = builtins.getFlake "'"$flake"'"; in f.nixosConfigurations.veles.config.systemd.services ? "telemt"' |
+  jq -e '. == false' >/dev/null
+nix eval --json "$flake#nixosConfigurations.veles.config.roles.sni-router.entries" |
+  jq -e 'all(.[]; .sni != "api.ok.ru" and .backend != "127.0.0.1:9102")' >/dev/null
+printf '%s' "$veles" | jq -e 'all(.inbounds[] | select(.protocol == "vless"); .listen == "127.0.0.1")' >/dev/null
+
+# --- Veles ingress details: preserved relay ports/SNIs, RAW Vision only, no relay SOCKS ---
+printf '%s' "$veles" | jq -e '
+  ([.outbounds[].tag] | sort == ["blocked-out"])
+  and ([.outbounds[] | select(.tag == "blocked-out") | .protocol] == ["blackhole"])
+  and ([.inbounds[] | select(.tag == "socks-relay-in")] | length == 0)
+  and ([.inbounds[].tag | select(endswith("-fwd-in"))] | length == 0)
+  and ([.inbounds[] | select(.tag == "vless-raw-in") | .listen, .port, .streamSettings.realitySettings.serverNames[0]] == ["127.0.0.1", 9010, "api.oneme.ru"])
+  and ([.inbounds[] | select(.tag == "vless-grpc-in") | .port, .streamSettings.realitySettings.serverNames[0], .streamSettings.grpcSettings.serviceName] == [9011, "avatars.mds.yandex.net", "VlGrpc"])
+  and ([.inbounds[] | select(.tag == "vless-xhttp-in") | .port, .streamSettings.realitySettings.serverNames[0], .streamSettings.xhttpSettings.path] == [9012, "onlymir.ru", "/vl-xhttp"])
+  and ([.inbounds[] | select(.tag == "hy2-relay-in") | .port, .protocol] == [443, "hysteria"])
+  and (all(.inbounds[] | select(.tag == "vless-raw-in") | .settings.clients[]; .flow? == "xtls-rprx-vision"))
+  and (all(.inbounds[] | select(.tag == "vless-grpc-in" or .tag == "vless-xhttp-in") | .settings.clients[]; .flow? == null))
+' >/dev/null
+
+# --- Veles reverse-marked portal clients: exactly the buyan user on RAW/xHTTP only ---
 reverseId=$(jq -er '[.singBoxUsers[] | select(.name == "buyan")] | if length == 1 then .[0].uuid else error("expected one buyan user") end' "${flake#path:}/secrets/secrets.dummy.json")
+# The configured REALITY public key authenticating the bridge links against
+# Veles's runtime-loaded private key (kept in a variable; never printed).
+realityPub=$(jq -er '.xray.reality.publicKey' "${flake#path:}/secrets/secrets.dummy.json")
+
+# Cross-host bridge parity: each bridge outbound must authenticate against the
+# corresponding Veles portal inbound with the configured REALITY public key, a
+# short ID authorized by that inbound, the same REALITY SNI and (xHTTP) the
+# same path. Veles's JSON carries no public key (its private key is a runtime
+# credential), so the key is compared to the configured value passed as --arg.
+bridge_parity='
+  . as $cfg
+  | ($veles.inbounds[] | select(.tag == "vless-raw-in") | .streamSettings) as $rawSs
+  | ($veles.inbounds[] | select(.tag == "vless-xhttp-in") | .streamSettings) as $xhttpSs
+  | [$cfg.outbounds[] | select(.tag == "bridge-raw-out")] as $rawBridge
+  | [$cfg.outbounds[] | select(.tag == "bridge-xhttp-out")] as $xhttpBridge
+  | ($rawBridge | length == 1)
+    and ($xhttpBridge | length == 1)
+    and ($rawBridge[0].streamSettings.realitySettings.serverName == $rawSs.realitySettings.serverNames[0])
+    and ($rawBridge[0].streamSettings.realitySettings.publicKey == $key)
+    and (any($rawSs.realitySettings.shortIds[]; . == $rawBridge[0].streamSettings.realitySettings.shortId))
+    and ($xhttpBridge[0].streamSettings.realitySettings.serverName == $xhttpSs.realitySettings.serverNames[0])
+    and ($xhttpBridge[0].streamSettings.realitySettings.publicKey == $key)
+    and (any($xhttpSs.realitySettings.shortIds[]; . == $xhttpBridge[0].streamSettings.realitySettings.shortId))
+    and ($xhttpBridge[0].streamSettings.xhttpSettings.path == $xhttpSs.xhttpSettings.path)
+'
+
+check_bridge_parity() {
+  # Usage: check_bridge_parity <buyan-config-json>
+  printf '%s' "$1" | jq -e --argjson veles "$veles" --arg key "$realityPub" "$bridge_parity" >/dev/null
+}
 printf '%s' "$veles" | jq -e --arg id "$reverseId" '
-  ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.id == $id and .email == "buyan@xray" and .reverse.tag? == "reverse-buyan-out")] | length == 1)
-  and ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.id == $id)] | length == 1)
-  and ([.inbounds[] | select(.tag != "vless-xhttp-in") | .settings.clients[]? | select(.id == $id and .reverse? != null)] | length == 0)
+  ([.inbounds[] | select(.tag == "vless-raw-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-raw-out" and .email == "buyan@xray")] | length == 1)
+  and ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-xhttp-out" and .email == "buyan@xray")] | length == 1)
+  and ([.inbounds[] | .settings.clients[]? | select(.reverse? != null)] | length == 2)
+  and ([.inbounds[] | select(.tag == "vless-grpc-in") | .settings.clients[] | select(.id == $id)] | length == 0)
+  and ([.inbounds[] | select(.tag == "hy2-relay-in") | .settings.clients[]? | select(.email == "buyan@hysteria")] | length == 0)
 ' >/dev/null
-printf '%s' "$buyan" | jq -e --arg id "$reverseId" '
-  ([.outbounds[] | select(.tag == "reverse-veles-client") | .settings.id] == [$id])
-' >/dev/null
+
+# The relay user list contains the reverse user exactly once (count only; never printed).
 nix eval --impure --json --expr '
-let f = builtins.getFlake "'"$flake"'"; users = f.nixosConfigurations.veles.config.roles.xray;
-in { server = users.server.users; relay = users.relay.users; }
-' | jq -e --arg id "$reverseId" '
-  ([.server[] | select(.uuid == $id)] | length == 1)
-  and ([.relay[] | select(.uuid == $id)] | length == 1)
+let f = builtins.getFlake "'"$flake"'"; cfg = f.nixosConfigurations.veles.config.roles.xray.relay;
+in builtins.length (builtins.filter (u: u.uuid == cfg.egress.reverse.user.uuid) cfg.ingress.users)
+' | jq -e '. == 1' >/dev/null
+
+# --- Buyan server topology: explicit direct-out for public inbounds, restricted reverse egress ---
+printf '%s' "$buyan" | jq -e --argjson veles "$veles" '
+  . as $cfg |
+  ([.inbounds[] | select(.protocol == "vless") | .tag] | sort == ["vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
+  and (.outbounds | map(.tag) == ["blocked-out", "direct-out", "bridge-raw-out", "bridge-xhttp-out", "reverse-public-out"])
+  and ([.outbounds[] | select(.tag == "blocked-out") | .protocol] == ["blackhole"])
+  and ([.outbounds[] | select(.tag == "direct-out") | .protocol] == ["freedom"])
+  and ([.outbounds[] | select(.tag == "bridge-raw-out")] | length == 1)
+  and ([.outbounds[] | select(.tag == "bridge-xhttp-out")] | length == 1)
+  and ([.outbounds[] | select(.tag == "bridge-raw-out") |
+        (.settings.vnext? == null)
+        and .settings.reverse.tag == "reverse-raw-in"
+        and .settings.flow? == "xtls-rprx-vision"
+        and .streamSettings.network == "tcp"
+        and .streamSettings.realitySettings.fingerprint == "firefox"] | all)
+  and ([.outbounds[] | select(.tag == "bridge-xhttp-out") |
+        (.settings.vnext? == null)
+        and .settings.reverse.tag == "reverse-xhttp-in"
+        and .settings.flow? == null
+        and .streamSettings.network == "xhttp"
+        and .streamSettings.realitySettings.fingerprint == "firefox"] | all)
+  and ([.outbounds[] | select(.tag == "reverse-public-out") | .settings.finalRules] == [[{"action":"allow","network":"tcp,udp","ip":["!geoip:private"]}]])
+  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in"] as $public |
+       all($public[]; . as $tag | [($cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .outboundTag)] == ["direct-out"]))
+  and ([.routing.rules[] | select((.inboundTag // []) == ["reverse-raw-in"])] | length == 1)
+  and ([.routing.rules[] | select((.inboundTag // []) == ["reverse-xhttp-in"])] | length == 1)
+  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-raw-in")) | .outboundTag] == ["reverse-public-out"])
+  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-xhttp-in")) | .outboundTag] == ["reverse-public-out"])
 ' >/dev/null
+
+# Both bridge outbounds authenticate as the buyan user.
+printf '%s' "$buyan" | jq -e --arg id "$reverseId" '
+  ([.outbounds[] | select(.tag == "bridge-raw-out" or .tag == "bridge-xhttp-out") | .settings.id] == [$id, $id])
+' >/dev/null
+
+# Positive cross-host parity: SNI/path/key/shortId match Veles's portal inbounds.
+check_bridge_parity "$buyan"
+
+# Negative probes: an intentionally mismatched bridge config (SNI, xHTTP path,
+# REALITY public key or short ID) must be rejected by the cross-host check
+# above; the module system alone cannot see the other host. Each variant must
+# still evaluate, so only the parity predicate may reject it.
+bridge_mismatch_must_fail() {
+  # Usage: bridge_mismatch_must_fail <nix-attrs> <label>
+  local out
+  if ! out=$(nix eval --impure --json --expr '
+let
+  f = builtins.getFlake "'"$flake"'";
+  lib = f.nixosConfigurations.buyan.lib;
+in (f.nixosConfigurations.buyan.extendModules {
+  modules = [ { '"$1"' } ];
+}).config.roles.xray._configTemplate
+'); then
+    echo "bridge mismatch variant failed to evaluate: $2" >&2
+    exit 1
+  fi
+  if check_bridge_parity "$out"; then
+    echo "mismatched bridge config escaped the cross-host check: $2" >&2
+    exit 1
+  fi
+}
+bridge_mismatch_must_fail 'roles.xray.server.reverseBridge.vless.raw.serverName = lib.mkForce "mismatched.invalid";' "raw SNI"
+bridge_mismatch_must_fail 'roles.xray.server.reverseBridge.vless.xhttp.path = lib.mkForce "/mismatched-path";' "xHTTP path"
+bridge_mismatch_must_fail 'roles.xray.server.reverseBridge.reality.publicKey = lib.mkForce "mismatched-bridge-public-key";' "REALITY public key"
+bridge_mismatch_must_fail 'roles.xray.server.reverseBridge.reality.shortId = lib.mkForce "ff";' "REALITY short ID"
+
+# --- Systemd runtime: no secret-file reverse credential; relay hysteria credentials only on
+# Veles; the jq dispatch still distinguishes hy2-relay-in from the server hy2-in tag. ---
 for host in veles buyan; do
   nix eval --json "$flake#nixosConfigurations.$host.config.systemd.services.xray.serviceConfig.LoadCredential" |
     jq -e 'all(.[]; startswith("reverse-uuid:") | not)' >/dev/null
@@ -49,63 +177,181 @@ for host in veles buyan; do
   grep -Fq 'xray run -test -format json -config "$configFile"' <<< "$script"
   grep -Fq 'exec xray run -format json -config "$configFile"' <<< "$script"
 done
+nix eval --json "$flake#nixosConfigurations.veles.config.systemd.services.xray.serviceConfig.LoadCredential" |
+  jq -e 'any(.[]; startswith("hysteria-relay-cert:")) and any(.[]; startswith("hysteria-relay-key:"))' >/dev/null
+nix eval --json "$flake#nixosConfigurations.buyan.config.systemd.services.xray.serviceConfig.LoadCredential" |
+  jq -e 'all(.[]; startswith("hysteria-relay-") | not)' >/dev/null
+nix eval --raw "$flake#nixosConfigurations.veles.config.systemd.services.xray.script" | grep -Fq 'hy2-relay-in'
+# The server-side hysteria credential path is the jq else-branch, so the
+# server tag itself does not appear in the script; the hy2-relay-in dispatch
+# above plus the per-host LoadCredential lists prove the distinction.
 
-# Cutover-mode checks: evaluate roles.xray.relay.useReverse = true as a
-# temporary extendModules override on the template (tracked host configs stay
-# in staging with useReverse unset/false).
-cutover=$(nix eval --impure --json --expr '
-let f = builtins.getFlake "'"$flake"'";
+# --- Metrics JSON attached by the coordinator on both relay and server hosts ---
+printf '%s' "$veles" | jq -e '.metrics.listen != null and .policy.system.statsOutboundUplink == true' >/dev/null
+printf '%s' "$buyan" | jq -e '.metrics.listen != null and .policy.system.statsOutboundUplink == true' >/dev/null
+
+# --- Forward-mode variation (manual rollback): configured primary/backup candidates behind a
+# leastPing balancer, still no Veles direct-out, and the reverse portal clients stay advertised. ---
+forward=$(nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
 in (f.nixosConfigurations.veles.extendModules {
-  modules = [ { roles.xray.relay.useReverse = true; } ];
+  modules = [ { roles.xray.relay.egress.via = lib.mkForce "forward"; } ];
 }).config.roles.xray._configTemplate
 ')
-printf '%s' "$cutover" | jq -e '
+printf '%s' "$forward" | jq -e '
   . as $cfg |
-  ([.routing.balancers[] | select(.tag == "reverse-first-balancer" and .selector == ["reverse-buyan-out"] and .fallbackTag == "relay-grpc-out")] | length == 1)
-  and ([.outbounds[] | select(.tag == "relay-grpc-out")] | length == 1)
-  and ([.routing.balancers[] | select(.tag == "relay-balancer")] | length == 1)
-  and (.observatory.subjectSelector == ["relay-", "reverse-buyan-out"])
-  and (["socks-relay-in", "vless-tcp-fwd-in", "vless-grpcFwd-in", "vless-xhttp-fwd-in", "hy2-relay-in"] as $tags |
-       all($tags[]; . as $tag | [$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .balancerTag] == ["reverse-first-balancer"]))
+  ([.outbounds[].tag] | sort == [
+    "blocked-out",
+    "forward-grpc-backup-out", "forward-grpc-out",
+    "forward-raw-backup-out", "forward-raw-out",
+    "forward-xhttp-backup-out", "forward-xhttp-out"
+  ])
+  and ([.outbounds[] | select(.tag == "direct-out")] | length == 0)
+  and ([.routing.balancers[] | select(.tag == "forward-balancer" and .strategy.type == "leastPing" and .fallbackTag == "blocked-out" and (.selector | sort == [
+        "forward-grpc-backup-out", "forward-grpc-out",
+        "forward-raw-backup-out", "forward-raw-out",
+        "forward-xhttp-backup-out", "forward-xhttp-out"
+      ]))] | length == 1)
+  and ([.routing.balancers[] | select(.tag == "reverse-balancer")] | length == 0)
+  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in", "hy2-relay-in"] as $ingress |
+       all($ingress[]; . as $tag | [$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .balancerTag] == ["forward-balancer"]))
+  and (.observatory.subjectSelector == ["forward-"])
+  and (all(.outbounds[] | select(.tag | startswith("forward-raw"));
+        .settings.vnext[0].users[0].flow? == "xtls-rprx-vision"
+        and .streamSettings.realitySettings.fingerprint == "randomized"
+        and (if .tag | endswith("backup-out") then .settings.vnext[0].port == 2053 else .settings.vnext[0].port == 443 end)))
+' >/dev/null
+printf '%s' "$forward" | jq -e --arg id "$reverseId" '
+  ([.inbounds[] | select(.tag == "vless-raw-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-raw-out")] | length == 1)
+  and ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-xhttp-out")] | length == 1)
 ' >/dev/null
 
-# Staging stays the default: the unmodified veles template keeps relay traffic
-# on relay-balancer and must not gain a reverse-first balancer.
-printf '%s' "$veles" | jq -e '
-  ([.routing.balancers[] | select(.tag == "reverse-first-balancer")] | length == 0)
-  and ([.routing.rules[] | select((.inboundTag // []) | index("socks-relay-in")) | .balancerTag] == ["relay-balancer"])
-' >/dev/null
-
-# Failure-mode checks: lazily filter the failed assertions down to their
+# --- Failure-mode checks: lazily filter the failed assertions down to their
 # messages before forcing them (forcing the full assertions array trips a
 # pre-existing filesystems.nix lazy-eval error on this nixpkgs), then require
 # the expected message. lib is bound from the flake because it is not in
-# --expr scope.
+# --expr scope. --argjson-free: the failed-eval output itself stays silent. ---
+
+# Reverse mode requires a reverse user.
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.egress.reverse.user = lib.mkForce null; } ];
+}).config.assertions)
+' | jq -e 'any(.[]; contains("requires roles.xray.relay.egress.reverse.user"))' >/dev/null
+
+# The reverse user's UUID must not be duplicated in the ordinary client lists.
 nix eval --impure --json --expr '
 let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
 in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
   modules = [ {
-    roles.xray.relay.useReverse = true;
-    roles.xray.relay.target.vlessGrpc.enable = lib.mkForce false;
+    roles.xray.relay.ingress.users = lib.mkForce (
+      f.nixosConfigurations.veles.config.roles.xray.relay.ingress.users
+      ++ [ f.nixosConfigurations.veles.config.roles.xray.relay.egress.reverse.user ]);
   } ];
 }).config.assertions)
-' | jq -e 'any(.[]; contains("useReverse"))' >/dev/null
+' | jq -e 'any(.[]; contains("must appear exactly once"))' >/dev/null
 
+# Enabled ingress transports require a nonempty SNI.
 nix eval --impure --json --expr '
 let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
 in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
-  modules = [ { roles.xray.server.vlessXhttp.enable = lib.mkForce false; } ];
+  modules = [ { roles.xray.relay.ingress.vless.raw.sni = lib.mkForce ""; } ];
 }).config.assertions)
-' | jq -e 'any(.[]; contains("reverse.portal"))' >/dev/null
+' | jq -e 'any(.[]; contains(".sni must be set"))' >/dev/null
 
-# Dashboard queries must distinguish Veles probe health from reverse traffic
-# and show both directions without treating an absent probe as a healthy link.
+# Only one xray mode may run on a host.
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.server.enable = true; } ];
+}).config.assertions)
+' | jq -e 'any(.[]; contains("only one"))' >/dev/null
+
+# The Hysteria2 forward target must not combine insecure = true with a certificate pin.
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
+  modules = [ {
+    roles.xray.relay.egress.forward.hysteria2.enable = lib.mkForce true;
+    roles.xray.relay.egress.forward.hysteria2.certificateFingerprint = lib.mkForce "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+  } ];
+}).config.assertions)
+' | jq -e 'any(.[]; contains("certificateFingerprint"))' >/dev/null
+
+# --- NixPi client mode (standalone checks; independent of Veles/Buyan migration) ---
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+# Sanitized projection: local ingress tags plus the three VLESS transports on
+# both the 443 and 2053 candidates, leastPing-balanced with the preserved
+# randomized fingerprint. The client stays forward-only: no reverse or
+# blocked outbound may leak onto NixPi.
+nixpi=$(nix eval --json "$flake#nixosConfigurations.nixpi.config.services.xray.settings")
+printf '%s' "$nixpi" | jq -e '
+  . as $cfg |
+  ([.inbounds[].tag] | sort == ["http-in", "socks-in", "tunnel-0-in"])
+  and ([.outbounds[].tag] | sort == [
+        "direct-out",
+        "vless-grpc-backup-out", "vless-grpc-out",
+        "vless-tcp-backup-out", "vless-tcp-out",
+        "vless-xhttp-backup-out", "vless-xhttp-out"
+      ])
+  and ([.routing.balancers[] | select(
+        .tag == "proxy-balancer" and
+        .strategy.type == "leastPing" and
+        (.selector | sort == [
+          "vless-grpc-backup-out", "vless-grpc-out",
+          "vless-tcp-backup-out", "vless-tcp-out",
+          "vless-xhttp-backup-out", "vless-xhttp-out"
+        ])
+      )] | length == 1)
+  and (.observatory.subjectSelector == ["vless-"] and .observatory.probeInterval == "60s")
+  and (all(.outbounds[];
+        (.settings.reverse? == null) and
+        (.tag | startswith("reverse-") | not) and
+        (.tag != "blocked-out")))
+  and (all(.outbounds[] | select(.tag | startswith("vless-"));
+        (.settings.vnext[0].port) as $port |
+        ((.settings.vnext[0].users[0].flow? == "xtls-rprx-vision") == (.tag | contains("tcp"))) and
+        (.streamSettings.realitySettings.fingerprint == "randomized") and
+        (if .tag | endswith("backup-out") then $port == 2053 else $port == 443 end)))
+  and ([.outbounds[] | select(.tag == "vless-tcp-out") | .streamSettings.realitySettings.serverName] == ["api.oneme.ru"])
+  and ([.outbounds[] | select(.tag == "vless-grpc-out") | .streamSettings.realitySettings.serverName, .streamSettings.grpcSettings.serviceName] == ["avatars.mds.yandex.net", "VlGrpc"])
+  and ([.outbounds[] | select(.tag == "vless-xhttp-out") | .streamSettings.realitySettings.serverName, .streamSettings.xhttpSettings.path] == ["onlymir.ru", "/vl-xhttp"])
+  and ([.inbounds[] | select(.tag == "tunnel-0-in") | .listen, .port, .settings.rewriteAddress, .settings.rewritePort] == ["127.0.0.1", 5053, "1.1.1.1", 853])
+' >/dev/null
+
+# The proxy listen ports stay firewall-opened (TCP SOCKS+HTTP, UDP SOCKS).
+nix eval --json "$flake#nixosConfigurations.nixpi.config.networking.firewall.allowedTCPPorts" | jq -e '. as $ports | all([1081, 3128][]; $ports | index(.) != null)' >/dev/null
+nix eval --json "$flake#nixosConfigurations.nixpi.config.networking.firewall.allowedUDPPorts" | jq -e '. as $ports | all([1081][]; $ports | index(.) != null)' >/dev/null
+
+# Boundary validation: a malformed tunnel endpoint must fail evaluation with
+# the endpoint-parser message (extendModules probe; tracked config untouched).
+if nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'";
+in (f.nixosConfigurations.nixpi.extendModules {
+  modules = [ {
+    roles.xray.client.ingress.tunnels = [ {
+      listen = "127.0.0.1:not-a-port";
+      target = "1.1.1.1:853";
+    } ];
+  } ];
+}).config.services.xray.settings
+' >/dev/null 2>"$tmp/nixpi-malformed.err"; then
+  echo "nixpi accepted a malformed tunnel endpoint" >&2
+  exit 1
+fi
+grep -q "must be ADDRESS:PORT" "$tmp/nixpi-malformed.err"
+
+# --- Dashboard queries must distinguish Veles probe health from reverse traffic
+# and show both directions without treating an absent probe as a healthy link. ---
 jq -e '
   .spec as $s |
-  ($s.elements["panel-14"] | .spec.data.spec.queries[0].spec.query.spec.expr == "xray_observatory_alive{host=\"veles\",outbound=\"reverse-buyan-out\"}" and .spec.vizConfig.spec.fieldConfig.defaults.unit == "short")
+  ($s.elements["panel-14"] | .spec.data.spec.queries[0].spec.query.spec.expr == "xray_observatory_alive{host=\"veles\",outbound=~\"reverse-raw-out|reverse-xhttp-out\"}" and .spec.vizConfig.spec.fieldConfig.defaults.unit == "short")
   and ($s.elements["panel-15"] | [.spec.data.spec.queries[].spec.query.spec.expr] == [
-    "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-buyan-out|reverse-veles-client|reverse-public-out\"}[$__rate_interval]))",
-    "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-buyan-out|reverse-veles-client|reverse-public-out\"}[$__rate_interval]))"
+    "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))",
+    "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))"
   ] and .spec.vizConfig.spec.fieldConfig.defaults.unit == "Bps")
   and any($s.layout.spec.rows[]; .spec.title == "xray reverse" and ([.spec.layout.spec.items[].spec.element.name] | sort == ["panel-14", "panel-15"]))
 ' "${flake#path:}/roles/observability/dashboards/proxy-health.json" >/dev/null

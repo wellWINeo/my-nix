@@ -90,6 +90,9 @@ in
         sni = "vk.ru";
       };
     };
+    # Buyan-initiated reverse link: tag the existing xHTTP client for the
+    # portal. Relay routing stays unchanged until the approved cutover.
+    reverse.portal.enable = true;
     relay = {
       enable = true;
       users = users;

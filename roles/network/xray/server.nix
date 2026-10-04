@@ -40,10 +40,26 @@ let
     inbounds =
       map (
         t:
-        t.mkServerInbound {
-          cfg = cfg.${t.name};
-          inherit clients shortIds;
-        }
+        let
+          inbound = t.mkServerInbound {
+            cfg = cfg.${t.name};
+            inherit clients shortIds;
+          };
+        in
+        # Mark the existing buyan client for reverse only on the server xHTTP
+        # inbound; ordinary user lists retain their host-based filtering.
+        if t.name == "vlessXhttp" && config.roles.xray.reverse.portal.enable then
+          lib.recursiveUpdate inbound {
+            settings.clients = map (
+              client:
+              if client.id == config.roles.xray.reverse.uuid then
+                client // { reverse.tag = "reverse-buyan-out"; }
+              else
+                client
+            ) inbound.settings.clients;
+          }
+        else
+          inbound
       ) enabledTransports
       ++ lib.optional hyEnabled (
         hysteria.mkServerInbound {

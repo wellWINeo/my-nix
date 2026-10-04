@@ -5,11 +5,22 @@
     "name": "proxy-health",
     "namespace": "default",
     "uid": "d151f853-e3c1-4861-af9e-982bd4e90402",
-    "resourceVersion": "1790104418947988",
-    "generation": 1,
+    "resourceVersion": "1791101284311005",
+    "generation": 7,
     "creationTimestamp": "2026-09-22T19:13:38Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "3799008889950208"
+    },
+    "annotations": {
+      "grafana.app/createdBy": "access-policy:service",
+      "grafana.app/managedBy": "classic-file-provisioning",
+      "grafana.app/managerId": "mokosh",
+      "grafana.app/sourceChecksum": "e0238caf29ec0b966b10faffd7e375ac",
+      "grafana.app/sourcePath": "/nix/store/rcgk827lmzg1d0fbb2899acfpqhnfncx-dashboards/proxy-health.json",
+      "grafana.app/sourceTimestamp": "1000",
+      "grafana.app/updatedBy": "access-policy:service",
+      "grafana.app/updatedTimestamp": "2026-10-04T08:08:04Z",
+      "grafana.app/folder": ""
     }
   },
   "spec": {
@@ -619,15 +630,18 @@
                   "multiLane": false
                 },
                 "calculate": false,
-                "cellGap": 1,
+                "cellGap": 0,
+                "cellValues": {
+                  "unit": "percentunit"
+                },
                 "color": {
                   "exponent": 0.5,
                   "fill": "dark-orange",
                   "mode": "scheme",
-                  "reverse": false,
+                  "reverse": true,
                   "scale": "exponential",
                   "scheme": "Oranges",
-                  "steps": 64
+                  "steps": 2
                 },
                 "exemplars": {
                   "color": "rgba(255,0,255,0.7)"
@@ -636,7 +650,7 @@
                   "le": 1e-9
                 },
                 "legend": {
-                  "show": true
+                  "show": false
                 },
                 "rowsFrame": {
                   "layout": "auto"

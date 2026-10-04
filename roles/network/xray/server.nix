@@ -40,10 +40,27 @@ let
     inbounds =
       map (
         t:
-        t.mkServerInbound {
-          cfg = cfg.${t.name};
-          inherit clients shortIds;
-        }
+        let
+          inbound = t.mkServerInbound {
+            cfg = cfg.${t.name};
+            inherit clients shortIds;
+          };
+        in
+        # Portal admission is xHTTP-only: the reverse client is appended to
+        # the server xHTTP inbound alone and must never appear in cfg.users.
+        # The id is a template placeholder replaced at runtime from the
+        # reverse-uuid credential.
+        if t.name == "vlessXhttp" && config.roles.xray.reverse.portal.enable then
+          lib.recursiveUpdate inbound {
+            settings.clients = inbound.settings.clients ++ [
+              {
+                id = "00000000-0000-4000-8000-000000000001";
+                reverse.tag = "reverse-buyan-out";
+              }
+            ];
+          }
+        else
+          inbound
       ) enabledTransports
       ++ lib.optional hyEnabled (
         hysteria.mkServerInbound {

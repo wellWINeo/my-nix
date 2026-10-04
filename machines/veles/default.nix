@@ -90,6 +90,9 @@ in
         sni = "vk.ru";
       };
     };
+    # Buyan-initiated reverse link: portal admission only. Relay routing and
+    # ordinary users are unchanged until the approved cutover.
+    reverse.portal.enable = true;
     relay = {
       enable = true;
       users = users;

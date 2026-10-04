@@ -126,7 +126,7 @@ let
           {
             type = "field";
             inboundTag = [ "socks-relay-in" ];
-            balancerTag = "relay-balancer";
+            balancerTag = if cfg.useReverse then "reverse-first-balancer" else "relay-balancer";
           }
         ]
         ++ lib.optionals (enabledInbound != [ ]) [
@@ -137,21 +137,34 @@ let
                 t: if t.name == "vlessGrpc" then "vless-grpcFwd-in" else "${t.tagPrefix}-fwd-in"
               ) enabledInbound)
               ++ lib.optional hyInboundEnabled hysteria.relayInboundTag;
-            balancerTag = "relay-balancer";
+            balancerTag = if cfg.useReverse then "reverse-first-balancer" else "relay-balancer";
           }
         ];
-      balancers = lib.optionals (enabledOutbound != [ ] || hyOutboundEnabled) [
-        {
-          tag = "relay-balancer";
-          selector =
-            (map relayOutboundTag enabledOutbound)
-            ++ lib.optionals backupEnabled (map backupOutboundTag enabledOutbound)
-            ++ lib.optional hyOutboundEnabled hysteria.relayOutboundTag;
-          strategy = {
-            type = "leastPing";
-          };
-        }
-      ];
+      balancers =
+        lib.optionals (enabledOutbound != [ ] || hyOutboundEnabled) [
+          {
+            tag = "relay-balancer";
+            selector =
+              (map relayOutboundTag enabledOutbound)
+              ++ lib.optionals backupEnabled (map backupOutboundTag enabledOutbound)
+              ++ lib.optional hyOutboundEnabled hysteria.relayOutboundTag;
+            strategy = {
+              type = "leastPing";
+            };
+          }
+        ]
+        # Reverse-first routing (opt-in): selects only the dynamically
+        # registered Buyan-initiated reverse outbound; fallbackTag must be a
+        # single outbound tag (relay-grpc-out). relay-balancer above stays
+        # unchanged for rollback.
+        ++ lib.optionals cfg.useReverse [
+          {
+            tag = "reverse-first-balancer";
+            selector = [ "reverse-buyan-out" ];
+            fallbackTag = "relay-grpc-out";
+            strategy.type = "roundRobin";
+          }
+        ];
     };
 
     nginxSniEntries = map (t: {
@@ -163,6 +176,8 @@ in
 {
   options.roles.xray.relay = {
     enable = mkEnableOption "relay traffic to another xray server";
+
+    useReverse = mkEnableOption "reverse-first routing for relay inbounds";
 
     users = mkOption {
       type = types.listOf types.attrs;
@@ -258,6 +273,11 @@ in
       {
         assertion = !hyInboundEnabled || lib.any (u: u.password != null && u.password != "") cfg.users;
         message = "roles.xray.relay.hysteria requires at least one user with a non-empty password";
+      }
+      {
+        assertion =
+          !cfg.useReverse || (config.roles.xray.reverse.portal.enable && cfg.target.vlessGrpc.enable);
+        message = "roles.xray.relay.useReverse requires roles.xray.reverse.portal.enable and roles.xray.relay.target.vlessGrpc.enable";
       }
     ];
 

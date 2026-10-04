@@ -93,6 +93,16 @@ in
         sni = "dl.google.com";
       };
     };
+    # Buyan-initiated reverse link: bridge + restricted public egress only.
+    # No new public listeners; ordinary users and inbounds are unchanged.
+    reverse.bridge = {
+      enable = true;
+      address = secrets.ip.veles.address;
+      serverName = "vk.ru";
+      path = "/vl-xhttp";
+      publicKey = secrets.xray.reality.publicKey;
+      shortId = builtins.head secrets.xray.reality.shortIds;
+    };
   };
 
   # Public TCP/2053 reaches the existing SNI-router listener on TCP/443

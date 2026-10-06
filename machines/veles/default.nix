@@ -99,6 +99,19 @@ in
           enable = true;
           sni = "onlymir.ru"; # xhttp.path defaults to "/vl-xhttp"
         };
+        # CDN-fronted loopback ingress (Timeweb edge -> HTTPS origin -> Nginx
+        # -> 127.0.0.1:9013). Decryption is injected at runtime from the
+        # human-installed credential file, and the guarded startup fails
+        # closed until the operator installs a valid value. Activating this
+        # CDN path is a separately approved deployment gate with its own
+        # go/no-go tests (docs/veles-timeweb-cdn-deployment.md); building or
+        # merging this configuration never deploys it.
+        cdnXhttp = {
+          enable = true;
+          originDomain = "sunny-bee-on-the-flower.net.by";
+          path = "/vl-cdn";
+          decryptionFile = "/etc/nixos/secrets/vlessenc-decryption-key";
+        };
       };
       hysteria2 = {
         enable = true;

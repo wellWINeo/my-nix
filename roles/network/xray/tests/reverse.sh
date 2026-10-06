@@ -4,8 +4,9 @@
 # Checks the generated roles.xray._configTemplate of the tracked hosts:
 #   veles — relay mode, egress.via = "reverse" (Buyan-initiated reverse links)
 #   buyan — server mode with reverseBridge (two bridge outbounds to Veles)
-# plus forward-mode and failure-mode variations via extendModules, and the
-# dashboard's generic reverse tag queries.
+# plus the CDN origin wiring (SNI-router entry order, Nginx HTTPS origin vhost,
+# HTTP-01 ACME, static probe page), forward-mode and failure-mode variations
+# via extendModules, and the dashboard's generic reverse tag queries.
 #
 # Only dummy secrets are evaluated; user UUIDs are kept in shell/jq variables
 # and never printed.
@@ -14,14 +15,14 @@ flake="${1:?pass path:source-tree}"
 veles=$(nix eval --json "$flake#nixosConfigurations.veles.config.roles.xray._configTemplate")
 buyan=$(nix eval --json "$flake#nixosConfigurations.buyan.config.roles.xray._configTemplate")
 
-# --- Veles relay topology: four generic inbounds, blackhole-first egress, reverse balancer ---
+# --- Veles relay topology: five generic inbounds, blackhole-first egress, reverse balancer ---
 printf '%s' "$veles" | jq -e '
   . as $cfg |
-  ([.inbounds[].tag] | sort == ["hy2-relay-in", "vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
+  ([.inbounds[].tag] | sort == ["hy2-relay-in", "vless-cdn-xhttp-in", "vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
   and (.outbounds[0].tag == "blocked-out")
   and ([.outbounds[] | select(.tag == "direct-out" or (.tag | startswith("forward-")))] | length == 0)
   and ([.routing.balancers[] | select(.tag == "reverse-balancer" and .strategy.type == "leastPing" and .selector == ["reverse-raw-out", "reverse-xhttp-out"] and .fallbackTag == "blocked-out")] | length == 1)
-  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in", "hy2-relay-in"] as $ingress |
+  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in", "hy2-relay-in", "vless-cdn-xhttp-in"] as $ingress |
     all($ingress[]; . as $tag |
       ([$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .balancerTag] == ["reverse-balancer"])
       # No matching rule may bypass the balancer with a static outboundTag.
@@ -94,11 +95,97 @@ printf '%s' "$veles" | jq -e --arg id "$reverseId" '
   and ([.inbounds[] | select(.tag == "hy2-relay-in") | .settings.clients[]? | select(.email == "buyan@hysteria")] | length == 0)
 ' >/dev/null
 
+# --- Veles CDN xHTTP ingress: loopback VLESS-encrypted packet-up inbound, ordinary clients only,
+# reverse-balanced, with the runtime decryption sentinel in the store template (never "none"). ---
+printf '%s' "$veles" | jq -e --arg id "$reverseId" '
+  . as $cfg |
+  ([.inbounds[] | select(.tag == "vless-cdn-xhttp-in")] | length == 1)
+  and ([$cfg.inbounds[] | select(.tag == "vless-cdn-xhttp-in") |
+    .listen, .port, .protocol, .streamSettings.network,
+    .streamSettings.security, .streamSettings.xhttpSettings.mode,
+    .streamSettings.xhttpSettings.path, .settings.decryption] ==
+    ["127.0.0.1", 9013, "vless", "xhttp", "none", "packet-up", "/vl-cdn", "@VLESS_CDN_DECRYPTION@"])
+  and ([.inbounds[] | select(.tag == "vless-cdn-xhttp-in") | .settings.clients[] | select(.id == $id or .reverse? != null)] | length == 0)
+  and (([.inbounds[] | select(.tag == "vless-cdn-xhttp-in") | .settings.clients[].id] | sort)
+    == ([.inbounds[] | select(.tag == "vless-grpc-in") | .settings.clients[].id] | sort))
+  and ([.routing.rules[] | select((.inboundTag // []) | index("vless-cdn-xhttp-in")) | .balancerTag] == ["reverse-balancer"])
+  and ([.outbounds[].tag] == ["blocked-out"])
+' >/dev/null
+
 # The relay user list contains the reverse user exactly once (count only; never printed).
 nix eval --impure --json --expr '
 let f = builtins.getFlake "'"$flake"'"; cfg = f.nixosConfigurations.veles.config.roles.xray.relay;
 in builtins.length (builtins.filter (u: u.uuid == cfg.egress.reverse.user.uuid) cfg.ingress.users)
 ' | jq -e '. == 1' >/dev/null
+
+# --- Veles CDN origin: the SNI-router origin entry is appended AFTER the REALITY
+# entries and must never become the effective fallback. While defaultBackend is
+# null, sni-router.nix falls back to the FIRST entry, so that entry has to stay
+# the previous REALITY backend (the gRPC one here) and the origin entry last. ---
+nix eval --json "$flake#nixosConfigurations.veles.config.roles.sni-router.entries" |
+  jq -e '
+    . == [
+      { sni: "avatars.mds.yandex.net", backend: "127.0.0.1:9011", proxyProtocol: true },
+      { sni: "api.oneme.ru", backend: "127.0.0.1:9010", proxyProtocol: true },
+      { sni: "onlymir.ru", backend: "127.0.0.1:9012", proxyProtocol: true },
+      { sni: "sunny-bee-on-the-flower.net.by", backend: "127.0.0.1:9443", proxyProtocol: true }
+    ]
+  ' >/dev/null
+nix eval --json "$flake#nixosConfigurations.veles.config.roles.sni-router.defaultBackend" |
+  jq -e '. == null' >/dev/null
+
+# --- Veles CDN origin vhost: HTTP/80 (HTTP-01) plus a loopback HTTPS 9443
+# listener consuming the stream router's PROXY protocol; the origin serves a
+# static no-store page, a generic no-store 404, and proxies ONLY the exact
+# /vl-cdn path and its session subpaths (no /vl-cdn-other prefix match) to the
+# loopback XHTTP inbound without caching/buffering, intercepting expected Xray
+# 4xx status codes as the same site-style 404. ---
+originVhost=$(nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'";
+  v = f.nixosConfigurations.veles.config.services.nginx.virtualHosts."sunny-bee-on-the-flower.net.by";
+# Project only the asserted fields: the raw vhost option value leaves
+# sslCertificate undefined by design (enableACME fills cert paths at render
+# time), so serializing the whole vhost would fail spuriously.
+in {
+  enableACME = v.enableACME;
+  listen = v.listen;
+  locations = v.locations;
+}')
+printf '%s' "$originVhost" | jq -e '
+  . as $vhost |
+  ($vhost.enableACME == true)
+  and (($vhost.listen | length) == 2)
+  and (([$vhost.listen[] | { addr, port, ssl, proxyProtocol }]) == [
+        { addr: "0.0.0.0", port: 80, ssl: false, proxyProtocol: false },
+        { addr: "127.0.0.1", port: 9443, ssl: true, proxyProtocol: true }
+      ])
+  and (($vhost.locations | keys | sort) == [
+        "/", "= /", "= /vl-cdn", "@probe_404", "^~ /vl-cdn/"
+      ])
+  and (all(["= /", "/", "@probe_404", "= /vl-cdn", "^~ /vl-cdn/"][];
+        $vhost.locations[.].extraConfig | contains("no-store")))
+  and ($vhost.locations["= /"].extraConfig | contains("return 200"))
+  and (($vhost.locations["/"].extraConfig, $vhost.locations["@probe_404"].extraConfig) | all(.; contains("return 404")))
+  and (([$vhost.locations["= /vl-cdn"], $vhost.locations["^~ /vl-cdn/"]] | all(
+        .proxyPass == "http://127.0.0.1:9013"
+        and (.extraConfig | contains("proxy_http_version 1.1")
+             and contains("proxy_set_header Host $host")
+             and contains("proxy_buffering off")
+             and contains("proxy_request_buffering off")
+             and contains("proxy_cache off")
+             and contains("proxy_intercept_errors on")
+             and contains("error_page 400 401 403 404 = @probe_404")))))
+' >/dev/null
+
+# HTTP-01 issuance (no DNS-01): NixOS's vhost enableACME must reload nginx on
+# renewal and must not carry a dnsProvider.
+nix eval --impure --json --expr 'let f = builtins.getFlake "'"$flake"'"; in f.nixosConfigurations.veles.config.security.acme.certs."sunny-bee-on-the-flower.net.by"' |
+  jq -e '(.reloadServices | index("nginx.service") != null) and (.dnsProvider == null)' >/dev/null
+
+# The common 443 stays a STREAM listener: no Nginx HTTP vhost may bind public
+# 443 (the origin HTTPS lives on loopback 9443 behind the stream router).
+nix eval --impure --json --expr 'let f = builtins.getFlake "'"$flake"'"; in builtins.mapAttrs (_: v: v.listen) f.nixosConfigurations.veles.config.services.nginx.virtualHosts' |
+  jq -e '([.[][]] | length > 0) and ([.[][]] | all(.port != 443))' >/dev/null
 
 # --- Buyan server topology: explicit direct-out for public inbounds, restricted reverse egress ---
 printf '%s' "$buyan" | jq -e --argjson veles "$veles" '
@@ -179,9 +266,75 @@ for host in veles buyan; do
 done
 nix eval --json "$flake#nixosConfigurations.veles.config.systemd.services.xray.serviceConfig.LoadCredential" |
   jq -e 'any(.[]; startswith("hysteria-relay-cert:")) and any(.[]; startswith("hysteria-relay-key:"))' >/dev/null
+# CDN VLESS decryption is a veles-only runtime credential, loaded from the
+# installed secret file path (never embedded in the store template). Its
+# non-secret installer mapping must name the same file.
+grep -Fxq 'veles:vlessenc-decryption-key:0400:root:root' secrets/unlocked/spec.txt
+nix eval --json "$flake#nixosConfigurations.veles.config.systemd.services.xray.serviceConfig.LoadCredential" |
+  jq -e 'any(.[]; . == "cdn-decryption:/etc/nixos/secrets/vlessenc-decryption-key")' >/dev/null
+nix eval --json "$flake#nixosConfigurations.buyan.config.systemd.services.xray.serviceConfig.LoadCredential" |
+  jq -e 'all(.[]; startswith("cdn-decryption:") | not)' >/dev/null
 nix eval --json "$flake#nixosConfigurations.buyan.config.systemd.services.xray.serviceConfig.LoadCredential" |
   jq -e 'all(.[]; startswith("hysteria-relay-") | not)' >/dev/null
 nix eval --raw "$flake#nixosConfigurations.veles.config.systemd.services.xray.script" | grep -Fq 'hy2-relay-in'
+# The CDN decryption value is read as a file (--rawfile), never passed as an
+# --arg value that would put it on the jq command line.
+veles_script=$(nix eval --raw "$flake#nixosConfigurations.veles.config.systemd.services.xray.script")
+grep -Fq -- '--rawfile decryption' <<< "$veles_script"
+if grep -Fq -- '--arg decryption' <<< "$veles_script"; then
+  echo "veles xray script must not pass the decryption value as --arg" >&2
+  exit 1
+fi
+
+# --- CDN decryption startup guard: the rendered script must refuse to start on
+# a missing, blank, whitespace-only or literal-'none' credential file (a bare
+# 'none' would silently disable the inner VLESS encryption) and must still
+# accept an ordinary non-key value. Verified against the exact rendered guard
+# with controlled non-key sentinel files only, and the failure output must be
+# exactly the static message so no value can leak into logs. ---
+cdn_guard="$(awk '/^[[:space:]]*cdnDecryptionGuard\(\) \{$/{f=1} f{print} f&&/^[[:space:]]*\}$/{exit}' <<< "$veles_script")"
+if [ -z "$cdn_guard" ]; then
+  echo "rendered xray script lacks the cdnDecryptionGuard function" >&2
+  exit 1
+fi
+guarddir="$(mktemp -d)"
+run_cdn_guard() {
+  CREDENTIALS_DIRECTORY="$guarddir" bash -c "$cdn_guard
+cdnDecryptionGuard" >/dev/null 2>&1
+}
+run_cdn_guard_err() {
+  CREDENTIALS_DIRECTORY="$guarddir" bash -c "$cdn_guard
+cdnDecryptionGuard" 2>&1 >/dev/null
+}
+cdn_guard_reject() {
+  # Usage: cdn_guard_reject <label>
+  if run_cdn_guard; then
+    echo "CDN decryption guard accepted $1" >&2
+    rm -rf "$guarddir"
+    exit 1
+  fi
+}
+printf 'none\n' > "$guarddir/cdn-decryption"; cdn_guard_reject "the literal 'none' sentinel"
+printf ' none \n' > "$guarddir/cdn-decryption"; cdn_guard_reject "'none' with surrounding whitespace"
+: > "$guarddir/cdn-decryption"; cdn_guard_reject "a blank credential file"
+printf ' \n\t\n' > "$guarddir/cdn-decryption"; cdn_guard_reject "a whitespace-only credential file"
+rm -f "$guarddir/cdn-decryption"; cdn_guard_reject "a missing credential file"
+# An ordinary dummy non-key value must still pass the guard.
+printf 'dummy-non-key-decryption-value\n' > "$guarddir/cdn-decryption"
+if ! run_cdn_guard; then
+  echo "CDN decryption guard rejected an ordinary non-key value" >&2
+  rm -rf "$guarddir"
+  exit 1
+fi
+# Rejection output must be exactly the static message (nothing else printed).
+printf 'none\n' > "$guarddir/cdn-decryption"
+cdn_guard_err="$(run_cdn_guard_err)" || true
+if [ "$cdn_guard_err" != "CDN VLESS decryption credential missing, blank, whitespace-only or the invalid 'none' sentinel" ]; then
+  echo "CDN decryption guard failure output is not the single static message" >&2
+  rm -rf "$guarddir"
+  exit 1
+fi
+rm -rf "$guarddir"
 # The server-side hysteria credential path is the jq else-branch, so the
 # server tag itself does not appear in the script; the hy2-relay-in dispatch
 # above plus the per-host LoadCredential lists prove the distinction.
@@ -213,7 +366,8 @@ printf '%s' "$forward" | jq -e '
         "forward-xhttp-backup-out", "forward-xhttp-out"
       ]))] | length == 1)
   and ([.routing.balancers[] | select(.tag == "reverse-balancer")] | length == 0)
-  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in", "hy2-relay-in"] as $ingress |
+  and ([.inbounds[] | select(.tag == "vless-cdn-xhttp-in")] | length == 1)
+  and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in", "hy2-relay-in", "vless-cdn-xhttp-in"] as $ingress |
        all($ingress[]; . as $tag | [$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .balancerTag] == ["forward-balancer"]))
   and (.observatory.subjectSelector == ["forward-"])
   and (all(.outbounds[] | select(.tag | startswith("forward-raw"));
@@ -225,6 +379,40 @@ printf '%s' "$forward" | jq -e --arg id "$reverseId" '
   ([.inbounds[] | select(.tag == "vless-raw-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-raw-out")] | length == 1)
   and ([.inbounds[] | select(.tag == "vless-xhttp-in") | .settings.clients[] | select(.id == $id and .reverse.tag? == "reverse-xhttp-out")] | length == 1)
 ' >/dev/null
+
+# --- Disabled-CDN variation: forcing cdnXhttp off restores the original four-inbound
+# topology and drops the cdn-decryption credential (no inert credential, no inbound);
+# the origin vhost and origin SNI entry disappear while the previous three REALITY
+# entries stay. ---
+disabledCdn=$(nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.enable = lib.mkForce false; } ];
+}).config.roles.xray._configTemplate
+')
+printf '%s' "$disabledCdn" | jq -e '
+  ([.inbounds[] | select(.tag == "vless-cdn-xhttp-in")] | length == 0)
+  and ([.inbounds[].tag] | sort == ["hy2-relay-in", "vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
+  and ([.routing.rules[] | select((.inboundTag // []) | index("vless-cdn-xhttp-in"))] | length == 0)
+' >/dev/null
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.enable = lib.mkForce false; } ];
+}).config.systemd.services.xray.serviceConfig.LoadCredential
+' | jq -e 'all(.[]; startswith("cdn-decryption:") | not)' >/dev/null
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in builtins.attrNames (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.enable = lib.mkForce false; } ];
+}).config.services.nginx.virtualHosts
+' | jq -e 'index("sunny-bee-on-the-flower.net.by") == null' >/dev/null
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.enable = lib.mkForce false; } ];
+}).config.roles.sni-router.entries
+' | jq -e '(length == 3) and all(.[]; .sni != "sunny-bee-on-the-flower.net.by")' >/dev/null
 
 # --- Failure-mode checks: lazily filter the failed assertions down to their
 # messages before forcing them (forcing the full assertions array trips a
@@ -278,6 +466,30 @@ in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles
   } ];
 }).config.assertions)
 ' | jq -e 'any(.[]; contains("certificateFingerprint"))' >/dev/null
+
+# An enabled CDN ingress requires originDomain (and decryptionFile).
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.originDomain = lib.mkForce ""; } ];
+}).config.assertions)
+' | jq -e 'any(.[]; contains("cdnXhttp requires originDomain"))' >/dev/null
+
+# The CDN path must look like a URL path segment prefix.
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.path = lib.mkForce "vl-cdn"; } ];
+}).config.assertions)
+' | jq -e 'any(.[]; contains("cdnXhttp.path"))' >/dev/null
+
+# The CDN origin must not collide with an enabled REALITY ingress SNI.
+nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.veles.lib;
+in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.veles.extendModules {
+  modules = [ { roles.xray.relay.ingress.vless.cdnXhttp.originDomain = lib.mkForce "onlymir.ru"; } ];
+}).config.assertions)
+' | jq -e 'any(.[]; contains("must differ from every enabled REALITY ingress SNI"))' >/dev/null
 
 # --- NixPi client mode (standalone checks; independent of Veles/Buyan migration) ---
 tmp="$(mktemp -d)"

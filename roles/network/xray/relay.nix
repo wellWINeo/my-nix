@@ -12,6 +12,9 @@
 #     Hysteria2), also falling back to blocked-out.
 # The reverse portal clients are advertised whenever egress.reverse.user is
 # set, independent of egress.via, so the bridge can connect before cutover.
+# When ingress.vless.cdnXhttp is enabled, this role also owns the HTTPS origin
+# in the running Nginx (static probe page + /vl-cdn proxy on loopback 9443)
+# and the appended SNI-router origin entry; see the cdnXhttp blocks below.
 {
   config,
   lib,
@@ -56,6 +59,57 @@ let
       id = u.uuid;
       email = "${u.name}@xray";
     }) normalUsers;
+  };
+
+  # Optional loopback CDN ingress: XHTTP packet-up behind an HTTPS origin
+  # proxy (Nginx), so it carries neither REALITY nor a PROXY-protocol prefix
+  # inside Xray. VLESS settings.decryption stays an invalid sentinel in the
+  # store template and is injected at runtime from a credential file; a
+  # missing credential must fail startup instead of enabling plaintext.
+  cdnCfg = ingressCfg.vless.cdnXhttp;
+  cdnEnabled = cdnCfg.enable;
+  cdnInbound = {
+    listen = "127.0.0.1";
+    port = 9013;
+    tag = "vless-cdn-xhttp-in";
+    protocol = "vless";
+    settings = {
+      clients = vlessClients.plain;
+      decryption = "@VLESS_CDN_DECRYPTION@";
+    };
+    streamSettings = {
+      network = "xhttp";
+      security = "none";
+      xhttpSettings = {
+        path = cdnCfg.path;
+        mode = "packet-up";
+      };
+    };
+  };
+
+  # Nginx proxy locations for the CDN ingress path: proxyPass carries no URI
+  # suffix so Xray sees the complete path, streaming is unbuffered/uncached,
+  # and expected Xray 4xx status codes are intercepted as the generic site 404
+  # page so a malformed probe cannot fingerprint Xray. One binding is attached
+  # to both the exact path and its session subpaths; other prefixes such as
+  # /vl-cdn-other must not match.
+  cdnProxyLocation = {
+    proxyPass = "http://127.0.0.1:${toString cdnInbound.port}";
+    extraConfig = ''
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Connection "";
+      proxy_buffering off;
+      proxy_request_buffering off;
+      proxy_cache off;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+      send_timeout 3600s;
+      gzip off;
+      proxy_intercept_errors on;
+      error_page 400 401 403 404 = @probe_404;
+      add_header Cache-Control "private, no-store" always;
+    '';
   };
 
   # Reverse-marked portal clients: Xray registers a dynamic outbound under the
@@ -115,7 +169,9 @@ let
   enabledIngress = filter (t: t.enable) (attrValues ingressTransports);
   hyIngressEnabled = ingressCfg.hysteria2.enable;
   ingressTags =
-    (map (t: t.inbound.tag) enabledIngress) ++ optional hyIngressEnabled hysteria.relayInboundTag;
+    (map (t: t.inbound.tag) enabledIngress)
+    ++ optional hyIngressEnabled hysteria.relayInboundTag
+    ++ optional cdnEnabled cdnInbound.tag;
 
   reverseMode = egressCfg.via == "reverse";
 
@@ -230,7 +286,8 @@ let
           cfg = ingressCfg.hysteria2;
           users = normalUsers;
         }
-      );
+      )
+      ++ optional cdnEnabled cdnInbound;
     outbounds = [
       {
         protocol = "blackhole";
@@ -331,6 +388,25 @@ in
             type = types.str;
             default = "/vl-xhttp";
             description = "xHTTP path of the relay inbound";
+          };
+        };
+
+        cdnXhttp = {
+          enable = mkEnableOption "VLESS-encrypted xHTTP relay inbound on the loopback origin (no REALITY or TLS inside Xray; the Nginx HTTPS origin fronts it and VLESS decryption is injected at runtime)";
+          originDomain = mkOption {
+            type = types.str;
+            default = "";
+            description = "Origin domain of the CDN ingress (the HTTPS origin SNI); must differ from every enabled REALITY ingress SNI";
+          };
+          path = mkOption {
+            type = types.str;
+            default = "/vl-cdn";
+            description = "xHTTP path of the CDN relay inbound";
+          };
+          decryptionFile = mkOption {
+            type = types.path;
+            description = "Path to the installed VLESS decryption value file (loaded at runtime via LoadCredential; the store template keeps an invalid sentinel until injection)";
+            example = "/etc/nixos/secrets/vlessenc-decryption-key";
           };
         };
       };
@@ -455,6 +531,20 @@ in
         message = "roles.xray.relay.egress.reverse.user must have a uuid";
       }
       {
+        assertion = !cdnEnabled || (cdnCfg.originDomain != "" && cdnCfg.decryptionFile != "");
+        message = "roles.xray.relay.ingress.vless.cdnXhttp requires originDomain and decryptionFile when enabled";
+      }
+      {
+        assertion =
+          !cdnEnabled || (hasPrefix "/" cdnCfg.path && cdnCfg.path != "/" && !(hasSuffix "/" cdnCfg.path));
+        message = "roles.xray.relay.ingress.vless.cdnXhttp.path must start with '/' and must not be or end with '/'";
+      }
+      {
+        assertion =
+          !cdnEnabled || all (t: !t.enable || cdnCfg.originDomain != t.sni) (attrValues ingressTransports);
+        message = "roles.xray.relay.ingress.vless.cdnXhttp.originDomain must differ from every enabled REALITY ingress SNI";
+      }
+      {
         assertion = !hasReverseUser || uuidFormat reverseUser.uuid;
         message = "roles.xray.relay.egress.reverse.user must have a valid UUID";
       }
@@ -518,6 +608,57 @@ in
     ];
 
     networking.firewall.allowedUDPPorts = optional hyIngressEnabled ingressCfg.hysteria2.port;
+
+    # HTTPS origin fronting the CDN ingress, owned by this role in the already
+    # running Nginx (enabled by the SNI-router). Explicit listeners keep the
+    # public 443 with the stream block and put the origin HTTPS on loopback
+    # 9443 consuming the stream router's PROXY protocol; only TCP/80 is added
+    # for the HTTP-01 challenge (already firewall-opened by common/server.nix).
+    # NixOS's enableACME issues/renews the origin certificate and reloads
+    # nginx.service automatically; roles.letsencrypt (Cloudflare DNS-01) is
+    # deliberately not used.
+    services.nginx = mkIf cdnEnabled {
+      virtualHosts.${cdnCfg.originDomain} = {
+        enableACME = true;
+        listen = [
+          {
+            addr = "0.0.0.0";
+            port = 80;
+          }
+          {
+            addr = "127.0.0.1";
+            port = 9443;
+            ssl = true;
+            proxyProtocol = true;
+          }
+        ];
+        locations = {
+          "= /".extraConfig = ''
+            default_type text/html;
+            add_header Cache-Control "private, no-store" always;
+            return 200 '<!doctype html><html lang="en"><meta charset="utf-8"><title>Sunny Bee</title><h1>Sunny Bee</h1></html>';
+          '';
+          "/".extraConfig = ''
+            default_type text/html;
+            add_header Cache-Control "private, no-store" always;
+            return 404 '<!doctype html><html lang="en"><title>Not Found</title><h1>Not Found</h1></html>';
+          '';
+          "@probe_404".extraConfig = ''
+            default_type text/html;
+            add_header Cache-Control "private, no-store" always;
+            return 404 '<!doctype html><html lang="en"><title>Not Found</title><h1>Not Found</h1></html>';
+          '';
+          "= ${cdnCfg.path}" = cdnProxyLocation;
+          "^~ ${cdnCfg.path}/" = cdnProxyLocation;
+        };
+      };
+    };
+
+    # Required by the ACME module once the origin certificate exists.
+    security.acme = mkIf cdnEnabled {
+      acceptTerms = true;
+      defaults.email = "stepan@uspenskiy.su";
+    };
 
     roles.xray.relay._configTemplate = relayConfig;
   };

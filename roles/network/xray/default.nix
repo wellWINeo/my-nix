@@ -45,6 +45,10 @@ let
 
   serverHysteriaEnabled = serverCfg.enable && serverCfg.ingress.hysteria2.enable;
   relayHysteriaEnabled = relayCfg.enable && relayCfg.ingress.hysteria2.enable;
+  # Veles-only CDN VLESS ingress: enabled only on an active relay that turns
+  # on ingress.vless.cdnXhttp; gates the credential load and the runtime JSON
+  # injection for vless-cdn-xhttp-in.
+  cdnEnabled = relayCfg.enable && relayCfg.ingress.vless.cdnXhttp.enable;
 
   # Exactly one active mode contributes its complete config template.
   activeTemplate =
@@ -70,11 +74,26 @@ let
     });
 
   # SNI-router entries bound from the active mode's enabled REALITY ingress
-  # inbounds (server backends 9000-9002, relay backends 9010-9012).
-  sniEntries = map (inbound: {
-    sni = head inbound.streamSettings.realitySettings.serverNames;
-    backend = "127.0.0.1:${toString inbound.port}";
-  }) (filter (inbound: (inbound.protocol or "") == "vless") activeTemplate.inbounds);
+  # inbounds (server backends 9000-9002, relay backends 9010-9012). The CDN
+  # inbound is VLESS without REALITY and has no realitySettings, so it produces
+  # no entry here; when enabled, its explicit HTTPS-origin entry is appended
+  # LAST so the first entry — the effective fallback in sni-router.nix while
+  # defaultBackend stays null — remains the previous REALITY backend.
+  sniEntries =
+    map
+      (inbound: {
+        sni = head inbound.streamSettings.realitySettings.serverNames;
+        backend = "127.0.0.1:${toString inbound.port}";
+      })
+      (
+        filter (
+          inbound: (inbound.protocol or "") == "vless" && (inbound.streamSettings.security or "") == "reality"
+        ) activeTemplate.inbounds
+      )
+    ++ optional cdnEnabled {
+      sni = relayCfg.ingress.vless.cdnXhttp.originDomain;
+      backend = "127.0.0.1:9443";
+    };
 
   privateKeyFile =
     if serverCfg.enable then
@@ -146,7 +165,8 @@ in
         ++ optional serverHysteriaEnabled "hysteria-cert:${serverCfg.ingress.hysteria2.certFile}"
         ++ optional serverHysteriaEnabled "hysteria-key:${serverCfg.ingress.hysteria2.keyFile}"
         ++ optional relayHysteriaEnabled "hysteria-relay-cert:${relayCfg.ingress.hysteria2.certFile}"
-        ++ optional relayHysteriaEnabled "hysteria-relay-key:${relayCfg.ingress.hysteria2.keyFile}";
+        ++ optional relayHysteriaEnabled "hysteria-relay-key:${relayCfg.ingress.hysteria2.keyFile}"
+        ++ optional cdnEnabled "cdn-decryption:${relayCfg.ingress.vless.cdnXhttp.decryptionFile}";
         DynamicUser = true;
         CapabilityBoundingSet = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
         AmbientCapabilities = "CAP_NET_ADMIN CAP_NET_BIND_SERVICE";
@@ -177,6 +197,24 @@ in
           privateKey="$(cat "$CREDENTIALS_DIRECTORY/private-key")"
           cert="" certKey="" relayCert="" relayKey=""
           ${hysteriaCredentialPaths}
+          ${optionalString cdnEnabled ''
+            # Guard the CDN VLESS decryption credential BEFORE rendering: a
+            # missing, blank, whitespace-only or literal-'none' file would
+            # disable the inner VLESS encryption, so refuse startup. The value
+            # only ever lives in a shell variable; it is never logged, printed
+            # or passed on a command line. A valid vlessenc decryption value
+            # contains no whitespace, so the whitespace-stripped comparison is
+            # exact for both rejections.
+            cdnDecryptionGuard() {
+              local value
+              value="$(tr -d '[:space:]' < "$CREDENTIALS_DIRECTORY/cdn-decryption")"
+              if [ -z "$value" ] || [ "$value" = none ]; then
+                echo "CDN VLESS decryption credential missing, blank, whitespace-only or the invalid 'none' sentinel" >&2
+                return 1
+              fi
+            }
+            cdnDecryptionGuard || exit 1
+          ''}
           cat ${configTemplateFile} \
             | jq \
                 --arg privateKey "$privateKey" \
@@ -184,8 +222,13 @@ in
                 --arg certKey "$certKey" \
                 --arg relayCert "$relayCert" \
                 --arg relayKey "$relayKey" \
+                --rawfile decryption ${
+                  if cdnEnabled then ''"$CREDENTIALS_DIRECTORY/cdn-decryption"'' else "/dev/null"
+                } \
                 '.inbounds[] |=
-                  if (.streamSettings.security // "") == "reality" then
+                  if .tag == "vless-cdn-xhttp-in" then
+                    .settings.decryption = ($decryption | rtrimstr("\n"))
+                  elif (.streamSettings.security // "") == "reality" then
                     .streamSettings.realitySettings.privateKey = $privateKey
                   elif .protocol != "hysteria" then .
                   elif .tag == "hy2-relay-in" then
@@ -196,7 +239,22 @@ in
             > "$configFile"
 
           # Activation guard: refuse to launch an invalid rendered config.
-          xray run -test -format json -config "$configFile"
+          ${
+            if cdnEnabled then
+              ''
+                # Xray validation errors may echo the decrypted VLESS
+                # decryption value, so diagnostics are suppressed and
+                # replaced with a static failure message.
+                if ! xray run -test -format json -config "$configFile" >/dev/null 2>&1; then
+                  echo "Xray configuration validation failed; diagnostics suppressed to protect VLESS credential" >&2
+                  exit 1
+                fi
+              ''
+            else
+              ''
+                xray run -test -format json -config "$configFile"
+              ''
+          }
           exec xray run -format json -config "$configFile"
         '';
     };

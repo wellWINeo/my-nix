@@ -148,12 +148,16 @@ let f = builtins.getFlake "'"$flake"'";
 # time), so serializing the whole vhost would fail spuriously.
 in {
   enableACME = v.enableACME;
+  addSSL = v.addSSL;
   listen = v.listen;
   locations = v.locations;
 }')
 printf '%s' "$originVhost" | jq -e '
   . as $vhost |
   ($vhost.enableACME == true)
+  # NixOS emits ssl_certificate only when addSSL/onlySSL/forceSSL enables SSL;
+  # an explicit ssl=true listen alone does not activate its cert directives.
+  and ($vhost.addSSL == true)
   and (($vhost.listen | length) == 2)
   and (([$vhost.listen[] | { addr, port, ssl, proxyProtocol }]) == [
         { addr: "0.0.0.0", port: 80, ssl: false, proxyProtocol: false },

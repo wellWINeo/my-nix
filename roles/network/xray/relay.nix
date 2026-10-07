@@ -620,6 +620,7 @@ in
     services.nginx = mkIf cdnEnabled {
       virtualHosts.${cdnCfg.originDomain} = {
         enableACME = true;
+        addSSL = true;
         listen = [
           {
             addr = "0.0.0.0";

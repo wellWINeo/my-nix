@@ -103,8 +103,14 @@ printf '%s' "$veles" | jq -e --arg id "$reverseId" '
   and ([$cfg.inbounds[] | select(.tag == "vless-cdn-xhttp-in") |
     .listen, .port, .protocol, .streamSettings.network,
     .streamSettings.security, .streamSettings.xhttpSettings.mode,
-    .streamSettings.xhttpSettings.path, .settings.decryption] ==
-    ["127.0.0.1", 9013, "vless", "xhttp", "none", "packet-up", "/vl-cdn", "@VLESS_CDN_DECRYPTION@"])
+    .streamSettings.xhttpSettings.path,
+    .streamSettings.xhttpSettings.xPaddingObfsMode,
+    .streamSettings.xhttpSettings.xPaddingPlacement,
+    .streamSettings.xhttpSettings.xPaddingHeader,
+    .streamSettings.xhttpSettings.xPaddingMethod,
+    .settings.decryption] ==
+    ["127.0.0.1", 9013, "vless", "xhttp", "none", "packet-up", "/vl-cdn",
+     true, "header", "X-Request-Id", "tokenish", "@VLESS_CDN_DECRYPTION@"])
   and ([.inbounds[] | select(.tag == "vless-cdn-xhttp-in") | .settings.clients[] | select(.id == $id or .reverse? != null)] | length == 0)
   and (([.inbounds[] | select(.tag == "vless-cdn-xhttp-in") | .settings.clients[].id] | sort)
     == ([.inbounds[] | select(.tag == "vless-grpc-in") | .settings.clients[].id] | sort))

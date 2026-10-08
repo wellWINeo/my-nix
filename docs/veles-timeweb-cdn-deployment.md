@@ -7,7 +7,17 @@
 - **Timeweb DNS:** delegate sunny-bee-on-the-flower.net.by; apex A → Veles IPv4; no AAAA while IPv6 disabled.
 - **Timeweb CDN:** origin sunny-bee-on-the-flower.net.by over HTTPS; client hostname is issued *.cdn.twcstorage.ru.
 - **CDN controls:** caching/browser caching/always online/HTTP3/large-file slicing off where available; honor origin no-store; no custom alias/edge cert.
-- **Client trial:** use existing ordinary Veles UUID; port 443; address and TLS SNI = issued hostname; VLESS encryption = paired client value; XHTTP path /vl-cdn; mode packet-up; uplinkHTTPMethod GET; verify certificate.
+- **Client trial:** use existing ordinary Veles UUID; port 443; address and TLS SNI = issued hostname; VLESS encryption = paired client value; XHTTP path `/vl-cdn`; mode `packet-up`; verify certificate. In Happ's **XHTTP Extra Raw JSON**, use:
+  ```json
+  {
+    "uplinkHTTPMethod": "GET",
+    "xPaddingObfsMode": true,
+    "xPaddingPlacement": "header",
+    "xPaddingHeader": "X-Request-Id",
+    "xPaddingMethod": "tokenish"
+  }
+  ```
+  The Veles inbound uses the same padding settings; keep the client and server values matched.
 - **Key handoff (human-only, last implementation step):** privately run the deployed Veles Xray version's `xray vlessenc` to generate ONE matched pair: the server **decryption** value and the paired client **encryption** value belong together and must never be split across pairs. Put only the server decryption value into the encrypted-file secret flow — never the client value, and neither value into Git, chat, logs or the Nix store. The non-secret mapping `veles:vlessenc-decryption-key:0400:root:root` is already in `secrets/unlocked/spec.txt`; install the credential on Veles with the existing `make install-secrets` as the operator, and verify the result with `stat -c '%U %G %a' /etc/nixos/secrets/vlessenc-decryption-key` (expect `root root 400`) without ever printing the file. Do not activate Xray while the file is absent or invalid; its guarded startup fails closed on a missing, blank, whitespace-only or literal-`none` value.
 - **Pre-activation:** record previous Veles generation, ensure root-only decryption file is installed, DNS propagated, TCP/80 available, and Timeweb origin-pull uses plain HTTPS without adding its own PROXY header. Do not activate Xray while file absent. Before any `path:.` flake command, move the plaintext key out of the repository (after encrypting/installing it): `path:.` can copy even Git-ignored files into the Nix store.
 - **Live (test generation first — never an unproven boot default):** build the config (`sudo nixos-rebuild build --flake 'path:.#veles'`), then run `sudo nixos-rebuild test --flake 'path:.#veles'` with operator approval to activate it WITHOUT changing the boot default, then run every live gate against that test generation: check ACME certificate, nginx reload, nginx -t and Xray rendered-config -test without revealing keys; test static root/404, invalid path, authorized encrypted TCP up/down, idle recovery, UDP, uncached edge behavior, Buyan egress and preserved direct routes. Watch fail2ban's Nginx jails for banned edge IPs during the sustained trials: an edge ban is a stop condition. ONLY after every gate passes, `sudo nixos-rebuild switch --flake 'path:.#veles'` makes the proven config the boot default.

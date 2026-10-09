@@ -80,9 +80,14 @@ let
     streamSettings = {
       network = "xhttp";
       security = "none";
+      # Avoid the CDN-filtered x_padding Referer; match these settings on clients.
       xhttpSettings = {
         path = cdnCfg.path;
         mode = "packet-up";
+        xPaddingObfsMode = true;
+        xPaddingPlacement = "header";
+        xPaddingHeader = "X-Request-Id";
+        xPaddingMethod = "tokenish";
       };
     };
   };

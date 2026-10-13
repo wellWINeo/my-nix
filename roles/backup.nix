@@ -20,7 +20,7 @@ in
 
     repository = mkOption {
       type = types.str;
-      description = "Restic repository URL (e.g. s3:storage.yandexcloud.net/bucket/prefix)";
+      description = "Restic repository URL (e.g. s3:s3.amazonaws.com/bucket/prefix)";
     };
 
     passwordFile = mkOption {

@@ -213,9 +213,11 @@ restore command is:
 
 ```bash
 sudo -i
-REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
+REPO="s3:s3.eu-north-1.amazonaws.com/backups-748861777047-eu-north-1-an/mokosh"
 export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
+set -a
 . /etc/nixos/secrets/restic-env
+set +a
 restic -r "$REPO" snapshots
 RESTORE_DIR="$(mktemp -d /tmp/anytype-restore.XXXXXX)"
 chmod 0700 "$RESTORE_DIR"

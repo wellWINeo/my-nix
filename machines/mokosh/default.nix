@@ -228,7 +228,7 @@ in
 
   roles.backup = {
     enable = true;
-    repository = "s3:storage.yandexcloud.net/wellwineo-backups/mokosh";
+    repository = "s3:s3.eu-north-1.amazonaws.com/backups-748861777047-eu-north-1-an/mokosh";
     passwordFile = "/etc/nixos/secrets/restic-password";
     environmentFile = "/etc/nixos/secrets/restic-env";
   };

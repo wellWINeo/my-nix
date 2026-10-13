@@ -2,16 +2,14 @@
 
 ## Restore commands
 
-Set S3 credentials:
+Load S3 credentials and the repository password:
 
 ```bash
-export AWS_ACCESS_KEY_ID=<key>
-export AWS_SECRET_ACCESS_KEY=<secret>
-```
-
-```bash
-REPO="s3:storage.yandexcloud.net/wellwineo-backups/mokosh"
+set -a
+. /etc/nixos/secrets/restic-env
+set +a
 export RESTIC_PASSWORD_FILE=/etc/nixos/secrets/restic-password
+REPO="s3:s3.eu-north-1.amazonaws.com/backups-748861777047-eu-north-1-an/mokosh"
 ```
 
 ### List available snapshots
@@ -110,5 +108,5 @@ The restic backup starts after all prep services complete.
 
 - Backup data on S3 is restic-encrypted, not directly browseable
 - The restic password is in `/etc/nixos/secrets/restic-password`
-- `AWS_DEFAULT_REGION=ru-central1` is mandatory for Yandex Cloud (set in duplicity-env)
-- Old duplicity backup data remains in the same S3 prefix; clean up manually after verifying restic works
+- `restic-env` supplies AWS credentials and sets `AWS_DEFAULT_REGION=eu-north-1`.
+- The Yandex source remains intact; retain it until AWS restores are verified and any legacy data has been assessed.

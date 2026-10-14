@@ -74,19 +74,22 @@
     {
       type = "CNAME";
       name = "tkczf73oruxgvgycpj4ytprcmtszrdr7._domainkey";
-      text = "tkczf73oruxgvgycpj4ytprcmtszrdr7.dkim.amazonses.com";
+      target = "tkczf73oruxgvgycpj4ytprcmtszrdr7.dkim.amazonses.com.";
+      proxied = false;
       ttl = "auto";
     }
     {
       type = "CNAME";
       name = "y345g6dx7aprjzowduhnxxqsotwz3kir._domainkey";
-      text = "y345g6dx7aprjzowduhnxxqsotwz3kir.dkim.amazonses.com";
+      target = "y345g6dx7aprjzowduhnxxqsotwz3kir.dkim.amazonses.com.";
+      proxied = false;
       ttl = "auto";
     }
     {
       type = "CNAME";
       name = "fvintonwmssyukvy32cw3piqsso4lmaq._domainkey";
-      text = "fvintonwmssyukvy32cw3piqsso4lmaq.dkim.amazonses.com";
+      target = "fvintonwmssyukvy32cw3piqsso4lmaq.dkim.amazonses.com.";
+      proxied = false;
       ttl = "auto";
     }
 
@@ -94,7 +97,8 @@
     {
       type = "MX";
       name = "bounce";
-      text = "10 feedback-smtp.eu-north-1.amazonses.com";
+      priority = 10;
+      exchange = "feedback-smtp.eu-north-1.amazonses.com.";
       ttl = "auto";
     }
     {

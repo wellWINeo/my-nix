@@ -66,5 +66,50 @@
       text = "v=spf1 mx -all";
       ttl = "auto";
     }
+
+    #########
+    # AWS SES
+    #########
+    # DKIM
+    {
+      type = "CNAME";
+      name = "tkczf73oruxgvgycpj4ytprcmtszrdr7._domainkey";
+      text = "tkczf73oruxgvgycpj4ytprcmtszrdr7.dkim.amazonses.com";
+      ttl = "auto";
+    }
+    {
+      type = "CNAME";
+      name = "y345g6dx7aprjzowduhnxxqsotwz3kir._domainkey";
+      text = "y345g6dx7aprjzowduhnxxqsotwz3kir.dkim.amazonses.com";
+      ttl = "auto";
+    }
+    {
+      type = "CNAME";
+      name = "fvintonwmssyukvy32cw3piqsso4lmaq._domainkey";
+      text = "fvintonwmssyukvy32cw3piqsso4lmaq.dkim.amazonses.com";
+      ttl = "auto";
+    }
+
+    # MAIL FROM
+    {
+      type = "MX";
+      name = "bounce";
+      text = "10 feedback-smtp.eu-north-1.amazonses.com";
+      ttl = "auto";
+    }
+    {
+      type = "TXT";
+      name = "bounce";
+      text = "v=spf1 include:amazonses.com ~all";
+      ttl = "auto";
+    }
+
+    # DMARC
+    {
+      type = "TXT";
+      name = "_dmarc";
+      text = "v=DMARC1; p=none;";
+      ttl = "auto";
+    }
   ];
 }

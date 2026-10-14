@@ -47,6 +47,11 @@ in
       description = "Mail hostname";
     };
 
+    sesSmtpUsername = mkOption {
+      type = types.str;
+      description = "AWS SES SMTP username; the password is loaded from a protected file";
+    };
+
     metrics.enable = mkEnableOption "Stalwart native Prometheus metrics";
   };
 
@@ -198,6 +203,44 @@ in
               }
               { "else" = "disable"; }
             ];
+          };
+        };
+
+        queue = {
+          route = {
+            local.type = "local";
+            ses = {
+              type = "relay";
+              address = "email-smtp.eu-north-1.amazonaws.com";
+              port = 2587;
+              protocol = "smtp";
+              auth = {
+                username = cfg.sesSmtpUsername;
+                secret = "%{file:/etc/nixos/secrets/smtp-relay-password}%";
+              };
+              tls = {
+                implicit = false;
+                allow-invalid-certs = false;
+              };
+            };
+          };
+
+          strategy = {
+            route = [
+              {
+                "if" = "is_local_domain('*', rcpt_domain)";
+                "then" = "'local'";
+              }
+              { "else" = "'ses'"; }
+            ];
+            tls = "'ses'";
+          };
+
+          tls.ses = {
+            starttls = "require";
+            mta-sts = "disable";
+            dane = "disable";
+            allow-invalid-certs = false;
           };
         };
       }

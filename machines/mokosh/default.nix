@@ -98,6 +98,7 @@ in
 
   roles.mail = {
     enable = true;
+    sesSmtpUsername = "AKIA24W5D4SLV6PQJEVU";
     sslCertificatesDirectory = "/var/lib/acme/${domainName}";
     hostname = domainName;
   };

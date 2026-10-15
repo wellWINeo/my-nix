@@ -166,8 +166,12 @@ in
             verify = "relaxed";
             sign = [
               {
-                "if" = "listener != 'smtp'";
+                "if" = "listener != 'smtp' && is_local_domain('*', rcpt_domain)";
                 "then" = "['ed25519','rsa']";
+              }
+              {
+                "if" = "listener != 'smtp'";
+                "then" = "['rsa']";
               }
               { "else" = false; }
             ];

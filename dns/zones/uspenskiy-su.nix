@@ -107,13 +107,5 @@
       text = "v=spf1 include:amazonses.com ~all";
       ttl = "auto";
     }
-
-    # DMARC
-    {
-      type = "TXT";
-      name = "_dmarc";
-      text = "v=DMARC1; p=none;";
-      ttl = "auto";
-    }
   ];
 }

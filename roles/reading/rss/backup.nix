@@ -19,7 +19,7 @@ in
     systemd.services.backup-miniflux = {
       description = "Backup Miniflux PostgreSQL database";
       path = [
-        pkgs.postgresql_16
+        pkgs.postgresql_17
         pkgs.gzip
       ];
 

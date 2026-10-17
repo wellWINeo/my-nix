@@ -43,7 +43,7 @@ in
       };
     };
 
-    services.postgresql.package = pkgs.postgresql_16;
+    services.postgresql.package = pkgs.postgresql_17;
 
     roles.observability.scrapeJobs = mkIf cfg.metrics.enable (mkAfter [
       {

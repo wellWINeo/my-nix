@@ -23,7 +23,6 @@
     agent-skills = {
       url = "github:Kyure-A/agent-skills-nix";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
-      inputs.home-manager.follows = "home-manager";
     };
     superpowers = {
       url = "github:obra/superpowers";

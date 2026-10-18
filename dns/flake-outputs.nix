@@ -48,14 +48,17 @@ in
       dns-preview = {
         type = "app";
         program = "${dnsApps.preview}/bin/dns-preview";
+        meta.description = "Preview declarative DNS changes";
       };
       dns-drift-check = {
         type = "app";
         program = "${dnsApps.driftCheck}/bin/dns-drift-check";
+        meta.description = "Check DNS records for drift";
       };
       dns-apply = {
         type = "app";
         program = "${dnsApps.apply}/bin/dns-apply";
+        meta.description = "Apply declarative DNS changes";
       };
     }
   );

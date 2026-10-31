@@ -198,10 +198,6 @@
         ];
       };
 
-      sbomnixWrapperShells = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
-        system: nixpkgs-unstable.legacyPackages.${system}.stdenv.shell
-      );
-
       checks = dnsOutputs.checks;
 
       apps = dnsOutputs.apps;

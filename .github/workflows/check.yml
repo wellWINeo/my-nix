@@ -18,6 +18,8 @@ jobs:
         run: make setup-dummy-secrets
       - name: Check Nix flake
         run: make check
+      - name: Run offline vulnerability workflow unit tests
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/vulnerability -v
       - name: Run offline DNSControl IR checks
         run: |
           nix build --print-build-logs \

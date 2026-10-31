@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    sbomnix = {
+      url = "github:tiiuae/sbomnix/f3c241a49b27af9774894ad3cfb250d4d87280d8";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -194,6 +198,10 @@
         ];
       };
 
+      sbomnixWrapperShells = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ] (
+        system: nixpkgs-unstable.legacyPackages.${system}.stdenv.shell
+      );
+
       checks = dnsOutputs.checks;
 
       apps = dnsOutputs.apps;
@@ -230,6 +238,9 @@
             ])
             {
               kaiten-mcp = pkgs.kaiten-mcp;
+              vulnix = pkgs.vulnix;
+              sbomnix = inputs.sbomnix.packages.${system}.sbomnix;
+              grype = nixpkgs-unstable.legacyPackages.${system}.grype;
             }
         // dnsOutputs.packages.${system}
         // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {

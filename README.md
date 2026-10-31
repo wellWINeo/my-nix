@@ -91,6 +91,10 @@ This repository does not currently manage custom command files. OpenCode and
 Codex use different custom-agent formats, so agent definitions are not moved to
 a shared `.agents/agents/` directory.
 
+## Vulnerability remediation status
+
+The daily vulnerability workflow scans buildtime CycloneDX SBOMs for all NixOS hosts on native x86_64 and aarch64 runners, combines the per-host evidence into complete architecture reports, then periodically reconciles marker-keyed GitHub Issues on `main`. Each Issue body preserves the scan snapshot from first detection or its last substantive update; unchanged findings do not cause daily Issue writes. This has not been live-verified. Coverage is limited to buildtime derivation-closure SBOM/Grype findings, not runtime presence or complete security coverage; OSV is intentionally skipped and vulnix/Nix patch autodetection are unavailable for SBOM input. See [`docs/vulnerability-remediation.md`](docs/vulnerability-remediation.md).
+
 ## Prerequisites
 
 - Nix with flakes enabled

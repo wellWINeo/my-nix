@@ -36,8 +36,9 @@ Only `vuln:not_affected` and `vuln:wontfix` suppress. Removing a suppression lab
 3. **First pass (cheap model, e.g. `glm-5.3-flash`)**: one worker subagent per batch reads the input file and writes `<batch>-flash.json` verdicts `{number, category, confidence, rationale≤200, misdetection}` using the decision rules above. Knowledge-based; no fabricated data.
 4. **Verification (stronger model, e.g. `gpt-6-luna`)**: one worker per batch verifies flash verdicts against live OSV (`https://api.osv.dev/v1/vulns/{id}`) / NVD (`https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={id}`) records — every `not_affected`/`misdetection` claim individually, every low-confidence verdict, easyfix/fix_available boundary spot-checks. Writes `<batch>-verify.json` `{number, verdict: confirmed|disagree, category, reason, checked}`.
 5. **Adjudicate**: the parent session merges confirmed verdicts, applies disagreements, and sanity-checks per-component category distributions for pattern errors.
-6. **Concurrency cap**: at most 5 subagents in parallel (provider rate limits); dispatch batches in sequential chunks of ≤4–5 via a scripted workflow (`runs.all` per chunk).
-7. **Apply**: label every issue with its final category; close `not_affected` issues with a one-line rationale comment (see below). Label application is idempotent — safe to re-run for missed issues.
+6. **Rate exploitability** (see below) for everything not suppressed: `vuln:critical` / `vuln:high` / `vuln:medium` / `vuln:low`.
+7. **Concurrency cap**: at most 5 subagents in parallel (provider rate limits); dispatch batches in sequential chunks of ≤4–5 via a scripted workflow (`runs.all` per chunk).
+8. **Apply**: label every issue with its final category **and** rating; close `not_affected` issues with a one-line rationale comment (see below). For `fix_available` / `fix_not_available`, post a triage comment answering: why it is not an easy update, whether it is exploitable in this config, whether it is exploitable without authentication, and the rating. Label application is idempotent — safe to re-run for missed issues.
 
 ## Applying results
 

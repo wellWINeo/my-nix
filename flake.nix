@@ -4,9 +4,7 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    sbomnix = {
-      url = "github:tiiuae/sbomnix/f3c241a49b27af9774894ad3cfb250d4d87280d8";
-    };
+    sbomnix.url = "github:tiiuae/sbomnix";
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";
       inputs.nixpkgs.follows = "nixpkgs";

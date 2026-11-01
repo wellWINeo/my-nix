@@ -6,7 +6,6 @@
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     sbomnix = {
       url = "github:tiiuae/sbomnix/f3c241a49b27af9774894ad3cfb250d4d87280d8";
-      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     nixos-hardware = {
       url = "github:NixOS/nixos-hardware/master";

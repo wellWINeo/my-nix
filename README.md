@@ -87,6 +87,12 @@ Personal NixOS configuration repository for managing multiple machines and stand
 - Claude instructions and skills: `~/.claude/`
 - Harness-specific agent definitions remain under their native directories.
 
+On DodoBook, `software.kaiten-cli.enable` installs the `kaiten` command and
+`kaiten-cli-heavy-data`, `kaiten-cli-metrics`, and `kaiten-cli-mutations` in the
+shared `~/.agents/skills` directory. Other consumers of that shared directory
+can discover these skills too. Configure Kaiten profiles and tokens privately,
+outside Nix.
+
 This repository does not currently manage custom command files. OpenCode and
 Codex use different custom-agent formats, so agent definitions are not moved to
 a shared `.agents/agents/` directory.

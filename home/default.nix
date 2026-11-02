@@ -11,6 +11,7 @@ with lib;
     ./themes
     ./coding-agents
     ./software/alacritty
+    ./software/kaiten-cli
     ./software/neovim
     ./tmux.nix
   ];

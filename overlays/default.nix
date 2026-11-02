@@ -1,3 +1,4 @@
+{ kaitenCliSrc }:
 [
   (
     final: prev:
@@ -7,6 +8,7 @@
       });
 
       bulwark-webmail = prev.callPackage ../pkgs/bulwark-webmail { };
+      kaiten-cli = prev.callPackage ../pkgs/kaiten-cli { src = kaitenCliSrc; };
     }
     //
       prev.lib.optionalAttrs

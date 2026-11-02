@@ -49,6 +49,10 @@
       url = "github:nix-community/nixvim/main";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
+    kaiten-cli = {
+      url = "github:ViktorOgnev/kaiten-cli/v0.3.3";
+      flake = false;
+    };
   };
 
   outputs =
@@ -65,7 +69,7 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      overlays = import ./overlays/default.nix;
+      overlays = import ./overlays/default.nix { kaitenCliSrc = inputs.kaiten-cli; };
       nixpkgsFor = forAllSystems (
         system:
         import nixpkgs {
@@ -107,7 +111,7 @@
         specialArgs = inputs;
         modules = [
           {
-            nixpkgs.overlays = (import ./overlays) ++ [
+            nixpkgs.overlays = overlays ++ [
               inputs.nix-anysync.overlay
               (final: prev: {
                 miniflux-summarizer =
@@ -126,7 +130,7 @@
         specialArgs = inputs;
         modules = [
           {
-            nixpkgs.overlays = (import ./overlays) ++ [ xrayOverlay ];
+            nixpkgs.overlays = overlays ++ [ xrayOverlay ];
           }
           ./machines/veles
           ./users/o__ni
@@ -189,6 +193,7 @@
             software.alacritty.enable = true;
             theme.name = "one-half-light";
             software.neovim.enable = true;
+            software.kaiten-cli.enable = true;
             codingAgents.claude.enable = true;
             codingAgents.opencode.enable = true;
           }
@@ -222,6 +227,7 @@
         in
         {
           bulwark-webmail = pkgs.bulwark-webmail;
+          kaiten-cli = pkgs.kaiten-cli;
         }
         //
           nixpkgs.lib.optionalAttrs

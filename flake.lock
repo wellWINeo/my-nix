@@ -186,6 +186,22 @@
         "type": "github"
       }
     },
+    "kaiten-cli": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792757314,
+        "narHash": "sha256-KIaspwm0dhIFMAy3VAfGpJkaAMjPz5Ko0HtXEK9jW9U=",
+        "owner": "ViktorOgnev",
+        "repo": "kaiten-cli",
+        "rev": "18abe81aa52ad6a1cec0334452194691b06ad4f4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ViktorOgnev",
+        "repo": "kaiten-cli",
+        "type": "github"
+      }
+    },
     "mattpocock-skills": {
       "flake": false,
       "locked": {
@@ -372,6 +388,7 @@
         "dotnet-skills": "dotnet-skills",
         "gh-stack-skill": "gh-stack-skill",
         "home-manager": "home-manager",
+        "kaiten-cli": "kaiten-cli",
         "mattpocock-skills": "mattpocock-skills",
         "miniflux-summarizer": "miniflux-summarizer",
         "nix-anysync": "nix-anysync",

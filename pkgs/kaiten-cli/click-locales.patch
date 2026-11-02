@@ -1,0 +1,13 @@
+diff --git a/src/kaiten_cli/locales/ru.json b/src/kaiten_cli/locales/ru.json
+--- a/src/kaiten_cli/locales/ru.json
++++ b/src/kaiten_cli/locales/ru.json
+@@ -934,6 +934,11 @@
+   "Error: The two entered values do not match.": "Ошибка: введённые значения не совпадают.",
+   "Error: invalid input": "Ошибка: некорректный ввод",
+   "Error: {message}": "Ошибка: {message}",
++  "Error: The value you entered was invalid.": "Ошибка: введённое значение недопустимо.",
++  "Error: {e.message}": "Ошибка: {e.message}",
++  "(Possible options: {possibilities})": "(Возможные варианты: {possibilities})",
++  "No such option: {name}": "Нет такого параметра: {name}",
++  "{text} {deprecated_message}": "{text} {deprecated_message}",
+   "Estimated workload in minutes (resource planning)": "Оценка трудозатрат в минутах (планирование ресурсов)",

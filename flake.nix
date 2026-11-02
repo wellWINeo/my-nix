@@ -50,7 +50,7 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     kaiten-cli = {
-      url = "github:ViktorOgnev/kaiten-cli/v0.3.3";
+      url = "github:ViktorOgnev/kaiten-cli";
       flake = false;
     };
   };
@@ -69,7 +69,7 @@
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      overlays = import ./overlays/default.nix { kaitenCliSrc = inputs.kaiten-cli; };
+      overlays = import ./overlays { inherit inputs; };
       nixpkgsFor = forAllSystems (
         system:
         import nixpkgs {

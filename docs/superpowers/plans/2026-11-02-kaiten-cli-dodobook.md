@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - This request authorizes planning and review only. Obtain implementation approval before executing these tasks; do not commit, push, or activate Home Manager unless separately asked.
-- Use `inputs.kaiten-cli`, `flake = false`, URL `github:ViktorOgnev/kaiten-cli/v0.3.3`; initial package version is `0.3.3`.
-- The tag must resolve to `18abe81aa52ad6a1cec0334452194691b06ad4f4`. Keep every existing input pin unchanged.
+- Use `inputs.kaiten-cli`, `flake = false`, URL `github:ViktorOgnev/kaiten-cli` without a URL version tag; initial package version is `0.3.3`.
+- Pin the initial revision `18abe81aa52ad6a1cec0334452194691b06ad4f4` only in `flake.lock`. Removing the URL tag must not advance that revision or change its hash. Keep every unrelated input pin unchanged.
 - Use that same input for package `src` and the skill source. Do not use `fetchFromGitHub` or a second source pin.
 - Enable `software.kaiten-cli.enable` only for `o__ni@DodoBook.local`.
 - Select exactly `kaiten-cli-heavy-data`, `kaiten-cli-metrics`, and `kaiten-cli-mutations`, each with `agents = [ "agents" ]`.
@@ -39,7 +39,7 @@
 | --- | --- |
 | `flake.nix` | Add the source input, inject it into the overlay, preserve host overlay consumers, expose the package, and enable the DodoBook module. |
 | `flake.lock` | Add only the new non-flake source and its root input reference. |
-| `overlays/default.nix` | Accept `kaitenCliSrc` and expose `pkgs.kaiten-cli`, preserving existing packages and platform guards. |
+| `overlays/default.nix` | Accept `inputs`, select `inputs.kaiten-cli` as the package source, and expose `pkgs.kaiten-cli`, preserving existing packages and platform guards. |
 | `pkgs/kaiten-cli/default.nix` | New Python application recipe with offline checks. |
 | `home/default.nix` | Import the new opt-in software module. |
 | `home/software/kaiten-cli/default.nix` | New module owning package installation and shared-target-only skills. |
@@ -53,7 +53,7 @@ The spec and this plan already exist. No changes to the common coding-agent modu
 
 **Interfaces:**
 - Consumes: the release's `pyproject.toml`, `src/kaiten_cli/__init__.py`, `tests/`, `scripts/`, and `.github/` from `inputs.kaiten-cli`.
-- Produces: `pkgs.kaiten-cli` and `packages.<system>.kaiten-cli`; recipe arguments include `lib`, `python3Packages`, `src`, `gitMinimal`, `bash`, and `zsh`. The overlay importer takes `{ kaitenCliSrc }` and returns the existing list of overlays.
+- Produces: `pkgs.kaiten-cli` and `packages.<system>.kaiten-cli`; recipe arguments include `lib`, `python3Packages`, `src`, `gitMinimal`, `bash`, and `zsh`. The overlay importer takes `{ inputs }`, selects `src = inputs.kaiten-cli` internally, and returns the existing list of overlays.
 
 - [ ] **1. Establish the missing-package baseline.**
 
@@ -82,13 +82,13 @@ assert new["kaiten-cli"]["locked"]["rev"] == "18abe81aa52ad6a1cec0334452194691b0
 PY
 ```
 
-Expected: exit 0. This assumes no commits are created during implementation, as required by this plan. Resolve a tag mismatch before proceeding.
+Expected: exit 0. This assumes no commits are created during implementation, as required by this plan. Resolve an unexpected locked-revision change before proceeding.
 
 - [ ] **3. Implement the recipe and overlay wiring.**
 
 Use `python3Packages.buildPythonApplication`, `pname = "kaiten-cli"`, version `0.3.3`, `pyproject = true`, injected `src`, Hatchling as the build backend, and `click`, `httpx`, `platformdirs` as runtime dependencies from the same Python package set. Preserve upstream entry points and set `meta.mainProgram = "kaiten"`; leave an unverified license unset.
 
-Change `overlays/default.nix` to accept `{ kaitenCliSrc }`. Pass it as `src` to `callPackage` outside the Linux-only `kaiten-mcp` guard. In `flake.nix`, construct `overlays` once using `inputs.kaiten-cli` and replace the two direct imports in mokosh/veles with that binding. Preserve all existing per-host overlay additions. Add `kaiten-cli = pkgs.kaiten-cli` beside the existing unconditional package output.
+Change `overlays/default.nix` to accept `{ inputs }`. Set `src = inputs.kaiten-cli` in its `callPackage` invocation outside the Linux-only `kaiten-mcp` guard. In `flake.nix`, construct `overlays` once with `import ./overlays { inherit inputs; }` and replace the two direct imports in mokosh/veles with that binding. Preserve all existing per-host overlay additions. Add `kaiten-cli = pkgs.kaiten-cli` beside the existing unconditional package output.
 
 - [ ] **4. Add offline build and installed-package checks.**
 
@@ -234,7 +234,7 @@ Actual deployment is deliberately outside this plan's automatic execution. If la
 ## Planning Self-Review
 
 - **Spec coverage:** source/overlay/package map to Task 1; host-owned installation and restricted skills map to Task 2; documentation, both package sets, and existing validations map to Task 3.
-- **Interfaces:** `kaitenCliSrc`, `inputs.kaiten-cli`, `pkgs.kaiten-cli`, and `software.kaiten-cli.enable` are used consistently; target names are deployment keys, not harness names.
+- **Interfaces:** the overlay's `inputs` argument, `inputs.kaiten-cli`, `pkgs.kaiten-cli`, and `software.kaiten-cli.enable` are used consistently; target names are deployment keys, not harness names.
 - **Review focus:** each of the five failure classes above has an owning check; bundle inspection verifies actual installation contents, not only booleans.
 - **Scope:** no implementation is included in this planning change, and no new runner, agent namespace, credential store, or activation hook is proposed.
 - **Verification status:** commands in this plan are instructions for future implementation, not claims that builds or tests have already run.

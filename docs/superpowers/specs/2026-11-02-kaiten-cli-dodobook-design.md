@@ -38,9 +38,9 @@ The locked `agent-skills-nix` revision, `2948865044b2af55c8c4e4eb2abda7de79d60f0
 
 ### One upstream input
 
-Add `inputs.kaiten-cli` with `flake = false` and URL `github:ViktorOgnev/kaiten-cli/v0.3.3`. Resolve it through `nix flake lock`, retaining all existing dependency pins. The release tag was observed resolving to commit `18abe81aa52ad6a1cec0334452194691b06ad4f4`; stop and investigate if resolution differs.
+Add `inputs.kaiten-cli` with `flake = false` and URL `github:ViktorOgnev/kaiten-cli`, without a version tag in the URL. Let `flake.lock` pin the source. The initial locked revision is `18abe81aa52ad6a1cec0334452194691b06ad4f4` from release `0.3.3`; removing the URL tag must preserve this revision, its hash, and all unrelated dependency pins.
 
-Initial release `0.3.3` is the planning recommendation, carried forward from the discussed design. Future upgrades intentionally change this source and the package version together. The source lock also pins the skills, avoiding commands that do not exist in the installed release.
+Future lock updates follow the upstream default branch. Update package version metadata when the locked upstream version changes. The source lock also pins the skills, avoiding commands that do not exist in the installed release.
 
 ### Package and overlay
 
@@ -48,7 +48,7 @@ Create `pkgs/kaiten-cli/default.nix` with arguments `lib`, `python3Packages`, `s
 
 Preserve both upstream entry points, `kaiten` and `kaiten-agent-gateway`, and set `meta.mainProgram = "kaiten"`. Use package import checks and the existing upstream pytest suite. Do not invent a license: the inspected release has no explicit license declaration; leave `meta.license` unset unless upstream evidence establishes one.
 
-Change `overlays/default.nix` into a function taking `{ kaitenCliSrc }` and returning its existing overlay list. Define `pkgs.kaiten-cli` there by passing `src = kaitenCliSrc` to `callPackage`. In `flake.nix`, construct the overlay list once from `inputs.kaiten-cli` and reuse that binding at the two existing host imports. Preserve the Linux-only guard for `kaiten-mcp`.
+Change `overlays/default.nix` into a function taking `{ inputs }` and returning its existing overlay list. Define `pkgs.kaiten-cli` there by passing `src = inputs.kaiten-cli` to `callPackage`; source selection stays inside the overlay. In `flake.nix`, construct the overlay list once with `import ./overlays { inherit inputs; }` and reuse that binding at the two existing host imports. Preserve the Linux-only guard for `kaiten-mcp`.
 
 Expose `packages.<system>.kaiten-cli` on all three existing supported systems: `x86_64-linux`, `aarch64-linux`, and `aarch64-darwin`. Availability as a flake output or overlay attribute is not installation. Home Manager continues using unstable nixpkgs; the ordinary flake package output continues using the existing stable package set.
 

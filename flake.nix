@@ -53,6 +53,10 @@
       url = "github:ViktorOgnev/kaiten-cli";
       flake = false;
     };
+    buildin-skill = {
+      url = "github:next-space/buildin-skill";
+      flake = false;
+    };
   };
 
   outputs =
@@ -194,6 +198,7 @@
             theme.name = "one-half-light";
             software.neovim.enable = true;
             software.kaiten-cli.enable = true;
+            software.buildin-cli.enable = true;
             codingAgents.claude.enable = true;
             codingAgents.opencode.enable = true;
           }
@@ -228,6 +233,9 @@
         {
           bulwark-webmail = pkgs.bulwark-webmail;
           kaiten-cli = pkgs.kaiten-cli;
+        }
+        // nixpkgs.lib.optionalAttrs (system == "aarch64-darwin") {
+          buildin-cli = pkgs.buildin-cli;
         }
         //
           nixpkgs.lib.optionalAttrs

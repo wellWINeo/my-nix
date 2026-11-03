@@ -93,6 +93,14 @@ shared `~/.agents/skills` directory. Other consumers of that shared directory
 can discover these skills too. Configure Kaiten profiles and tokens privately,
 outside Nix.
 
+On DodoBook, `software.buildin-cli.enable` installs the pinned `buildin`
+executable and the `buildin-cli` skill in the shared `~/.agents/skills`
+directory, where Pi and Codex can discover it. Other consumers of that shared
+directory can discover the skill too.
+Keep Buildin credentials private and outside Nix. Update the CLI's Nix package
+version/hash and the skill's flake lock revision independently; do not use
+`buildin update` for the immutable Nix installation.
+
 This repository does not currently manage custom command files. OpenCode and
 Codex use different custom-agent formats, so agent definitions are not moved to
 a shared `.agents/agents/` directory.

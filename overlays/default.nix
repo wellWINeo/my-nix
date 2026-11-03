@@ -10,6 +10,9 @@
       bulwark-webmail = prev.callPackage ../pkgs/bulwark-webmail { };
       kaiten-cli = prev.callPackage ../pkgs/kaiten-cli { src = inputs.kaiten-cli; };
     }
+    // prev.lib.optionalAttrs (prev.stdenv.hostPlatform.system == "aarch64-darwin") {
+      buildin-cli = prev.callPackage ../pkgs/buildin-cli { };
+    }
     //
       prev.lib.optionalAttrs
         (builtins.elem prev.stdenv.hostPlatform.system [

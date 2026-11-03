@@ -20,6 +20,22 @@
         "type": "github"
       }
     },
+    "buildin-skill": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1792125773,
+        "narHash": "sha256-p7fyJlYeotHOILXoqViUfM+WdEVNkkwCJSc1oobmov0=",
+        "owner": "next-space",
+        "repo": "buildin-skill",
+        "rev": "256f9680192521dd71efd6b400c69c06ad96de68",
+        "type": "github"
+      },
+      "original": {
+        "owner": "next-space",
+        "repo": "buildin-skill",
+        "type": "github"
+      }
+    },
     "dotnet-skills": {
       "flake": false,
       "locked": {
@@ -385,6 +401,7 @@
     "root": {
       "inputs": {
         "agent-skills": "agent-skills",
+        "buildin-skill": "buildin-skill",
         "dotnet-skills": "dotnet-skills",
         "gh-stack-skill": "gh-stack-skill",
         "home-manager": "home-manager",

@@ -51,6 +51,8 @@ Note: There are no automated tests. Validation is via `nix flake check` and manu
 
 ## Flake Inputs
 
+Keep GitHub input URLs branch- or tag-based; pin exact revisions only in `flake.lock`, not in `flake.nix`.
+
 | Input | Purpose |
 |-------|---------|
 | `nixpkgs` | nixos-25.11 stable |

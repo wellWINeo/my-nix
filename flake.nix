@@ -17,10 +17,7 @@
       url = "github:wellWINeo/miniflux-summarizer";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nix-anysync = {
-      url = "github:wellWINeo/nix-anysync";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    nix-anysync.url = "github:wellWINeo/nix-anysync";
     agent-skills = {
       url = "github:Kyure-A/agent-skills-nix";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
@@ -116,7 +113,16 @@
         modules = [
           {
             nixpkgs.overlays = overlays ++ [
-              inputs.nix-anysync.overlay
+              (
+                final: prev:
+                let
+                  packages = inputs.nix-anysync.packages.${prev.stdenv.hostPlatform.system};
+                in
+                {
+                  anytype-cli = packages.anytype-cli;
+                  anytype-mcp = packages.anytype-mcp;
+                }
+              )
               (final: prev: {
                 miniflux-summarizer =
                   inputs.miniflux-summarizer.packages.${prev.stdenv.hostPlatform.system}.default;

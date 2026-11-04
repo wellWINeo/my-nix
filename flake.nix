@@ -85,7 +85,7 @@
           config.allowUnfree = true;
         }
       );
-      # Select xray from nixpkgs-unstable; applied only on xray hosts (nixpi, veles, buyan).
+      # Select xray from nixpkgs-unstable; applied only on xray hosts.
       xrayOverlay = final: prev: {
         xray = inputs.nixpkgs-unstable.legacyPackages.${prev.stdenv.hostPlatform.system}.xray;
       };
@@ -143,6 +143,16 @@
             nixpkgs.overlays = overlays ++ [ xrayOverlay ];
           }
           ./machines/veles
+          ./users/o__ni
+        ];
+      };
+
+      nixosConfigurations."stribog" = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = inputs;
+        modules = [
+          { nixpkgs.overlays = overlays ++ [ xrayOverlay ]; }
+          ./machines/stribog
           ./users/o__ni
         ];
       };

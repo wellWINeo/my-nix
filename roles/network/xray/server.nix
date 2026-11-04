@@ -102,11 +102,11 @@ let
   };
 
   bridgeOutbound =
-    tag: inboundTag: flow: streamSettings:
+    address: tag: inboundTag: flow: streamSettings:
     let
       outbound = vless.mkReverseOutbound {
         tag = tag;
-        address = bridgeCfg.address;
+        inherit address;
         port = 443;
         uuid = bridgeCfg.user.uuid;
         inboundTag = inboundTag;
@@ -119,28 +119,32 @@ let
     else
       outbound;
 
-  bridgeRawOutbound = bridgeOutbound "bridge-raw-out" "reverse-raw-in" "xtls-rprx-vision" {
-    network = "tcp";
-    security = "reality";
-    realitySettings = {
-      publicKey = bridgeCfg.reality.publicKey;
-      shortId = bridgeCfg.reality.shortId;
-      serverName = bridgeCfg.vless.raw.serverName;
-      fingerprint = "firefox";
+  bridgeRawOutbound =
+    address: tag: inboundTag:
+    bridgeOutbound address tag inboundTag "xtls-rprx-vision" {
+      network = "tcp";
+      security = "reality";
+      realitySettings = {
+        publicKey = bridgeCfg.reality.publicKey;
+        shortId = bridgeCfg.reality.shortId;
+        serverName = bridgeCfg.vless.raw.serverName;
+        fingerprint = "firefox";
+      };
     };
-  };
 
-  bridgeXhttpOutbound = bridgeOutbound "bridge-xhttp-out" "reverse-xhttp-in" null {
-    network = "xhttp";
-    security = "reality";
-    realitySettings = {
-      publicKey = bridgeCfg.reality.publicKey;
-      shortId = bridgeCfg.reality.shortId;
-      serverName = bridgeCfg.vless.xhttp.serverName;
-      fingerprint = "firefox";
+  bridgeXhttpOutbound =
+    address: tag: inboundTag:
+    bridgeOutbound address tag inboundTag null {
+      network = "xhttp";
+      security = "reality";
+      realitySettings = {
+        publicKey = bridgeCfg.reality.publicKey;
+        shortId = bridgeCfg.reality.shortId;
+        serverName = bridgeCfg.vless.xhttp.serverName;
+        fingerprint = "firefox";
+      };
+      xhttpSettings.path = bridgeCfg.vless.xhttp.path;
     };
-    xhttpSettings.path = bridgeCfg.vless.xhttp.path;
-  };
 
   serverConfig = {
     log = {
@@ -164,11 +168,19 @@ let
         tag = "direct-out";
       }
     ]
-    ++ optionals bridgeEnabled [
-      bridgeRawOutbound
-      bridgeXhttpOutbound
-      reversePublicOutbound
-    ];
+    ++ optionals bridgeEnabled (
+      [
+        (bridgeRawOutbound bridgeCfg.address "bridge-raw-out" "reverse-raw-in")
+        (bridgeXhttpOutbound bridgeCfg.address "bridge-xhttp-out" "reverse-xhttp-in")
+      ]
+      ++ concatLists (
+        mapAttrsToList (name: address: [
+          (bridgeRawOutbound address "bridge-${name}-raw-out" "reverse-${name}-raw-in")
+          (bridgeXhttpOutbound address "bridge-${name}-xhttp-out" "reverse-${name}-xhttp-in")
+        ]) bridgeCfg.additionalRelays
+      )
+      ++ [ reversePublicOutbound ]
+    );
     routing.rules = [
       {
         type = "field";
@@ -187,7 +199,23 @@ let
         inboundTag = [ "reverse-xhttp-in" ];
         outboundTag = "reverse-public-out";
       }
-    ];
+    ]
+    ++ optionals bridgeEnabled (
+      concatLists (
+        mapAttrsToList (name: _: [
+          {
+            type = "field";
+            inboundTag = [ "reverse-${name}-raw-in" ];
+            outboundTag = "reverse-public-out";
+          }
+          {
+            type = "field";
+            inboundTag = [ "reverse-${name}-xhttp-in" ];
+            outboundTag = "reverse-public-out";
+          }
+        ]) bridgeCfg.additionalRelays
+      )
+    );
   };
 in
 {
@@ -267,6 +295,12 @@ in
         type = types.str;
         default = "";
         description = "Relay host address the bridge dials for the reverse links";
+      };
+
+      additionalRelays = mkOption {
+        type = types.attrsOf types.str;
+        default = { };
+        description = "Additional named relay addresses using the same bridge identity and transport settings";
       };
 
       reality = {
@@ -353,6 +387,18 @@ in
             && bridgeCfg.vless.xhttp.path != ""
           );
         message = "roles.xray.server.reverseBridge requires a user with a valid UUID and nonempty address, reality.publicKey, reality.shortId, vless.raw.serverName, vless.xhttp.serverName and vless.xhttp.path";
+      }
+      {
+        assertion =
+          !bridgeEnabled
+          || (
+            all (name: builtins.match "[a-zA-Z0-9_-]+" name != null) (attrNames bridgeCfg.additionalRelays)
+            && all (address: address != "") (attrValues bridgeCfg.additionalRelays)
+            &&
+              length (unique ([ bridgeCfg.address ] ++ attrValues bridgeCfg.additionalRelays))
+              == 1 + length (attrValues bridgeCfg.additionalRelays)
+          );
+        message = "roles.xray.server.reverseBridge.additionalRelays requires valid names and distinct nonempty addresses";
       }
     ];
 

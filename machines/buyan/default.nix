@@ -106,6 +106,7 @@ in
     reverseBridge = {
       enable = true;
       address = secrets.ip.veles.address;
+      additionalRelays.stribog = secrets.ip.stribog.address;
       user = reverseUser;
       reality = {
         publicKey = secrets.xray.reality.publicKey;

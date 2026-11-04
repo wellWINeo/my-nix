@@ -1,16 +1,19 @@
-# Proxy architecture (proposed)
+# Proxy architecture
 
-This describes the target Xray configuration, **not** the currently deployed configuration. See [the deployment runbook](xray-reverse-deployment.md), [design](superpowers/specs/2026-10-04-xray-proxy-simplification-design.md), and [implementation plan](superpowers/plans/2026-10-04-xray-proxy-simplification.md) before changing a host.
+The Veles–Buyan reverse relay is deployed. See [the deployment runbook](xray-reverse-deployment.md), [design](superpowers/specs/2026-10-04-xray-proxy-simplification-design.md), and [implementation plan](superpowers/plans/2026-10-04-xray-proxy-simplification.md) before changing a host. The Stribog configuration adds a second relay using its own Buyan-initiated RAW and xHTTP bridges; it is not deployed by a repository change. Stribog has no Timeweb CDN ingress.
 
 ```mermaid
 flowchart LR
     client[Clients, including NixPi] -->|VLESS RAW / gRPC / xHTTP or Hysteria2| veles[Veles relay]
-    buyan[Buyan server and internet egress] -->|Initiates VLESS RAW + REALITY reverse link| veles
-    buyan -->|Initiates VLESS xHTTP + REALITY reverse link| veles
-    veles -->|Proxy traffic back through healthiest reverse link| buyan
+    client -->|VLESS RAW / gRPC / xHTTP or Hysteria2| stribog[Stribog relay]
+    buyan[Buyan server and internet egress] -->|RAW + xHTTP reverse links| veles
+    buyan -->|RAW + xHTTP reverse links| stribog
+    veles -->|Proxy traffic over healthiest reverse link| buyan
+    stribog -->|Proxy traffic over healthiest reverse link| buyan
     buyan -->|Public TCP/UDP destinations only for reverse traffic| internet[Internet]
     direct[Buyan public VLESS clients] --> buyan
-    veles -->|Neither reverse link healthy: fail closed| blocked[Blackhole]
+    veles -->|Neither reverse link healthy| blocked[Blackhole]
+    stribog -->|Neither reverse link healthy| blocked
 ```
 
 Veles has **one client-facing inbound per protocol** (RAW, gRPC, xHTTP, Hysteria2). No MTProxy, relay SOCKS listener, Veles-direct proxy egress or automatic forward fallback remains. The two reverse connections use the existing `buyan` credential from `secrets.json`, **only** for reverse traffic on Veles; Buyan is removed from the ordinary Veles proxy users. Other client credentials and Buyan's own public proxy service are unchanged.

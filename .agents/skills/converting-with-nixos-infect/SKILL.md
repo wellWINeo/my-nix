@@ -5,7 +5,7 @@ description: Use when converting an existing Linux server to NixOS with nixos-in
 
 # Converting with nixos-infect
 
-`nixos-infect` replaces the existing root filesystem and can leave the machine unbootable or unreachable. Treat the first NixOS boot as an irreversible migration, not a routine reboot.
+`nixos-infect` modifies boot files before reboot and replaces the existing root filesystem on first boot. Either phase can leave the machine unbootable or unreachable.
 
 ## Preflight
 
@@ -18,9 +18,10 @@ description: Use when converting an existing Linux server to NixOS with nixos-in
 ## Stage and inspect
 
 1. Ensure the installer has sufficient disk-backed temporary space and swap. The script may create a 1 GiB swapfile under `/tmp` and call `swapoff -a`; a smaller tmpfs can fill before installation starts. If providing swap yourself, understand and explicitly control the script's `NO_SWAP` behavior and avoid disrupting unrelated swap.
-2. Run the reviewed revision in a durable session, with the selected channel and host-specific configuration. Disable automatic reboot with `NO_REBOOT=1`. Protect logs and configuration; do not use shell tracing when it could expose credentials, keys or network secrets.
-3. Wait for a successful exit; on failure inspect the error and actual disk, swap, configuration and bootloader state before any retry. The script is not necessarily safe to rerun after partial installation. Never reboot simply because a system profile exists.
-4. Before reboot, verify the evaluated NixOS configuration against the live machine: root filesystem, GRUB/EFI target, SSH service and authorized key, interface naming, addresses, gateway routes and DNS. Verify the staged initrd itself contains the required lustration logic, not just that the configuration sets an option. Check the lustration marker, staged system profile and bootloader entry. Resolve discrepancies before proceeding.
+2. Prepare and review the complete hardware and network configuration **before infection**, including the boot disk or EFI partition, root filesystem, SSH key, addresses, routes and DNS. A reviewed revision may support a generation-only run with `NO_INFECT=1` and `NO_REBOOT=1`; inspect its swap handling too. This is not a dry run: it can still install packages, change permissions, create swap or modify files. Check whether an existing configuration causes generation to be skipped.
+3. Run the reviewed revision in a durable session, with the selected channel and reviewed host-specific configuration. Set `NO_REBOOT=1` to disable automatic reboot; it does **not** prevent the installer from modifying boot files, installing GRUB or clearing an EFI system partition. Protect logs and configuration; do not use shell tracing when it could expose credentials, keys or network secrets.
+4. Wait for a successful exit; on failure inspect the error and actual disk, swap, configuration and bootloader state before any retry. The script is not necessarily safe to rerun after partial installation. Never reboot simply because a system profile exists.
+5. Before reboot, verify the evaluated NixOS configuration against the live machine: root filesystem, GRUB/EFI target, SSH service and authorized key, interface naming, addresses, gateway routes and DNS. Verify the staged initrd itself contains the required lustration logic, not just that the configuration sets an option. Check the lustration marker, staged system profile and bootloader entry. If correcting the configuration, rebuild and restage the boot generation, then verify the new generation and boot entry again; editing or reevaluating the source alone does not change the already-built system. Do not rerun the entire infection script by default.
 
 ## First boot and recovery
 

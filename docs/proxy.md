@@ -1,6 +1,6 @@
 # Proxy architecture
 
-The Veles–Buyan reverse relay is deployed. See [the deployment runbook](xray-reverse-deployment.md), [design](superpowers/specs/2026-10-04-xray-proxy-simplification-design.md), and [implementation plan](superpowers/plans/2026-10-04-xray-proxy-simplification.md) before changing a host. The Stribog configuration adds a second relay using its own Buyan-initiated RAW and xHTTP bridges; it is not deployed by a repository change. Stribog has no Timeweb CDN ingress.
+The Veles–Buyan reverse relay is deployed. See [the deployment runbook](xray-reverse-deployment.md), [design](superpowers/specs/2026-10-04-xray-proxy-simplification-design.md), and [implementation plan](superpowers/plans/2026-10-04-xray-proxy-simplification.md) before changing a host. The Stribog configuration adds a second relay using its own Buyan-initiated RAW and xHTTP bridges; it is not deployed by a repository change. Stribog has no Timeweb CDN ingress. Buyan's bridge and reverse-inbound tags include the relay host name (for example, `bridge-veles-raw-out` and `reverse-stribog-raw-in`); Veles's legacy Buyan-side bridge tags change on deployment.
 
 ```mermaid
 flowchart LR

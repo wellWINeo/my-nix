@@ -3,10 +3,10 @@
 # Defines roles.xray.server: the complete public server mode (Buyan-style).
 # Public clients enter through ingress (VLESS RAW/gRPC/xHTTP on the
 # SNI-routed TCP/443 backends plus an optional Hysteria2 UDP server inbound)
-# and leave through direct-out. The optional reverseBridge adds the two
-# Buyan-initiated reverse links to a relay portal: simplified VLESS outbounds
-# paired with the logical inbound tags reverse-raw-in/reverse-xhttp-in, whose
-# traffic is restricted to the reverse-public-out freedom outbound
+# and leave through direct-out. The optional reverseBridge adds two
+# Buyan-initiated reverse links per relay portal: simplified VLESS outbounds
+# paired with host-qualified logical inbound tags, whose traffic is restricted
+# to the reverse-public-out freedom outbound
 # (public TCP/UDP only).
 {
   config,
@@ -169,16 +169,12 @@ let
       }
     ]
     ++ optionals bridgeEnabled (
-      [
-        (bridgeRawOutbound bridgeCfg.address "bridge-raw-out" "reverse-raw-in")
-        (bridgeXhttpOutbound bridgeCfg.address "bridge-xhttp-out" "reverse-xhttp-in")
-      ]
-      ++ concatLists (
-        mapAttrsToList (name: address: [
-          (bridgeRawOutbound address "bridge-${name}-raw-out" "reverse-${name}-raw-in")
-          (bridgeXhttpOutbound address "bridge-${name}-xhttp-out" "reverse-${name}-xhttp-in")
-        ]) bridgeCfg.additionalRelays
-      )
+      concatMap (relay: [
+        (bridgeRawOutbound relay.address "bridge-${relay.host}-raw-out" "reverse-${relay.host}-raw-in")
+        (bridgeXhttpOutbound relay.address "bridge-${relay.host}-xhttp-out"
+          "reverse-${relay.host}-xhttp-in"
+        )
+      ]) bridgeCfg.addresses
       ++ [ reversePublicOutbound ]
     );
     routing.rules = [
@@ -188,33 +184,19 @@ let
         outboundTag = "direct-out";
       }
     ]
-    ++ optionals bridgeEnabled [
-      {
-        type = "field";
-        inboundTag = [ "reverse-raw-in" ];
-        outboundTag = "reverse-public-out";
-      }
-      {
-        type = "field";
-        inboundTag = [ "reverse-xhttp-in" ];
-        outboundTag = "reverse-public-out";
-      }
-    ]
     ++ optionals bridgeEnabled (
-      concatLists (
-        mapAttrsToList (name: _: [
-          {
-            type = "field";
-            inboundTag = [ "reverse-${name}-raw-in" ];
-            outboundTag = "reverse-public-out";
-          }
-          {
-            type = "field";
-            inboundTag = [ "reverse-${name}-xhttp-in" ];
-            outboundTag = "reverse-public-out";
-          }
-        ]) bridgeCfg.additionalRelays
-      )
+      concatMap (relay: [
+        {
+          type = "field";
+          inboundTag = [ "reverse-${relay.host}-raw-in" ];
+          outboundTag = "reverse-public-out";
+        }
+        {
+          type = "field";
+          inboundTag = [ "reverse-${relay.host}-xhttp-in" ];
+          outboundTag = "reverse-public-out";
+        }
+      ]) bridgeCfg.addresses
     );
   };
 in
@@ -291,16 +273,23 @@ in
         description = "Relay-authorized user entry ({ name, uuid, ... }) used by both bridge outbounds; passed explicitly by the machine config";
       };
 
-      address = mkOption {
-        type = types.str;
-        default = "";
-        description = "Relay host address the bridge dials for the reverse links";
-      };
-
-      additionalRelays = mkOption {
-        type = types.attrsOf types.str;
-        default = { };
-        description = "Additional named relay addresses using the same bridge identity and transport settings";
+      addresses = mkOption {
+        type = types.listOf (
+          types.submodule {
+            options = {
+              host = mkOption {
+                type = types.str;
+                description = "Relay name used in bridge tags";
+              };
+              address = mkOption {
+                type = types.str;
+                description = "Relay address the bridge dials";
+              };
+            };
+          }
+        );
+        default = [ ];
+        description = "Named relays using the same bridge identity and transport settings";
       };
 
       reality = {
@@ -379,26 +368,26 @@ in
             && bridgeCfg.user ? uuid
             && bridgeCfg.user.uuid != ""
             && uuidFormat bridgeCfg.user.uuid
-            && bridgeCfg.address != ""
             && bridgeCfg.reality.publicKey != ""
             && bridgeCfg.reality.shortId != ""
             && bridgeCfg.vless.raw.serverName != ""
             && bridgeCfg.vless.xhttp.serverName != ""
             && bridgeCfg.vless.xhttp.path != ""
           );
-        message = "roles.xray.server.reverseBridge requires a user with a valid UUID and nonempty address, reality.publicKey, reality.shortId, vless.raw.serverName, vless.xhttp.serverName and vless.xhttp.path";
+        message = "roles.xray.server.reverseBridge requires a user with a valid UUID and nonempty reality.publicKey, reality.shortId, vless.raw.serverName, vless.xhttp.serverName and vless.xhttp.path";
       }
       {
         assertion =
           !bridgeEnabled
           || (
-            all (name: builtins.match "[a-zA-Z0-9_-]+" name != null) (attrNames bridgeCfg.additionalRelays)
-            && all (address: address != "") (attrValues bridgeCfg.additionalRelays)
-            &&
-              length (unique ([ bridgeCfg.address ] ++ attrValues bridgeCfg.additionalRelays))
-              == 1 + length (attrValues bridgeCfg.additionalRelays)
+            bridgeCfg.addresses != [ ]
+            && all (
+              relay: builtins.match "[a-zA-Z0-9_-]+" relay.host != null && relay.address != ""
+            ) bridgeCfg.addresses
+            && length (unique (map (relay: relay.host) bridgeCfg.addresses)) == length bridgeCfg.addresses
+            && length (unique (map (relay: relay.address) bridgeCfg.addresses)) == length bridgeCfg.addresses
           );
-        message = "roles.xray.server.reverseBridge.additionalRelays requires valid names and distinct nonempty addresses";
+        message = "roles.xray.server.reverseBridge.addresses requires unique valid host names and unique nonempty addresses";
       }
     ];
 

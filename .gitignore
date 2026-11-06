@@ -4,3 +4,4 @@
 .opencode
 .worktrees
 result
+__pycache__

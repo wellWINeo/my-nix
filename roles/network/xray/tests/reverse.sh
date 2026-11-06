@@ -17,18 +17,20 @@ nix eval --impure --json --expr '
   let f = builtins.getFlake "'"$flake"'"; c = f.nixosConfigurations.stribog.config;
   in { bootDisk = c.boot.loader.grub.device; rootDevice = c.fileSystems."/".device;
        inherit (c.networking) hostName defaultGateway defaultGateway6;
-       ipv4 = c.networking.interfaces.net0.ipv4; ipv6 = c.networking.interfaces.net0.ipv6;
+       ipv4 = c.networking.interfaces.net0.ipv4;
+       disableIpv6 = c.boot.kernel.sysctl."net.ipv6.conf.all.disable_ipv6";
+       ipv6 = c.networking.interfaces.net0.ipv6;
        rootLogin = c.services.openssh.settings.PermitRootLogin;
        rootKeys = builtins.length c.users.users.root.openssh.authorizedKeys.keys;
        forward = c.roles.stream-forwarder.forwards; }
 ' | jq -e '
   .bootDisk == "/dev/vda" and .rootDevice == "/dev/vda2" and .hostName == "stribog"
   and (.defaultGateway | .address == "192.0.2.1" and .interface == "net0")
-  and (.defaultGateway6 | .address == "fe80::1" and .interface == "net0")
+  and .disableIpv6 == 1
+  and (.defaultGateway6 == null)
   and (.ipv4.addresses | any(.address == "192.0.2.2" and .prefixLength == 32))
   and (.ipv4.routes | any(.address == "192.0.2.1" and .prefixLength == 32))
-  and (.ipv6.addresses | any(.address == "2001:db8:1::2" and .prefixLength == 48))
-  and (.ipv6.routes | any(.address == "fe80::1" and .prefixLength == 128))
+  and (.ipv6.addresses == [] and .ipv6.routes == [])
   and .rootLogin == "prohibit-password" and .rootKeys > 0
   and (.forward | any(.listenAddress == "0.0.0.0:8443" and .targetAddress == "192.168.1.1:443"))
 ' >/dev/null
@@ -40,6 +42,42 @@ stribogAddress=$(jq -er '.ip.stribog.address' "${flake#path:}/secrets/secrets.du
 # The collecting host must scrape Stribog's node and Xray textfile metrics.
 nix eval --json "$flake#nixosConfigurations.mokosh.config.services.victoriametrics.prometheusConfig.scrape_configs" |
   jq -e '[.[] | select(.job_name == "node") | .static_configs[] | select(.labels.host == "stribog") | .targets[]] == ["stribog.ts:9100"]' >/dev/null
+
+# Forward rollback configuration must authenticate as Stribog, not Veles.
+stribogForward=$(nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.stribog.lib;
+in (f.nixosConfigurations.stribog.extendModules {
+  modules = [ { roles.xray.relay.egress.via = lib.mkForce "forward"; } ];
+}).config.roles.xray._configTemplate
+')
+stribogId=$(jq -er '
+  [.singBoxUsers[] | select(.name == "stribog")] as $users |
+  if ($users | length) == 1
+    and ($users[0].uuid | test("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
+    and ([.singBoxUsers[].uuid] | length == (unique | length))
+    and ($users[0].password != "")
+    and ($users[0].hosts | index("stribog") != null and index("buyan") != null)
+  then $users[0].uuid else error("expected one valid unique stribog user") end
+' "${flake#path:}/secrets/secrets.dummy.json")
+printf '%s' "$stribogForward" | jq -e --arg id "$stribogId" '
+  [.outbounds[] | select(.tag | startswith("forward-"))] as $forward |
+  ($forward | length > 0) and all($forward[]; .settings.vnext[0].users[0].id == $id)
+' >/dev/null
+# Buyan must authorize Stribog's UUID on its public VLESS ingress for forward mode.
+printf '%s' "$buyan" | jq -e --arg id "$stribogId" '
+  all(.inbounds[] | select(.protocol == "vless"); any(.settings.clients[]; .id == $id))
+' >/dev/null
+
+# Missing Stribog identity fails evaluation rather than falling back to Veles.
+if nix eval --impure --raw --expr '
+let
+  f = builtins.getFlake "'"$flake"'";
+  users = builtins.filter (u: u.name != "stribog") (builtins.fromJSON (builtins.readFile (f.outPath + "/secrets/secrets.dummy.json")).singBoxUsers);
+in ((import (f.outPath + "/common/select-proxy-user.nix")) "stribog" users).uuid
+' >/dev/null 2>&1; then
+  echo "missing Stribog identity did not fail selection" >&2
+  exit 1
+fi
 
 # A second relay must have both bridge transports and distinct restricted
 # reverse-inbound tags; Veles's existing links must remain intact.

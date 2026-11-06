@@ -9,7 +9,7 @@ let
   selectProxyUser = import ../../common/select-proxy-user.nix;
   users = filterProxyUsersForHost hostname secrets.singBoxUsers;
   reverseUser = selectProxyUser "buyan" users;
-  relayUser = selectProxyUser "veles" secrets.singBoxUsers;
+  relayUser = selectProxyUser hostname secrets.singBoxUsers;
 in
 {
   imports = [
@@ -20,7 +20,12 @@ in
     ../../roles
   ];
 
-  boot.loader.grub.device = "/dev/vda";
+  boot = {
+    loader.grub.device = "/dev/vda";
+
+    # IPv6 is disabled on this host, matching Veles's network configuration.
+    kernel.sysctl."net.ipv6.conf.all.disable_ipv6" = 1;
+  };
   boot.initrd.systemd.enable = false;
   fileSystems."/" = {
     device = "/dev/vda2";
@@ -48,25 +53,9 @@ in
           prefixLength = 32;
         }
       ];
-      ipv6.addresses = [
-        {
-          address = ip.address6;
-          prefixLength = 48;
-        }
-      ];
-      ipv6.routes = [
-        {
-          address = ip.gateway6;
-          prefixLength = 128;
-        }
-      ];
     };
     defaultGateway = {
       address = ip.gateway;
-      interface = ifname;
-    };
-    defaultGateway6 = {
-      address = ip.gateway6;
       interface = ifname;
     };
   };

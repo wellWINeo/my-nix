@@ -52,6 +52,7 @@ in
     baseDomain = domainNames.secondary;
     remoteAgents = [
       { host = "veles"; }
+      { host = "stribog"; }
       { host = "buyan"; }
       { host = "nixpi"; }
     ];

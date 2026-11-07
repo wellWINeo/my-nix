@@ -3,7 +3,7 @@
 #
 # Checks the generated roles.xray._configTemplate of the tracked hosts:
 #   veles — relay mode, egress.via = "reverse" (Buyan-initiated reverse links)
-#   buyan — server mode with reverseBridge (two bridge outbounds to Veles)
+#   buyan — server mode with RAW/xHTTP reverse bridges to Veles and Stribog
 # plus the CDN origin wiring (SNI-router entry order, Nginx HTTPS origin vhost,
 # HTTP-01 ACME, static probe page), forward-mode and failure-mode variations
 # via extendModules, and the dashboard's generic reverse tag queries.
@@ -12,8 +12,104 @@
 # and never printed.
 set -euo pipefail
 flake="${1:?pass path:source-tree}"
+# A missing or misconfigured Stribog must not silently leave the second relay undeployable.
+nix eval --impure --json --expr '
+  let f = builtins.getFlake "'"$flake"'"; c = f.nixosConfigurations.stribog.config;
+  in { bootDisk = c.boot.loader.grub.device; rootDevice = c.fileSystems."/".device;
+       inherit (c.networking) hostName defaultGateway defaultGateway6;
+       ipv4 = c.networking.interfaces.net0.ipv4;
+       disableIpv6 = c.boot.kernel.sysctl."net.ipv6.conf.all.disable_ipv6";
+       ipv6 = c.networking.interfaces.net0.ipv6;
+       rootLogin = c.services.openssh.settings.PermitRootLogin;
+       rootKeys = builtins.length c.users.users.root.openssh.authorizedKeys.keys;
+       forward = c.roles.stream-forwarder.forwards; }
+' | jq -e '
+  .bootDisk == "/dev/vda" and .rootDevice == "/dev/vda2" and .hostName == "stribog"
+  and (.defaultGateway | .address == "192.0.2.1" and .interface == "net0")
+  and .disableIpv6 == 1
+  and (.defaultGateway6 == null)
+  and (.ipv4.addresses | any(.address == "192.0.2.2" and .prefixLength == 32))
+  and (.ipv4.routes | any(.address == "192.0.2.1" and .prefixLength == 32))
+  and (.ipv6.addresses == [] and .ipv6.routes == [])
+  and .rootLogin == "prohibit-password" and .rootKeys > 0
+  and (.forward | any(.listenAddress == "0.0.0.0:8443" and .targetAddress == "192.168.1.1:443"))
+' >/dev/null
 veles=$(nix eval --json "$flake#nixosConfigurations.veles.config.roles.xray._configTemplate")
 buyan=$(nix eval --json "$flake#nixosConfigurations.buyan.config.roles.xray._configTemplate")
+stribog=$(nix eval --json "$flake#nixosConfigurations.stribog.config.roles.xray._configTemplate")
+stribogAddress=$(jq -er '.ip.stribog.address' "${flake#path:}/secrets/secrets.dummy.json")
+velesAddress=$(jq -er '.ip.veles.address' "${flake#path:}/secrets/secrets.dummy.json")
+
+# The collecting host must scrape Stribog's node and Xray textfile metrics.
+nix eval --json "$flake#nixosConfigurations.mokosh.config.services.victoriametrics.prometheusConfig.scrape_configs" |
+  jq -e '[.[] | select(.job_name == "node") | .static_configs[] | select(.labels.host == "stribog") | .targets[]] == ["stribog.ts:9100"]' >/dev/null
+
+# Forward rollback configuration must authenticate as Stribog, not Veles.
+stribogForward=$(nix eval --impure --json --expr '
+let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.stribog.lib;
+in (f.nixosConfigurations.stribog.extendModules {
+  modules = [ { roles.xray.relay.egress.via = lib.mkForce "forward"; } ];
+}).config.roles.xray._configTemplate
+')
+stribogId=$(jq -er '
+  [.singBoxUsers[] | select(.name == "stribog")] as $users |
+  if ($users | length) == 1
+    and ($users[0].uuid | test("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
+    and ([.singBoxUsers[].uuid] | length == (unique | length))
+    and ($users[0].password != "")
+    and ($users[0].hosts | index("stribog") != null and index("buyan") != null)
+  then $users[0].uuid else error("expected one valid unique stribog user") end
+' "${flake#path:}/secrets/secrets.dummy.json")
+printf '%s' "$stribogForward" | jq -e --arg id "$stribogId" '
+  [.outbounds[] | select(.tag | startswith("forward-"))] as $forward |
+  ($forward | length > 0) and all($forward[]; .settings.vnext[0].users[0].id == $id)
+' >/dev/null
+# Buyan must authorize Stribog's UUID on its public VLESS ingress for forward mode.
+printf '%s' "$buyan" | jq -e --arg id "$stribogId" '
+  all(.inbounds[] | select(.protocol == "vless"); any(.settings.clients[]; .id == $id))
+' >/dev/null
+
+# Missing Stribog identity fails evaluation rather than falling back to Veles.
+if nix eval --impure --raw --expr '
+let
+  f = builtins.getFlake "'"$flake"'";
+  users = builtins.filter (u: u.name != "stribog") (builtins.fromJSON (builtins.readFile (f.outPath + "/secrets/secrets.dummy.json")).singBoxUsers);
+in ((import (f.outPath + "/common/select-proxy-user.nix")) "stribog" users).uuid
+' >/dev/null 2>&1; then
+  echo "missing Stribog identity did not fail selection" >&2
+  exit 1
+fi
+
+# Both relays use host-qualified tags and retain restricted reverse egress.
+printf '%s' "$buyan" | jq -e --arg veles "$velesAddress" --arg stribog "$stribogAddress" '
+  . as $cfg |
+  {veles: $veles, stribog: $stribog} as $addresses |
+  all(["veles", "stribog"][]; . as $host |
+    all(["raw", "xhttp"][]; . as $transport |
+      ([ $cfg.outbounds[] | select(.tag == ("bridge-" + $host + "-" + $transport + "-out")) |
+        select(.settings.address == $addresses[$host] and .settings.reverse.tag == ("reverse-" + $host + "-" + $transport + "-in")) ] | length == 1)
+      and ([ $cfg.routing.rules[] | select((.inboundTag // []) | index("reverse-" + $host + "-" + $transport + "-in")) |
+        .outboundTag ] == ["reverse-public-out"])))
+' >/dev/null
+
+# A second relay must have both bridge transports and distinct restricted
+# reverse-inbound tags; Veles's existing links must remain intact.
+printf '%s' "$buyan" | jq -e --arg address "$stribogAddress" '
+  . as $cfg |
+  ([.outbounds[] | select(.tag == "bridge-stribog-raw-out") |
+    select(.settings.address == $address and .settings.reverse.tag == "reverse-stribog-raw-in" and .streamSettings.network == "tcp")] | length == 1)
+  and ([.outbounds[] | select(.tag == "bridge-stribog-xhttp-out") |
+    select(.settings.address == $address and .settings.reverse.tag == "reverse-stribog-xhttp-in" and .streamSettings.network == "xhttp")] | length == 1)
+  and (all(["reverse-stribog-raw-in", "reverse-stribog-xhttp-in"][]; . as $tag |
+    [$cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .outboundTag] == ["reverse-public-out"]))
+' >/dev/null
+
+# Stribog uses the relay portal and the same fail-closed egress, without Veles's CDN origin.
+printf '%s' "$stribog" | jq -e '
+  ([.inbounds[].tag] | sort == ["hy2-relay-in", "vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
+  and ([.outbounds[].tag] == ["blocked-out"])
+  and ([.routing.balancers[] | select(.tag == "reverse-balancer" and .fallbackTag == "blocked-out")] | length == 1)
+' >/dev/null
 
 # --- Veles relay topology: five generic inbounds, blackhole-first egress, reverse balancer ---
 printf '%s' "$veles" | jq -e '
@@ -70,8 +166,8 @@ bridge_parity='
   . as $cfg
   | ($veles.inbounds[] | select(.tag == "vless-raw-in") | .streamSettings) as $rawSs
   | ($veles.inbounds[] | select(.tag == "vless-xhttp-in") | .streamSettings) as $xhttpSs
-  | [$cfg.outbounds[] | select(.tag == "bridge-raw-out")] as $rawBridge
-  | [$cfg.outbounds[] | select(.tag == "bridge-xhttp-out")] as $xhttpBridge
+  | [$cfg.outbounds[] | select(.tag == "bridge-veles-raw-out")] as $rawBridge
+  | [$cfg.outbounds[] | select(.tag == "bridge-veles-xhttp-out")] as $xhttpBridge
   | ($rawBridge | length == 1)
     and ($xhttpBridge | length == 1)
     and ($rawBridge[0].streamSettings.realitySettings.serverName == $rawSs.realitySettings.serverNames[0])
@@ -201,36 +297,79 @@ nix eval --impure --json --expr 'let f = builtins.getFlake "'"$flake"'"; in buil
 printf '%s' "$buyan" | jq -e --argjson veles "$veles" '
   . as $cfg |
   ([.inbounds[] | select(.protocol == "vless") | .tag] | sort == ["vless-grpc-in", "vless-raw-in", "vless-xhttp-in"])
-  and (.outbounds | map(.tag) == ["blocked-out", "direct-out", "bridge-raw-out", "bridge-xhttp-out", "reverse-public-out"])
+  and (.outbounds | map(.tag) == ["blocked-out", "direct-out", "bridge-veles-raw-out", "bridge-veles-xhttp-out", "bridge-stribog-raw-out", "bridge-stribog-xhttp-out", "reverse-public-out"])
   and ([.outbounds[] | select(.tag == "blocked-out") | .protocol] == ["blackhole"])
   and ([.outbounds[] | select(.tag == "direct-out") | .protocol] == ["freedom"])
-  and ([.outbounds[] | select(.tag == "bridge-raw-out")] | length == 1)
-  and ([.outbounds[] | select(.tag == "bridge-xhttp-out")] | length == 1)
-  and ([.outbounds[] | select(.tag == "bridge-raw-out") |
+  and ([.outbounds[] | select(.tag == "bridge-veles-raw-out")] | length == 1)
+  and ([.outbounds[] | select(.tag == "bridge-veles-xhttp-out")] | length == 1)
+  and ([.outbounds[] | select(.tag == "bridge-veles-raw-out") |
         (.settings.vnext? == null)
-        and .settings.reverse.tag == "reverse-raw-in"
+        and .settings.reverse.tag == "reverse-veles-raw-in"
         and .settings.flow? == "xtls-rprx-vision"
         and .streamSettings.network == "tcp"
         and .streamSettings.realitySettings.fingerprint == "firefox"] | all)
-  and ([.outbounds[] | select(.tag == "bridge-xhttp-out") |
+  and ([.outbounds[] | select(.tag == "bridge-veles-xhttp-out") |
         (.settings.vnext? == null)
-        and .settings.reverse.tag == "reverse-xhttp-in"
+        and .settings.reverse.tag == "reverse-veles-xhttp-in"
         and .settings.flow? == null
         and .streamSettings.network == "xhttp"
         and .streamSettings.realitySettings.fingerprint == "firefox"] | all)
   and ([.outbounds[] | select(.tag == "reverse-public-out") | .settings.finalRules] == [[{"action":"allow","network":"tcp,udp","ip":["!geoip:private"]}]])
   and (["vless-raw-in", "vless-grpc-in", "vless-xhttp-in"] as $public |
        all($public[]; . as $tag | [($cfg.routing.rules[] | select((.inboundTag // []) | index($tag)) | .outboundTag)] == ["direct-out"]))
-  and ([.routing.rules[] | select((.inboundTag // []) == ["reverse-raw-in"])] | length == 1)
-  and ([.routing.rules[] | select((.inboundTag // []) == ["reverse-xhttp-in"])] | length == 1)
-  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-raw-in")) | .outboundTag] == ["reverse-public-out"])
-  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-xhttp-in")) | .outboundTag] == ["reverse-public-out"])
+  and ([.routing.rules[] | select((.inboundTag // []) == ["reverse-veles-raw-in"])] | length == 1)
+  and ([.routing.rules[] | select((.inboundTag // []) == ["reverse-veles-xhttp-in"])] | length == 1)
+  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-veles-raw-in")) | .outboundTag] == ["reverse-public-out"])
+  and ([.routing.rules[] | select((.inboundTag // []) | index("reverse-veles-xhttp-in")) | .outboundTag] == ["reverse-public-out"])
 ' >/dev/null
 
 # Both bridge outbounds authenticate as the buyan user.
 printf '%s' "$buyan" | jq -e --arg id "$reverseId" '
-  ([.outbounds[] | select(.tag == "bridge-raw-out" or .tag == "bridge-xhttp-out") | .settings.id] == [$id, $id])
+  ([.outbounds[] | select(.tag == "bridge-veles-raw-out" or .tag == "bridge-veles-xhttp-out") | .settings.id] == [$id, $id])
 ' >/dev/null
+
+# Both Stribog transports authenticate against its portal with the same
+# identity, SNI, short ID and xHTTP path, and retain the public-only route.
+printf '%s' "$buyan" | jq -e --argjson relay "$stribog" --arg id "$reverseId" --arg key "$realityPub" '
+  . as $cfg |
+  ([{transport:"raw", inbound:"vless-raw-in"}, {transport:"xhttp", inbound:"vless-xhttp-in"}] |
+    all(.[]; . as $t |
+      ($relay.inbounds[] | select(.tag == $t.inbound)) as $in |
+      ([$cfg.outbounds[] | select(.tag == ("bridge-stribog-" + $t.transport + "-out"))][0]) as $out |
+      ($out.settings.id == $id)
+      and ([$in.settings.clients[] | select(.id == $id and .reverse.tag? == ("reverse-" + $t.transport + "-out"))] | length == 1)
+      and ($out.streamSettings.realitySettings.publicKey == $key)
+      and ($out.streamSettings.realitySettings.serverName == $in.streamSettings.realitySettings.serverNames[0])
+      and (any($in.streamSettings.realitySettings.shortIds[]; . == $out.streamSettings.realitySettings.shortId))
+      and (if $t.transport == "xhttp" then $out.streamSettings.xhttpSettings.path == $in.streamSettings.xhttpSettings.path else true end)))
+' >/dev/null
+
+# Relay names resembling transport names must still produce unique tags.
+nix eval --impure --json --expr '
+  let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.buyan.lib;
+  in (f.nixosConfigurations.buyan.extendModules {
+    modules = [ { roles.xray.server.reverseBridge.addresses = lib.mkAfter [ { host = "raw"; address = "192.0.2.77"; } ]; } ];
+  }).config.roles.xray._configTemplate' | jq -e '
+  ([.outbounds[].tag] | length == (unique | length))
+  and ([.outbounds[].tag] | index("bridge-veles-raw-out") != null and index("bridge-raw-raw-out") != null)
+  and ([.outbounds[].tag] | index("bridge-veles-xhttp-out") != null and index("bridge-raw-xhttp-out") != null)
+' >/dev/null
+
+# Empty lists, malformed hosts, and duplicate names or addresses must be rejected.
+for override in \
+  'roles.xray.server.reverseBridge.addresses = lib.mkForce [ ];' \
+  'roles.xray.server.reverseBridge.addresses = lib.mkForce [ { host = ""; address = "192.0.2.1"; } ];' \
+  'roles.xray.server.reverseBridge.addresses = lib.mkForce [ { host = "bad/name"; address = "192.0.2.1"; } ];' \
+  'roles.xray.server.reverseBridge.addresses = lib.mkForce [ { host = "veles"; address = ""; } ];' \
+  'roles.xray.server.reverseBridge.addresses = lib.mkForce [ { host = "veles"; address = "192.0.2.1"; } { host = "veles"; address = "192.0.2.2"; } ];' \
+  'roles.xray.server.reverseBridge.addresses = lib.mkForce [ { host = "veles"; address = "192.0.2.1"; } { host = "stribog"; address = "192.0.2.1"; } ];'; do
+  nix eval --impure --json --expr '
+    let f = builtins.getFlake "'"$flake"'"; lib = f.nixosConfigurations.buyan.lib;
+    in map (a: a.message) (lib.filter (a: !a.assertion) (f.nixosConfigurations.buyan.extendModules {
+      modules = [ { '"$override"' } ];
+    }).config.assertions)' |
+    jq -e 'any(.[]; contains("reverseBridge.addresses"))' >/dev/null
+done
 
 # Positive cross-host parity: SNI/path/key/shortId match Veles's portal inbounds.
 check_bridge_parity "$buyan"
@@ -572,8 +711,8 @@ jq -e '
   .spec as $s |
   ($s.elements["panel-14"] | .spec.data.spec.queries[0].spec.query.spec.expr == "xray_observatory_alive{host=\"veles\",outbound=~\"reverse-raw-out|reverse-xhttp-out\"}" and .spec.vizConfig.spec.fieldConfig.defaults.unit == "short")
   and ($s.elements["panel-15"] | [.spec.data.spec.queries[].spec.query.spec.expr] == [
-    "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))",
-    "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))"
+    "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-(.+-)?(raw|xhttp)-out|reverse-public-out\"}[$__rate_interval]))",
+    "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-(.+-)?(raw|xhttp)-out|reverse-public-out\"}[$__rate_interval]))"
   ] and .spec.vizConfig.spec.fieldConfig.defaults.unit == "Bps")
   and any($s.layout.spec.rows[]; .spec.title == "xray reverse" and ([.spec.layout.spec.items[].spec.element.name] | sort == ["panel-14", "panel-15"]))
 ' "${flake#path:}/roles/observability/dashboards/proxy-health.json" >/dev/null

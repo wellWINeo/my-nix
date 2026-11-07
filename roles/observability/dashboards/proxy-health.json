@@ -810,7 +810,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))",
+                        "expr": "sum by (host, outbound) (rate(xray_outbound_uplink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-(.+-)?(raw|xhttp)-out|reverse-public-out\"}[$__rate_interval]))",
                         "legendFormat": "{{outbound}} up ({{host}})",
                         "range": true
                       },
@@ -831,7 +831,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-raw-out|bridge-xhttp-out|reverse-public-out\"}[$__rate_interval]))",
+                        "expr": "sum by (host, outbound) (rate(xray_outbound_downlink_bytes_total{host=~\"$host\",outbound=~\"reverse-raw-out|reverse-xhttp-out|bridge-(.+-)?(raw|xhttp)-out|reverse-public-out\"}[$__rate_interval]))",
                         "legendFormat": "{{outbound}} down ({{host}})",
                         "range": true
                       },
@@ -845,7 +845,7 @@
               "transformations": []
             }
           },
-          "description": "Xray outbound bytes per second: Veles reverse-raw-out/reverse-xhttp-out (link), Buyan bridge-raw-out/bridge-xhttp-out (link) and reverse-public-out (public egress). Up/down are relative to each outbound; no traffic is not proof that the link is down.",
+          "description": "Xray outbound bytes per second: relay reverse-raw-out/reverse-xhttp-out links, Buyan host-qualified bridge links (including legacy bridge tags) and reverse-public-out (public egress). Up/down are relative to each outbound; no traffic is not proof that the link is down.",
           "id": 15,
           "links": [],
           "title": "Reverse traffic by outbound",

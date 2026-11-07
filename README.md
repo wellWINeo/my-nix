@@ -8,6 +8,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 |----------|----------|-------|---------|
 | `mokosh` | VPS | 1 CPU, 2GB RAM | Main server — website, mail, VPN, vault, blog, RSS, calibre, backup |
 | `veles` | VPS | 1 CPU, 1GB RAM (RU) | Xray relay, stream-forwarder to mokosh |
+| `stribog` | VPS | 2GB RAM | Xray relay, stream-forwarder to mokosh |
 | `buyan` | VPS | 1 CPU, 1GB RAM (NL) | Xray server (entry point) |
 | `nixpi` | Raspberry Pi 4 | Home server | Media, NAS, DNS, DHCP, photos, torrent |
 | macOS | MacBook Pro | — | Standalone home-manager configs (alacritty, neovim, tmux, coding agents) |
@@ -21,6 +22,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 ├── machines/                # Per-machine NixOS configs
 │   ├── mokosh/              # Main VPS
 │   ├── veles/               # Russian relay VPS
+│   ├── stribog/             # Second relay VPS
 │   ├── buyan/               # Netherlands entry VPS
 │   └── nixpi/               # Raspberry Pi 4
 ├── roles/                   # Reusable service modules (auto-discovered)

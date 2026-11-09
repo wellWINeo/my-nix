@@ -144,34 +144,22 @@ Each subdirectory is auto-discovered if it contains a `default.nix`, or individu
 
 ### Machine Config Pattern
 
-All machine configs follow this structure:
+Each NixOS host uses three files under `machines/<hostname>/`:
+
+- `default.nix` is the composition entry point and imports `configuration.nix` and `workloads.nix`.
+- `configuration.nix` owns host identity, boot, filesystems, networking, and base system settings.
+- `workloads.nix` imports `../../roles`, explicitly imports shared role profiles as needed, and enables/configures this host's workloads.
+
+Keep reusable service behavior in its role module under `roles/`; do not copy role implementation into a machine workload file. A shared profile belongs alongside its owning role and is imported explicitly by each workload that uses it. For example, `roles/network/xray/profiles/reverse-relay.nix` configures the common reverse-relay behavior used by Veles and Stribog.
 
 ```nix
-{ lib, ... }:
-
-let
-  hostname = "example";
-  ifname = "ens3";
-  ip = (import ../../secrets).ip.example;
-  secrets = import ../../secrets;
-in
+# machines/<hostname>/default.nix
+{ ... }:
 {
   imports = [
-    ../../common/hardened.nix
-    ../../common/server.nix
-    ../../hardware/vm.nix
-    ../../roles
+    ./configuration.nix
+    ./workloads.nix
   ];
-
-  # boot, filesystems, networking...
-
-  ###
-  # Roles
-  ###
-  roles.hardened.enable = true;
-  roles.someRole = { enable = true; /* options */ };
-
-  system.stateVersion = "26.05";
 }
 ```
 

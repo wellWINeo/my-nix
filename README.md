@@ -19,7 +19,7 @@ Personal NixOS configuration repository for managing multiple machines and stand
 ├── flake.nix                # Main flake — all NixOS + home-manager configs
 ├── flake.lock               # Locked dependency versions
 ├── Makefile                 # Common operations (unlock, deploy, check)
-├── machines/                # Per-machine NixOS configs
+├── machines/                # Per-machine NixOS configs (three-file layout)
 │   ├── mokosh/              # Main VPS
 │   ├── veles/               # Russian relay VPS
 │   ├── stribog/             # Second relay VPS
@@ -207,12 +207,22 @@ relay is self-hosted on mokosh. `nixpi` runs Tailscale in parallel with its
 existing WireGuard client; WireGuard remains the active fallback until a
 separately approved retirement change.
 
+## Machine configuration
+
+Each NixOS host has three files under `machines/<hostname>/`:
+
+- `default.nix` is the small composition entry point importing the other two files.
+- `configuration.nix` owns host identity, boot, disks, networking, and base system settings.
+- `workloads.nix` enables and configures the host's service roles and imports any shared role profiles it uses.
+
+Put reusable service behavior in a role under `roles/`, not in a machine's workload file. A profile is a shared configuration module alongside its owning role; import that profile explicitly from each workload that needs it. For example, Xray reverse-relay settings shared by Veles and Stribog live in `roles/network/xray/profiles/reverse-relay.nix`.
+
 ## Adding a New Machine
 
-1. Create `machines/<hostname>/default.nix` following the machine config pattern
-2. Add to `flake.nix` under `nixosConfigurations` with appropriate system
-3. Import `../../roles` and enable needed roles
-4. Set `system.stateVersion = "26.05"`
+1. Create `machines/<hostname>/default.nix`, `configuration.nix`, and `workloads.nix` using the three-file layout above.
+2. Add to `flake.nix` under `nixosConfigurations` with the appropriate system.
+3. Keep host-specific system setup in `configuration.nix`; import and enable needed roles/profiles in `workloads.nix`.
+4. Set `system.stateVersion = "26.05"`.
 
 ## Bootstrapping a DigitalOcean Droplet
 

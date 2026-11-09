@@ -16,24 +16,34 @@ flake="${1:?pass path:source-tree}"
 nix eval --impure --json --expr '
   let f = builtins.getFlake "'"$flake"'"; c = f.nixosConfigurations.stribog.config;
   in { bootDisk = c.boot.loader.grub.device; rootDevice = c.fileSystems."/".device;
-       inherit (c.networking) hostName defaultGateway defaultGateway6;
-       ipv4 = c.networking.interfaces.net0.ipv4;
+       inherit (c.networking) hostName defaultGateway defaultGateway6 nameservers usePredictableInterfaceNames;
+       ipv4 = c.networking.interfaces.eth0.ipv4;
+       ipv6 = c.networking.interfaces.eth0.ipv6;
        disableIpv6 = c.boot.kernel.sysctl."net.ipv6.conf.all.disable_ipv6";
-       ipv6 = c.networking.interfaces.net0.ipv6;
        rootLogin = c.services.openssh.settings.PermitRootLogin;
        rootKeys = builtins.length c.users.users.root.openssh.authorizedKeys.keys;
+       hysteriaCert = toString c.roles.xray.relay.ingress.hysteria2.certFile;
+       hysteriaKey = toString c.roles.xray.relay.ingress.hysteria2.keyFile;
        forward = c.roles.stream-forwarder.forwards; }
 ' | jq -e '
-  .bootDisk == "/dev/vda" and .rootDevice == "/dev/vda2" and .hostName == "stribog"
-  and (.defaultGateway | .address == "192.0.2.1" and .interface == "net0")
+  .bootDisk == "/dev/vda" and .rootDevice == "/dev/vda1" and .hostName == "stribog"
+  and (.defaultGateway | .address == "192.0.2.1" and .interface == "eth0")
   and .disableIpv6 == 1
-  and (.defaultGateway6 == null)
-  and (.ipv4.addresses | any(.address == "192.0.2.2" and .prefixLength == 32))
+  and .defaultGateway6 == null
+  and .usePredictableInterfaceNames == false
+  and .nameservers == ["195.208.4.1", "8.8.4.4"]
+  and (.ipv4.addresses | any(.address == "192.0.2.2" and .prefixLength == 24))
   and (.ipv4.routes | any(.address == "192.0.2.1" and .prefixLength == 32))
   and (.ipv6.addresses == [] and .ipv6.routes == [])
   and .rootLogin == "prohibit-password" and .rootKeys > 0
+  and .hysteriaCert == "/etc/nixos/secrets/hysteria-stribog-cert"
+  and .hysteriaKey == "/etc/nixos/secrets/hysteria-stribog-key"
   and (.forward | any(.listenAddress == "0.0.0.0:8443" and .targetAddress == "192.168.1.1:443"))
 ' >/dev/null
+nix eval --json "$flake#nixosConfigurations.veles.config.roles.xray.relay.ingress.hysteria2.certFile" |
+  jq -e '. == "/etc/nixos/secrets/hysteria-veles-cert"' >/dev/null
+nix eval --json "$flake#nixosConfigurations.veles.config.roles.xray.relay.ingress.hysteria2.keyFile" |
+  jq -e '. == "/etc/nixos/secrets/hysteria-veles-key"' >/dev/null
 veles=$(nix eval --json "$flake#nixosConfigurations.veles.config.roles.xray._configTemplate")
 buyan=$(nix eval --json "$flake#nixosConfigurations.buyan.config.roles.xray._configTemplate")
 stribog=$(nix eval --json "$flake#nixosConfigurations.stribog.config.roles.xray._configTemplate")

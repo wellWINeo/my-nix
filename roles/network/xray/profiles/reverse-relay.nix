@@ -36,8 +36,8 @@ in
         enable = true;
         port = 443;
         sni = "turn.webrtc.yandex.net";
-        certFile = "/etc/nixos/secrets/hysteria-veles-cert";
-        keyFile = "/etc/nixos/secrets/hysteria-veles-key";
+        certFile = "/etc/nixos/secrets/hysteria-${hostname}-cert";
+        keyFile = "/etc/nixos/secrets/hysteria-${hostname}-key";
         masquerade = {
           type = "proxy";
           url = "https://turn.webrtc.yandex.net";

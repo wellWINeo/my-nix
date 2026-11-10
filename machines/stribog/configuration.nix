@@ -2,7 +2,7 @@
 
 let
   hostname = "stribog";
-  ifname = "net0";
+  ifname = "eth0";
   secrets = import ../../secrets;
   ip = secrets.ip.stribog;
 in
@@ -22,7 +22,7 @@ in
   };
   boot.initrd.systemd.enable = false;
   fileSystems."/" = {
-    device = "/dev/vda2";
+    device = "/dev/vda1";
     fsType = "ext4";
   };
   zramSwap.enable = true;
@@ -31,14 +31,17 @@ in
     hostName = hostname;
     useDHCP = false;
     dhcpcd.enable = false;
-    usePredictableInterfaceNames = lib.mkForce true;
-    nameservers = [ "1.1.1.1" ];
+    usePredictableInterfaceNames = lib.mkForce false;
+    nameservers = [
+      "195.208.4.1"
+      "8.8.4.4"
+    ];
     firewall.enable = true;
     interfaces.${ifname} = {
       ipv4.addresses = [
         {
           address = ip.address;
-          prefixLength = 32;
+          prefixLength = 24;
         }
       ];
       ipv4.routes = [

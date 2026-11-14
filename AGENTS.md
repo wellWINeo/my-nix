@@ -136,7 +136,7 @@ Complex roles are organized into subdirectories under `roles/`:
 | Directory | Contents |
 |-----------|----------|
 | `roles/communication/` | `mail.nix` |
-| `roles/network/` | `shadowsocks/` (client + server), `sing-box/` (client + server), `wireguard/` (client + router), `xray/` (server + relay + client), `sni-router.nix`, `stream-forwarder.nix` |
+| `roles/network/` | `sing-box/` (client + server), `wireguard/` (client + router), `xray/` (server + relay + client), `sni-router.nix`, `stream-forwarder.nix` |
 | `roles/reading/` | `calibre.nix`, `rss/` (miniflux + summarizer + backup) |
 | `roles/router/` | `dhcp.nix`, `dns.nix`, `nginx.nix` (home nginx with PAC proxy) |
 
@@ -241,7 +241,7 @@ Home-manager option namespaces:
 | `machines/` | Per-machine NixOS configurations (`buyan/`, `mokosh/`, `nixpi/`, `veles/`) |
 | `roles/` | Reusable service modules — auto-discovered via `default.nix` |
 | `roles/communication/` | Mail server role |
-| `roles/network/` | Proxy/VPN roles (shadowsocks, sing-box, wireguard, xray) |
+| `roles/network/` | Proxy/VPN roles (sing-box, wireguard, xray) |
 | `roles/reading/` | Reading roles (calibre, rss/miniflux) |
 | `roles/router/` | Home router roles (dhcp, dns, nginx with PAC) |
 | `common/` | Shared configs, utilities, and reusable modules |
@@ -264,7 +264,6 @@ Home-manager option namespaces:
 | `btrfs-balance.nix` | Periodic btrfs balance timer/service |
 | `define-media-user.nix` | Media user/group definition |
 | `sqlite-backup.nix` | SQLite backup utility |
-| `shadowsocks.nix` | Shadowsocks common config |
 | `backup-gpg-public.asc` | GPG public key for backups |
 
 ## Secrets

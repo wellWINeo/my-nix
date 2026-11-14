@@ -42,12 +42,6 @@ in
     gatewayIP = gatewayIP;
   };
 
-  roles.shadowsocks-client = {
-    enable = true;
-    host = "gw.uspenskiy.su";
-    openFirewall = true;
-  };
-
   roles.wireguard-client = {
     enable = true;
     ip = "10.20.0.25";

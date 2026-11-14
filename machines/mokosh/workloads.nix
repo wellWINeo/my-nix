@@ -163,13 +163,6 @@ in
     enableWeb = true;
   };
 
-  roles.shadowsocks-server = {
-    enable = true;
-    openFirewall = false;
-    baseDomain = domainNames.secondary;
-    enableWeb = true;
-  };
-
   roles.calibre = {
     enable = true;
     baseDomain = domainNames.secondary;

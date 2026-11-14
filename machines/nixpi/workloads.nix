@@ -60,7 +60,7 @@ in
     client = {
       enable = true;
       ingress = {
-        socks.port = 1081;
+        socks.port = 1080;
         http.enable = true;
         openFirewall = true;
         tunnels = [

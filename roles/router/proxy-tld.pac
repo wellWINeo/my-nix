@@ -1,4 +1,4 @@
-const SB_PROXY = "SOCKS5 192.168.0.20:1081";
+const SB_PROXY = "SOCKS5 192.168.0.20:1080";
 
 function FindProxyForURL(url, host) {
   host = host.split(":")[0].toLowerCase();

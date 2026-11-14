@@ -138,7 +138,7 @@ roles.xray.server = {
 roles.xray.client = {
   enable = true;
   ingress = {
-    socks.port = 1081;
+    socks.port = 1080;
     http.enable = true;
     openFirewall = true;
     tunnels = [ { listen = "127.0.0.1:5053"; target = "1.1.1.1:853"; } ];

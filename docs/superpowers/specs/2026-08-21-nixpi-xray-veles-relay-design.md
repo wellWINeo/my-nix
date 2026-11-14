@@ -16,7 +16,7 @@ Nixpi will run `roles.xray.client` and expose two unauthenticated TCP listeners 
 
 | Protocol | Address | Port |
 | --- | --- | --- |
-| SOCKS5 | `0.0.0.0` | `1081` |
+| SOCKS5 | `0.0.0.0` | `1080` |
 | HTTP proxy | `0.0.0.0` | `3128` |
 
 Nixpi's firewall will open both ports. This intentionally exposes unauthenticated proxies to hosts that can reach nixpi, so deployment is appropriate only on the trusted LAN.
@@ -83,5 +83,5 @@ After deployment on nixpi:
 
 1. Verify the HTTP and SOCKS5 listeners with `ss -ltnp`.
 2. Send an HTTP-proxy request with `curl -x http://127.0.0.1:3128 https://ifconfig.me`.
-3. Send a SOCKS5-proxy request with `curl --socks5-hostname 127.0.0.1:1081 https://ifconfig.me`.
+3. Send a SOCKS5-proxy request with `curl --socks5-hostname 127.0.0.1:1080 https://ifconfig.me`.
 4. Inspect `journalctl -u xray` to confirm Xray establishes a VLESS connection to Veles and failover/recovery behavior is observable.

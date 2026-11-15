@@ -44,9 +44,9 @@ function isMatch(host) {
 }
 
 function FindProxyForURL(url, host) {
-  const proxy = "SOCKS 192.168.0.20:1080";
+  const proxy = "SOCKS5 192.168.0.20:1080";
 
   if (isMatch(host)) return proxy;
-  
+
   return "DIRECT";
 }

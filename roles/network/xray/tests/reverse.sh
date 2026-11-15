@@ -690,12 +690,13 @@ printf '%s' "$nixpi" | jq -e '
   and ([.outbounds[] | select(.tag == "vless-tcp-out") | .streamSettings.realitySettings.serverName] == ["api.oneme.ru"])
   and ([.outbounds[] | select(.tag == "vless-grpc-out") | .streamSettings.realitySettings.serverName, .streamSettings.grpcSettings.serviceName] == ["avatars.mds.yandex.net", "VlGrpc"])
   and ([.outbounds[] | select(.tag == "vless-xhttp-out") | .streamSettings.realitySettings.serverName, .streamSettings.xhttpSettings.path] == ["onlymir.ru", "/vl-xhttp"])
+  and ([.inbounds[] | select(.tag == "socks-in") | .port] == [1080])
   and ([.inbounds[] | select(.tag == "tunnel-0-in") | .listen, .port, .settings.rewriteAddress, .settings.rewritePort] == ["127.0.0.1", 5053, "1.1.1.1", 853])
 ' >/dev/null
 
 # The proxy listen ports stay firewall-opened (TCP SOCKS+HTTP, UDP SOCKS).
-nix eval --json "$flake#nixosConfigurations.nixpi.config.networking.firewall.allowedTCPPorts" | jq -e '. as $ports | all([1081, 3128][]; $ports | index(.) != null)' >/dev/null
-nix eval --json "$flake#nixosConfigurations.nixpi.config.networking.firewall.allowedUDPPorts" | jq -e '. as $ports | all([1081][]; $ports | index(.) != null)' >/dev/null
+nix eval --json "$flake#nixosConfigurations.nixpi.config.networking.firewall.allowedTCPPorts" | jq -e '. as $ports | all([1080, 3128][]; $ports | index(.) != null)' >/dev/null
+nix eval --json "$flake#nixosConfigurations.nixpi.config.networking.firewall.allowedUDPPorts" | jq -e '. as $ports | all([1080][]; $ports | index(.) != null)' >/dev/null
 
 # Boundary validation: a malformed tunnel endpoint must fail evaluation with
 # the endpoint-parser message (extendModules probe; tracked config untouched).

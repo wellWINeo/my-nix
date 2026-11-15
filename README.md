@@ -38,7 +38,6 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   ├── personal-website.nix # Static personal website
 │   ├── communication/       # Mail server
 │   ├── network/             # Proxy/VPN roles
-│   │   ├── shadowsocks/     #   client + server
 │   │   ├── sing-box/        #   client + server
 │   │   ├── wireguard/       #   client + router
 │   │   ├── xray/            #   server + relay + client
@@ -60,7 +59,6 @@ Personal NixOS configuration repository for managing multiple machines and stand
 │   ├── btrfs-balance.nix    # Periodic btrfs balance
 │   ├── define-media-user.nix # Media user/group
 │   ├── sqlite-backup.nix    # SQLite backup utility
-│   └── shadowsocks.nix      # Shadowsocks common config
 ├── hardware/                # Hardware-specific configs
 │   ├── vm.nix               # Virtual machine setup
 │   └── rpi4.nix             # Raspberry Pi 4 setup

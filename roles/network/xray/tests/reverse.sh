@@ -418,10 +418,24 @@ for host in veles buyan; do
   nix eval --json "$flake#nixosConfigurations.$host.config.systemd.services.xray.serviceConfig.LoadCredential" |
     jq -e 'all(.[]; startswith("reverse-uuid:") | not)' >/dev/null
 
-  # mktemp creates an extensionless config; both CLI invocations must declare JSON.
   script=$(nix eval --raw "$flake#nixosConfigurations.$host.config.systemd.services.xray.script")
   grep -Fq 'xray run -test -format json -config "$configFile"' <<< "$script"
   grep -Fq 'exec xray run -format json -config "$configFile"' <<< "$script"
+
+  # Xray 26.11 rejects extensionless files even when -format json is set.
+  # Execute the actual rendered mktemp assignment and check its filename and permissions.
+  tempfile_assignment=$(awk '/^configFile=/{print; exit}' <<< "$script")
+  if [ -z "$tempfile_assignment" ] || ! bash -c '
+    set -eu
+    umask 077
+    eval "$1"
+    trap '\''rm -f "$configFile"'\'' EXIT
+    case "$configFile" in *.json) ;; *) exit 1 ;; esac
+    [ "$(stat -c %a "$configFile")" = 600 ]
+  ' _ "$tempfile_assignment"; then
+    echo "$host xray runtime must create a private .json config file" >&2
+    exit 1
+  fi
 done
 nix eval --json "$flake#nixosConfigurations.veles.config.systemd.services.xray.serviceConfig.LoadCredential" |
   jq -e 'any(.[]; startswith("hysteria-relay-cert:")) and any(.[]; startswith("hysteria-relay-key:"))' >/dev/null

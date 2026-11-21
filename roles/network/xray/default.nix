@@ -192,7 +192,7 @@ in
         ''
           set -euo pipefail
           umask 077
-          configFile="$(mktemp)"
+          configFile="$(mktemp --suffix=.json)"
 
           privateKey="$(cat "$CREDENTIALS_DIRECTORY/private-key")"
           cert="" certKey="" relayCert="" relayKey=""

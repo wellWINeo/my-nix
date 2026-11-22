@@ -99,6 +99,7 @@ tracer.stdout.level = "error"
 
                     for sender, envelope_sender, verdict in [
                         ("newsletter@acyl.ru", "bounce@test.invalid", "spam"),
+                        ('"foo@bar"@acyl.ru', "bounce@test.invalid", "spam"),
                         ("billing@s2.acyl.ru", "bounce@test.invalid", "spam"),
                         ("accounts@mail.s2.acyl.ru", "bounce@test.invalid", "spam"),
                         ("updates@x.mail.s2.acyl.ru", "bounce@test.invalid", "spam"),

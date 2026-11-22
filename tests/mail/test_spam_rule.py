@@ -36,7 +36,7 @@ def classify(port, sender, envelope_sender):
 
 
 class StalwartSpamRuleTest(unittest.TestCase):
-    def test_numbered_acyl_from_address_is_classified_as_spam(self):
+    def test_any_acyl_from_domain_is_classified_as_spam(self):
         repo = Path(__file__).resolve().parents[2]
         settings = json.loads(subprocess.check_output([
             "nix", "eval", "--json",
@@ -98,10 +98,15 @@ tracer.stdout.level = "error"
                         self.fail("Stalwart did not open its HTTP listener")
 
                     for sender, envelope_sender, verdict in [
-                        ("info@s2.acyl.ru", "bounce@test.invalid", "spam"),
-                        ("INFO@S42.ACYL.RU", "bounce@test.invalid", "spam"),
-                        ("info@s2.acyl.ru.example", "bounce@test.invalid", "ham"),
-                        ("billing@s2.acyl.ru", "info@s2.acyl.ru", "ham"),
+                        ("newsletter@acyl.ru", "bounce@test.invalid", "spam"),
+                        ('"foo@bar"@acyl.ru', "bounce@test.invalid", "spam"),
+                        ("billing@s2.acyl.ru", "bounce@test.invalid", "spam"),
+                        ("accounts@mail.s2.acyl.ru", "bounce@test.invalid", "spam"),
+                        ("updates@x.mail.s2.acyl.ru", "bounce@test.invalid", "spam"),
+                        ("INFO@A.B.C.D.ACYL.RU", "bounce@test.invalid", "spam"),
+                        ("info@acyl.ru.example", "bounce@test.invalid", "ham"),
+                        ("info@notacyl.ru", "bounce@test.invalid", "ham"),
+                        ("billing@test.invalid", "info@s2.acyl.ru", "ham"),
                     ]:
                         with self.subTest(sender=sender):
                             result = classify(port, sender, envelope_sender)

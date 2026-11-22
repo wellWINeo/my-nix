@@ -151,7 +151,7 @@ in
 
         spam-filter.rule.LOCAL_ACYL_SENDER = {
           scope = "any";
-          condition = "if_then(matches('(?i)^info@s[0-9]+[.]acyl[.]ru$', from), 'LOCAL_ACYL_SENDER', false)";
+          condition = "if_then(matches('(?i)^.+@([^.@]+[.])*acyl[.]ru$', from), 'LOCAL_ACYL_SENDER', false)";
         };
         spam-filter.list.scores.LOCAL_ACYL_SENDER = 10.0;
 

@@ -1,6 +1,6 @@
 { ifname }:
 
-{ ... }:
+{ lib, ... }:
 
 let
   hostname = "mokosh";
@@ -12,6 +12,14 @@ in
     ../../common/server.nix
     ../../images/do-generic
   ];
+
+  nix.settings = {
+    # Keep this after the shared Yandex cache.
+    substituters = lib.mkOrder 2000 [ "https://d3ktcuzmslp03i.cloudfront.net" ];
+    trusted-public-keys = [
+      "nix-anysync-cache:8ig/2DyERXghDDOwhDJcjZaxx+A77HwREpQfSIh1oZc="
+    ];
+  };
 
   # disk layout
   fileSystems = {

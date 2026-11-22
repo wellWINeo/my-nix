@@ -47,7 +47,7 @@ make apply:home:o__ni@Stepans-MacBook-Pro
 nix build 'path:.#homeConfigurations."o__ni@Stepans-MacBook-Pro".activationPackage'
 ```
 
-Note: There are no automated tests. Validation is via `nix flake check` and manual deployment testing.
+Test behavior rather than restating configuration: do not add tests that only assert declared configuration values or which hosts have them. Validate configuration changes with `nix flake check` and, where appropriate, manual deployment testing.
 
 ## Flake Inputs
 

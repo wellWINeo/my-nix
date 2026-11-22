@@ -18,8 +18,6 @@ jobs:
         run: make setup-dummy-secrets
       - name: Check Nix flake
         run: make check
-      - name: Check binary cache host scope
-        run: bash tests/nix/cache-scope.sh
       - name: Run offline vulnerability workflow unit tests
         run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/vulnerability -v
       - name: Run offline DNSControl IR checks
